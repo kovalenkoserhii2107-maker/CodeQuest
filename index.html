@@ -215,38 +215,16 @@
           </dl>
         </section>
 
-        <!-- ------------- Ключевые метрики ------------- -->
+        <!-- ------------- Ключевые показатели (живые данные) ------------- -->
         <section aria-labelledby="metrics-title">
           <div class="section-head">
             <div>
               <h2 id="metrics-title">Ключевые показатели</h2>
-              <p>Обновлено 3 минуты назад · источник: бортовая телеметрия</p>
+              <p>Считаются по текущему состоянию корпорации</p>
             </div>
-            <button class="btn btn--ghost btn--sm" type="button">Обновить</button>
           </div>
 
-          <div class="grid grid--metrics">
-            <article class="metric">
-              <p class="metric__label">Выполнено миссий</p>
-              <p class="metric__value">128 <small>/ 140</small></p>
-              <p class="metric__delta metric__delta--up">▲ 12 % к прошлому циклу</p>
-            </article>
-            <article class="metric">
-              <p class="metric__label">Средний срок доставки</p>
-              <p class="metric__value">4.6 <small>суток</small></p>
-              <p class="metric__delta metric__delta--down">▼ 0.4 суток</p>
-            </article>
-            <article class="metric">
-              <p class="metric__label">Аварийные сигналы</p>
-              <p class="metric__value">3</p>
-              <p class="metric__delta metric__delta--flat">— без изменений</p>
-            </article>
-            <article class="metric">
-              <p class="metric__label">Загрузка доков</p>
-              <p class="metric__value">67 <small>%</small></p>
-              <p class="metric__delta metric__delta--up">▲ 8 % за сутки</p>
-            </article>
-          </div>
+          <div class="grid grid--metrics" id="corp-metrics"></div>
         </section>
 
         <!-- ------------- Флот и системы ------------- -->
@@ -254,126 +232,11 @@
 
           <section class="panel" id="fleet" aria-labelledby="fleet-title">
             <div class="panel__head">
-              <h2 class="panel__title" id="fleet-title">Состояние флота</h2>
-              <span class="panel__hint">Сектор Орион</span>
+              <h2 class="panel__title" id="fleet-title">Имущество корпорации</h2>
+              <span class="panel__hint" id="corp-assets-hint">склад</span>
             </div>
 
-            <div class="table-wrap">
-              <table class="table">
-                <caption class="visually-hidden">Список кораблей корпорации с текущим статусом</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Судно</th>
-                    <th scope="col">Класс</th>
-                    <th scope="col">Маршрут</th>
-                    <th scope="col">Топливо</th>
-                    <th scope="col">Статус</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Аврора</span>
-                          <span class="table__ship-id">CQ-1047</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Грузовой</td>
-                    <td>Гелиос-9 → Церера</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar" style="width: 82%"></div></div>
-                      <span class="table__num">82 %</span>
-                    </td>
-                    <td><span class="badge badge--ok">В пути</span></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Персей</span>
-                          <span class="table__ship-id">CQ-2210</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Разведчик</td>
-                    <td>Пояс астероидов</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar progress__bar--warn" style="width: 41%"></div></div>
-                      <span class="table__num">41 %</span>
-                    </td>
-                    <td><span class="badge badge--warn">Дозаправка</span></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Вега</span>
-                          <span class="table__ship-id">CQ-3308</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Буксир</td>
-                    <td>Док D-2</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar" style="width: 96%"></div></div>
-                      <span class="table__num">96 %</span>
-                    </td>
-                    <td><span class="badge badge--idle">В доке</span></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Кассиопея</span>
-                          <span class="table__ship-id">CQ-4165</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Танкер</td>
-                    <td>Титан → Гелиос-9</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar progress__bar--danger" style="width: 17%"></div></div>
-                      <span class="table__num">17 %</span>
-                    </td>
-                    <td><span class="badge badge--danger badge--pulse">Тревога</span></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Орион-Прайм</span>
-                          <span class="table__ship-id">CQ-5001</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Флагман</td>
-                    <td>Орбита Марса</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar" style="width: 74%"></div></div>
-                      <span class="table__num">74 %</span>
-                    </td>
-                    <td><span class="badge badge--info">Патруль</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <div id="corp-assets"></div>
           </section>
 
           <section class="panel" id="systems" aria-labelledby="systems-title">

@@ -7,9 +7,13 @@
  * render  — как показать полученное значение.
  */
 import { SHIP } from './ship-data.js';
+import { Shipyard } from '../shipyard.js';
 import { escapeHtml, showValue } from '../ui/html.js';
 
 const json = value => JSON.stringify(value);
+
+/** Каталог настоящей верфи: приборы считают на тех же данных, что и дашборд. */
+const SHIPYARD_CATALOG = new Shipyard().getCatalog();
 
 /** Полоска со значением в процентах. */
 function gauge(percent, tone = '') {
@@ -40,21 +44,21 @@ function shieldGrid(grid, weak = null) {
 
 export const WIDGETS = [
   {
-    id: 'registry',
-    questId: 'create-base',
-    title: 'Реестр корпорации',
-    unit: 'карточка космопорта',
-    call: `createSpaceport("${SHIP.corporation.name}")`,
-    expr: `return createSpaceport(${json(SHIP.corporation.name)});`,
+    id: 'commander',
+    questId: 'create-commander',
+    title: 'Личное дело',
+    unit: 'карточка командира',
+    call: `createCommander("${SHIP.corporation.commander}")`,
+    expr: `return createCommander(${json(SHIP.corporation.commander)});`,
     render: value => {
       if (!value || typeof value !== 'object') {
         return `<p class="widget__value mono">${escapeHtml(showValue(value))}</p>`;
       }
       const rows = [
-        ['Название', value.name],
-        ['Кредиты', value.credits],
-        ['Склад', Array.isArray(value.inventory) ? `${value.inventory.length} позиций` : showValue(value.inventory)],
-        ['Экипаж', Array.isArray(value.crew) ? `${value.crew.length} человек` : showValue(value.crew)],
+        ['Имя', value.name],
+        ['Звание', value.rank],
+        ['Опыт', value.experience],
+        ['Счёт', `${showValue(value.credits)} ¢`],
       ];
       return rows
         .map(([key, val]) => `<div class="widget__row"><span>${escapeHtml(key)}</span><b class="mono">${escapeHtml(showValue(val))}</b></div>`)
@@ -62,20 +66,26 @@ export const WIDGETS = [
     },
   },
   {
-    id: 'shipyard-link',
-    questId: 'connect-shipyard',
-    title: 'Канал с верфью',
-    unit: 'подключение к каталогу',
-    call: `connectShipyard(spaceport, "${SHIP.corporation.shipyard}")`,
+    id: 'shipyard-object',
+    questId: 'create-shipyard',
+    title: 'Космоверфь',
+    unit: 'каталог на ваших методах',
+    call: `createShipyard("${SHIP.corporation.shipyard}", каталог).getCatalog()`,
     expr:
-      `const spaceport = { name: ${json(SHIP.corporation.name)}, credits: 0 };\n` +
-      `return connectShipyard(spaceport, ${json(SHIP.corporation.shipyard)});`,
+      `const yard = createShipyard(${json(SHIP.corporation.shipyard)}, ${json(SHIPYARD_CATALOG)});\n` +
+      `const found = yard.findModule(${json(SHIPYARD_CATALOG[0].id)});\n` +
+      `const missing = yard.findModule("нет-такого");\n` +
+      `return { name: yard.name, count: yard.getCatalog().length, found: found ? found.name : null, missing };`,
     render: value => {
-      const linked = value && typeof value === 'object' && value.shipyard;
-      return linked
-        ? `<p class="widget__value mono">${escapeHtml(showValue(value.shipyard))}</p>
-           <p class="widget__note">Космопорт «${escapeHtml(showValue(value.name))}» на связи с верфью</p>`
-        : `<p class="widget__empty">Свойство shipyard не появилось: ${escapeHtml(showValue(value))}</p>`;
+      if (!value || typeof value !== 'object') {
+        return `<p class="widget__value mono">${escapeHtml(showValue(value))}</p>`;
+      }
+      return `
+        <p class="widget__value mono">${escapeHtml(showValue(value.count))} <small>модулей</small></p>
+        <div class="widget__row"><span>Верфь</span><b class="mono">${escapeHtml(showValue(value.name))}</b></div>
+        <div class="widget__row"><span>findModule</span><b class="mono">${escapeHtml(showValue(value.found))}</b></div>
+        <div class="widget__row"><span>Если не найдено</span><b class="mono">${escapeHtml(showValue(value.missing))}</b></div>
+      `;
     },
   },
   {

@@ -2,7 +2,7 @@ import { PlayerState } from './player.js';
 import { Warehouse } from './warehouse.js';
 import { Shipyard } from './shipyard.js';
 import { LaborExchange } from './crew.js';
-import { subscribe, isSolved, refundCredits } from './state.js'; // Подписка на глобальное состояние
+import { subscribe, isSolved, refundCredits, solvedCount, totalCount } from './state.js';
 
 // Инициализация классов-оберток
 const player = new PlayerState();
@@ -32,16 +32,83 @@ export function updateDashboard() {
   }
 }
 
+/**
+ * Ключевые показатели корпорации. Раньше здесь стояли витринные числа,
+ * которые противоречили реальному состоянию: теперь всё считается по state.
+ */
+export function renderMetrics() {
+  const container = document.getElementById('corp-metrics');
+  if (!container) return;
+
+  const crew = player.crew;
+  const salary = crew.reduce((sum, member) => sum + (member.salary || 0), 0);
+  const free = warehouse.capacity - warehouse.getUsedSpace();
+
+  const tiles = [
+    { label: 'Бюджет', value: player.credits.toLocaleString(), unit: '¢', note: crew.length ? `Зарплаты за миссию: ${salary.toLocaleString()} ¢` : 'Экипаж не нанят' },
+    { label: 'Решено задач', value: `${solvedCount()}`, unit: `/ ${totalCount()}`, note: 'Задачи открывают механики корпорации' },
+    { label: 'Модулей на складе', value: `${warehouse.items.length}`, unit: 'шт.', note: `Свободно ${free} из ${warehouse.capacity} т` },
+    { label: 'Экипаж', value: `${crew.length}`, unit: 'чел.', note: crew.length ? crew.map(c => c.role).join(', ') : 'Нанимайте на бирже труда' },
+  ];
+
+  container.innerHTML = tiles
+    .map(tile => `
+      <article class="metric">
+        <p class="metric__label">${tile.label}</p>
+        <p class="metric__value">${tile.value} <small>${tile.unit}</small></p>
+        <p class="metric__delta metric__delta--flat">${tile.note}</p>
+      </article>
+    `)
+    .join('');
+}
+
+/** Имущество корпорации: то, что реально куплено и лежит на складе. */
+export function renderAssets() {
+  const container = document.getElementById('corp-assets');
+  const hint = document.getElementById('corp-assets-hint');
+  if (!container) return;
+
+  const items = warehouse.items;
+  if (hint) hint.textContent = `${warehouse.getUsedSpace()} / ${warehouse.capacity} т`;
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <p class="panel__empty" style="padding: 16px 0; color: var(--color-dim)">
+        Склад пуст. Решите задачу «Космоверфь» и купите первый модуль в каталоге ниже.
+      </p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th scope="col">Модуль</th><th scope="col">Тип</th><th scope="col">Вес</th></tr>
+        </thead>
+        <tbody>
+          ${items
+            .map(item => `
+              <tr>
+                <td><span class="table__ship-name">${item.name}</span></td>
+                <td>${item.type ?? '—'}</td>
+                <td class="table__num">${item.weight} т</td>
+              </tr>`)
+            .join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
 // Рендер каталога Верфи
 export function renderShipyard() {
   const container = document.getElementById('shipyard-catalog');
   if (!container) return;
 
-  if (!isSolved('connect-shipyard')) {
+  if (!isSolved('create-shipyard')) {
     container.innerHTML = `
       <article class="metric" style="border: 1px dashed var(--warning); opacity: 0.8">
-        <p class="metric__label" style="color: var(--warning)">ВЕРФЬ НЕДОСТУПНА</p>
-        <p style="font-size: 0.9rem; margin-top: 8px;">Выполните задачу «Подключение Верфи» в тренажере.</p>
+        <p class="metric__label" style="color: var(--warning)">ВЕРФЬ НЕ ПОСТРОЕНА</p>
+        <p style="font-size: 0.9rem; margin-top: 8px;">Решите задачу «Космоверфь» — каталог появится здесь.</p>
       </article>
     `;
     return;
@@ -94,8 +161,8 @@ export function renderCrew() {
   const exchangeContainer = document.getElementById('exchange-candidates');
   if (!hiredContainer || !exchangeContainer) return;
 
-  if (!isSolved('create-base')) {
-    hiredContainer.innerHTML = '<p class="panel__empty" style="color: var(--warning)">Доступ запрещен. Сначала решите задачу «Регистрация корпорации».</p>';
+  if (!isSolved('create-commander')) {
+    hiredContainer.innerHTML = '<p class="panel__empty" style="color: var(--warning)">Доступ закрыт. Сначала решите задачу «Личное дело командира».</p>';
     exchangeContainer.innerHTML = '<p class="panel__empty" style="color: var(--warning)">Биржа недоступна.</p>';
     return;
   }
@@ -178,6 +245,8 @@ export function renderCrew() {
 document.addEventListener('DOMContentLoaded', () => {
   // Первичный рендер
   updateDashboard();
+  renderMetrics();
+  renderAssets();
   renderShipyard();
   renderCrew();
 
@@ -185,6 +254,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // мы автоматически перерисовываем нужные части интерфейса.
   subscribe(() => {
     updateDashboard();
+    renderMetrics();
+    renderAssets();
     renderShipyard();  // без этого верфь оставалась закрытой до перезагрузки
     renderCrew();
   });

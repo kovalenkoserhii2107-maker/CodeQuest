@@ -17,7 +17,7 @@ export const SECTORS = [
     x: 50,
     y: 200,
     module: 'base',
-    brief: 'Пустырь на окраине. Здесь будет заложен фундамент вашей корпорации.',
+    brief: 'Пустырь на окраине. Личное дело командира и договор с верфью — отсюда начинается корпорация.',
     requires: [],
   },
   {
@@ -27,7 +27,7 @@ export const SECTORS = [
     y: 300,
     module: 'reactor',
     brief: 'Стартовая орбита. Пока реактор не выведен на режим, дальше не уйти.',
-    requires: ['connect-shipyard'],
+    requires: ['create-shipyard'],
   },
   {
     id: 'belt',
@@ -82,73 +82,138 @@ export const QUESTS = [
   /* Сектор: Штаб-квартира — основание                                   */
   /* ------------------------------------------------------------------ */
   {
-    id: 'create-base',
+    id: 'create-commander',
     sector: 'hq',
     module: 'base',
-    title: 'Регистрация корпорации',
+    title: 'Личное дело командира',
     difficulty: 1,
-    topic: 'Объекты, создание',
+    topic: 'Объекты: создание и свойства',
     reward: { credits: 15000, xp: 50 },
     brief:
-      'Первый шаг к звездам — регистрация корпорации. ' +
-      'Напишите функцию createSpaceport(name), которая принимает название базы ' +
-      'и возвращает объект с полями: name (переданное имя), credits (0), ' +
-      'inventory (пустой массив) и crew (пустой массив).',
+      'Совет Колоний не выдаёт лицензию безымянным. Первым делом заведите личное дело.\n' +
+      'Напишите функцию createCommander(name), которая возвращает объект командира с полями:\n' +
+      '• name — переданное имя;\n' +
+      '• rank — строка "Командир";\n' +
+      '• experience — 0 (опыт растёт за миссии);\n' +
+      '• credits — 0 (стартовый счёт пуст).',
     theory: [
-      'Объекты создаются с помощью фигурных скобок: { key: "value" }.',
-      'Массив — это квадратные скобки [].',
-      'Если ключ совпадает с именем переменной, можно писать короче: { name } вместо { name: name }.'
+      'Объект записывается фигурными скобками: { ключ: значение, другой: 1 }.',
+      'Если имя свойства совпадает с именем переменной, работает сокращение: { name } вместо { name: name }.',
+      'Строки в кавычках, числа без них: rank: "Командир", experience: 0.',
     ],
-    fn: 'createSpaceport',
+    fn: 'createCommander',
     starter:
-      'function createSpaceport(name) {\n' +
-      '  // верните объект космопорта\n' +
+      'function createCommander(name) {\n' +
+      '  // верните объект командира с четырьмя полями\n' +
       '}\n',
     hints: [
-      'return { name: name, credits: 0, inventory: [], crew: [] };'
+      'Функция должна вернуть объект целиком: return { ... };',
+      'return { name, rank: "Командир", experience: 0, credits: 0 };',
     ],
     solution:
-      'function createSpaceport(name) {\n' +
-      '  return { name, credits: 0, inventory: [], crew: [] };\n' +
+      'function createCommander(name) {\n' +
+      '  return { name, rank: "Командир", experience: 0, credits: 0 };\n' +
       '}\n',
     tests: [
-      { name: 'Создание "Авангард"', args: ['Авангард'], expected: { name: 'Авангард', credits: 0, inventory: [], crew: [] } },
-      { name: 'Создание "Звезда"', args: ['Звезда'], expected: { name: 'Звезда', credits: 0, inventory: [], crew: [] } },
+      {
+        name: 'Личное дело Сергея',
+        args: ['Сергей Коваленко'],
+        expected: { name: 'Сергей Коваленко', rank: 'Командир', experience: 0, credits: 0 },
+      },
+      {
+        name: 'Имя подставляется, а не зашивается',
+        args: ['Анна Кравец'],
+        expected: { name: 'Анна Кравец', rank: 'Командир', experience: 0, credits: 0 },
+      },
+      {
+        name: 'Опыт — число, а не строка',
+        expr: 'return typeof createCommander("Тест").experience;',
+        expected: 'number',
+      },
+      {
+        name: 'Возвращается объект',
+        expr: 'const c = createCommander("Тест"); return typeof c === "object" && c !== null;',
+        expected: true,
+      },
     ],
   },
   {
-    id: 'connect-shipyard',
+    id: 'create-shipyard',
     sector: 'hq',
     module: 'base',
-    title: 'Подключение Верфи',
-    difficulty: 1,
-    topic: 'Объекты, мутация',
-    reward: { credits: 26000, xp: 50 },
+    title: 'Космоверфь',
+    difficulty: 2,
+    topic: 'Объекты с методами, this',
+    reward: { credits: 26000, xp: 70 },
     brief:
-      'Нам нужен доступ к каталогу модулей. ' +
-      'Напишите функцию connectShipyard(spaceport, shipyardName), которая ' +
-      'добавляет объекту spaceport новое свойство shipyard, равное переданному имени, ' +
-      'и возвращает этот объект.',
+      'Верфь — это не просто список деталей: она должна уметь показывать каталог и искать по нему.\n' +
+      'Напишите функцию createShipyard(name, modules), которая возвращает объект с полями name и modules ' +
+      'и двумя методами:\n' +
+      '• getCatalog() — возвращает массив модулей;\n' +
+      '• findModule(id) — возвращает модуль с таким id или null, если такого нет.',
     theory: [
-      'Чтобы добавить свойство в существующий объект, используйте точечную нотацию: obj.key = value.',
-      'Функция должна вернуть измененный объект (return spaceport).'
+      'Метод — это функция внутри объекта: { getCatalog() { return this.modules; } }.',
+      'Ключевое слово this внутри метода указывает на сам объект.',
+      'find возвращает первый подходящий элемент или undefined — превратить его в null помогает ?? null.',
     ],
-    fn: 'connectShipyard',
+    fn: 'createShipyard',
     starter:
-      'function connectShipyard(spaceport, shipyardName) {\n' +
-      '  // добавьте свойство shipyard в объект spaceport и верните его\n' +
+      'function createShipyard(name, modules) {\n' +
+      '  return {\n' +
+      '    name,\n' +
+      '    modules,\n' +
+      '    // добавьте методы getCatalog и findModule\n' +
+      '  };\n' +
       '}\n',
     hints: [
-      'spaceport.shipyard = shipyardName;\nreturn spaceport;'
+      'Метод пишется прямо в объекте: getCatalog() { return this.modules; },',
+      'findModule(id) { return this.modules.find(m => m.id === id) ?? null; }',
     ],
     solution:
-      'function connectShipyard(spaceport, shipyardName) {\n' +
-      '  spaceport.shipyard = shipyardName;\n' +
-      '  return spaceport;\n' +
+      'function createShipyard(name, modules) {\n' +
+      '  return {\n' +
+      '    name,\n' +
+      '    modules,\n' +
+      '    getCatalog() {\n' +
+      '      return this.modules;\n' +
+      '    },\n' +
+      '    findModule(id) {\n' +
+      '      return this.modules.find(module => module.id === id) ?? null;\n' +
+      '    },\n' +
+      '  };\n' +
       '}\n',
     tests: [
-      { name: 'Верфь "Орион"', args: [{ name: 'База', credits: 0 }, 'Орион'], expected: { name: 'База', credits: 0, shipyard: 'Орион' } },
-      { name: 'Верфь "Сириус"', args: [{ name: 'Альфа', credits: 0 }, 'Сириус'], expected: { name: 'Альфа', credits: 0, shipyard: 'Сириус' } },
+      {
+        name: 'Название верфи сохранено',
+        expr: 'return createShipyard("Орион", []).name;',
+        expected: 'Орион',
+      },
+      {
+        name: 'Каталог возвращается целиком',
+        expr:
+          'const yard = createShipyard("Орион", [{ id: "a", name: "Бур" }, { id: "b", name: "Реактор" }]);\n' +
+          'return yard.getCatalog();',
+        expected: [{ id: 'a', name: 'Бур' }, { id: 'b', name: 'Реактор' }],
+      },
+      {
+        name: 'Поиск находит модуль по id',
+        expr:
+          'const yard = createShipyard("Орион", [{ id: "a", name: "Бур" }, { id: "b", name: "Реактор" }]);\n' +
+          'return yard.findModule("b").name;',
+        expected: 'Реактор',
+      },
+      {
+        name: 'Неизвестный модуль даёт null',
+        expr:
+          'const yard = createShipyard("Орион", [{ id: "a", name: "Бур" }]);\n' +
+          'return yard.findModule("нет-такого");',
+        expected: null,
+      },
+      {
+        name: 'Пустая верфь не ломается',
+        expr: 'return createShipyard("Пустая", []).getCatalog().length;',
+        expected: 0,
+      },
     ],
   },
 
