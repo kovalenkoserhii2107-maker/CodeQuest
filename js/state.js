@@ -194,6 +194,14 @@ export function spendCredits(amount) {
   return false;
 }
 
+/** Возврат кредитов: нужен, когда покупка сорвалась уже после списания. */
+export function refundCredits(amount) {
+  if (amount <= 0) return false;
+  state.credits += amount;
+  emit();
+  return true;
+}
+
 export function addInventoryItem(item) {
   if (!state.inventory) state.inventory = [];
   state.inventory.push(item);

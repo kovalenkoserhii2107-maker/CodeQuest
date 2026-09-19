@@ -2,7 +2,7 @@ import { PlayerState } from './player.js';
 import { Warehouse } from './warehouse.js';
 import { Shipyard } from './shipyard.js';
 import { LaborExchange } from './crew.js';
-import { subscribe, isSolved } from './state.js'; // Подписка на глобальное состояние
+import { subscribe, isSolved, refundCredits } from './state.js'; // Подписка на глобальное состояние
 
 // Инициализация классов-оберток
 const player = new PlayerState();
@@ -68,13 +68,20 @@ export function renderShipyard() {
         return;
       }
       
-      if (player.spendCredits(module.price)) {
-        const item = shipyard.getModule(module.id);
-        warehouse.addItem(item);
-        toast(`Куплен: ${module.name}`);
-      } else {
-        toast("Недостаточно кредитов! Решайте задачи в тренажере.");
+      if (!player.spendCredits(module.price)) {
+        toast('Недостаточно кредитов! Решайте задачи в тренажёре.');
+        return;
       }
+
+      const item = shipyard.getModule(module.id);
+      if (!warehouse.addItem(item)) {
+        // Склад отказал уже после списания — возвращаем кредиты
+        refundCredits(module.price);
+        toast('Склад не принял модуль, кредиты возвращены');
+        return;
+      }
+
+      toast(`Куплен: ${module.name}`);
     });
 
     container.appendChild(article);
@@ -141,14 +148,26 @@ export function renderCrew() {
 
       const hireBtn = article.querySelector('button');
       hireBtn.addEventListener('click', () => {
-        if (player.spendCredits(c.hireCost)) {
-          // Получаем полный объект кандидата
-          const hiredCrew = laborExchange.getCandidates().find(cand => cand.id === c.id);
-          player.addCrewMember(hiredCrew);
-          toast(`Нанят: ${c.name}`);
-        } else {
-          toast("Недостаточно кредитов! Решайте задачи в тренажере.");
+        // Быстрый повторный клик не должен нанимать одного и того же дважды
+        if (player.crew.some(hired => hired.id === c.id)) return;
+        hireBtn.disabled = true;
+
+        if (!player.spendCredits(c.hireCost)) {
+          hireBtn.disabled = false;
+          toast('Недостаточно кредитов! Решайте задачи в тренажёре.');
+          return;
         }
+
+        const hiredCrew = laborExchange.hire(c.id);
+        if (!hiredCrew) {
+          refundCredits(c.hireCost);
+          hireBtn.disabled = false;
+          toast('Кандидат уже занят, кредиты возвращены');
+          return;
+        }
+
+        player.addCrewMember(hiredCrew);
+        toast(`Нанят: ${c.name}`);
       });
       exchangeContainer.appendChild(article);
     });
@@ -166,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // мы автоматически перерисовываем нужные части интерфейса.
   subscribe(() => {
     updateDashboard();
+    renderShipyard();  // без этого верфь оставалась закрытой до перезагрузки
     renderCrew();
   });
 });

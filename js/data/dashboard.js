@@ -40,6 +40,45 @@ function shieldGrid(grid, weak = null) {
 
 export const WIDGETS = [
   {
+    id: 'registry',
+    questId: 'create-base',
+    title: 'Реестр корпорации',
+    unit: 'карточка космопорта',
+    call: `createSpaceport("${SHIP.corporation.name}")`,
+    expr: `return createSpaceport(${json(SHIP.corporation.name)});`,
+    render: value => {
+      if (!value || typeof value !== 'object') {
+        return `<p class="widget__value mono">${escapeHtml(showValue(value))}</p>`;
+      }
+      const rows = [
+        ['Название', value.name],
+        ['Кредиты', value.credits],
+        ['Склад', Array.isArray(value.inventory) ? `${value.inventory.length} позиций` : showValue(value.inventory)],
+        ['Экипаж', Array.isArray(value.crew) ? `${value.crew.length} человек` : showValue(value.crew)],
+      ];
+      return rows
+        .map(([key, val]) => `<div class="widget__row"><span>${escapeHtml(key)}</span><b class="mono">${escapeHtml(showValue(val))}</b></div>`)
+        .join('');
+    },
+  },
+  {
+    id: 'shipyard-link',
+    questId: 'connect-shipyard',
+    title: 'Канал с верфью',
+    unit: 'подключение к каталогу',
+    call: `connectShipyard(spaceport, "${SHIP.corporation.shipyard}")`,
+    expr:
+      `const spaceport = { name: ${json(SHIP.corporation.name)}, credits: 0 };\n` +
+      `return connectShipyard(spaceport, ${json(SHIP.corporation.shipyard)});`,
+    render: value => {
+      const linked = value && typeof value === 'object' && value.shipyard;
+      return linked
+        ? `<p class="widget__value mono">${escapeHtml(showValue(value.shipyard))}</p>
+           <p class="widget__note">Космопорт «${escapeHtml(showValue(value.name))}» на связи с верфью</p>`
+        : `<p class="widget__empty">Свойство shipyard не появилось: ${escapeHtml(showValue(value))}</p>`;
+    },
+  },
+  {
     id: 'fuel',
     questId: 'fuel-percent',
     title: 'Топливо',

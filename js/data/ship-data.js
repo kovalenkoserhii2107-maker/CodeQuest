@@ -4,6 +4,7 @@
  */
 export const SHIP = {
   name: 'Квест',
+  corporation: { name: 'Гелиос-9', shipyard: 'Орион' },
   fuel: { current: 318, capacity: 400 },
   reactor: { temperature: 742, pressure: 8 },
 
