@@ -48,16 +48,49 @@ export function moveBox(box, dx, dy, bounds) {
   return clampBox({ ...box, left: box.left + dx, top: box.top + dy }, bounds);
 }
 
-/** Изменение размера за правый нижний угол. */
-export function resizeBox(box, dx, dy, bounds) {
-  const maxWidth = bounds.width - box.left - MARGIN;
-  const maxHeight = bounds.height - box.top - MARGIN;
+/**
+ * Изменение размера за любую сторону или угол.
+ *
+ * edge — набор букв сторон: 'n', 's', 'e', 'w' и их сочетания ('se', 'nw').
+ * Тянем за левую или верхнюю сторону — вместе с размером двигается и угол,
+ * противоположная сторона остаётся на месте.
+ */
+export function resizeBoxEdge(box, edge, dx, dy, bounds) {
+  let { left, top, width, height } = box;
 
-  return {
-    ...box,
-    width: Math.max(MIN_WIDTH, Math.min(box.width + dx, Math.max(MIN_WIDTH, maxWidth))),
-    height: Math.max(MIN_HEIGHT, Math.min(box.height + dy, Math.max(MIN_HEIGHT, maxHeight))),
-  };
+  if (edge.includes('e')) {
+    width = Math.min(width + dx, bounds.width - left - MARGIN);
+  }
+  if (edge.includes('s')) {
+    height = Math.min(height + dy, bounds.height - top - MARGIN);
+  }
+  if (edge.includes('w')) {
+    const right = left + width;
+    left = Math.max(0, Math.min(left + dx, right - MIN_WIDTH));
+    width = right - left;
+  }
+  if (edge.includes('n')) {
+    const bottom = top + height;
+    top = Math.max(0, Math.min(top + dy, bottom - MIN_HEIGHT));
+    height = bottom - top;
+  }
+
+  // Меньше минимума не ужимаем, но и противоположную сторону не тянем
+  if (width < MIN_WIDTH) {
+    if (edge.includes('w')) left = Math.max(0, left - (MIN_WIDTH - width));
+    width = MIN_WIDTH;
+  }
+  if (height < MIN_HEIGHT) {
+    if (edge.includes('n')) top = Math.max(0, top - (MIN_HEIGHT - height));
+    height = MIN_HEIGHT;
+  }
+
+  return clampBox({ left, top, width, height }, bounds);
+}
+
+/** Изменение размера за правый нижний угол — частый случай. */
+export function resizeBox(box, dx, dy, bounds) {
+  return resizeBoxEdge(box, 'se', dx, dy, bounds);
 }
 
 const STORAGE_KEY = 'codequest.hint.box';
