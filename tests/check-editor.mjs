@@ -9,7 +9,7 @@ import { tokenize, highlight } from '../js/editor/highlight.js';
 import { suggest, inferType, localNames, completionContext } from '../js/editor/complete.js';
 import { JS_API } from '../js/data/js-api.js';
 import {
-  boxNearCaret, clampBox, defaultSize, moveBox, resizeBox, MIN_WIDTH, MIN_HEIGHT,
+  boxNearCaret, clampBox, defaultSize, moveBox, resizeBox, resizeBoxEdge, MIN_WIDTH, MIN_HEIGHT,
 } from '../js/editor/hint-box.js';
 
 let failures = 0;
@@ -169,6 +169,37 @@ check(shrunk.width === MIN_WIDTH && shrunk.height === MIN_HEIGHT, 'окно не
 const tiny = clampBox({ left: 0, top: 0, width: 520, height: 260 }, { width: 320, height: 220 });
 check(tiny.width <= 320 && tiny.height <= 220, 'на узком экране окно ужимается под редактор');
 check(defaultSize({ width: 300, height: 200 }).width >= MIN_WIDTH, 'размер по умолчанию не меньше минимального');
+
+/* --- Размер окна со всех сторон ------------------------------------------ */
+
+const base = { left: 200, top: 150, width: 300, height: 200 };
+const big = { width: 800, height: 500 };
+
+const east = resizeBoxEdge(base, 'e', 40, 0, big);
+check(east.width === 340 && east.left === 200, 'правая сторона расширяет окно, левая на месте');
+
+const west = resizeBoxEdge(base, 'w', 40, 0, big);
+check(west.left === 240 && west.left + west.width === 500, 'левая сторона сужает окно, правая на месте');
+
+const north = resizeBoxEdge(base, 'n', 0, 30, big);
+check(north.top === 180 && north.top + north.height === 350, 'верхняя сторона двигается, нижняя на месте');
+
+const south = resizeBoxEdge(base, 's', 0, 30, big);
+check(south.height === 230 && south.top === 150, 'нижняя сторона растягивает окно вниз');
+
+const corner = resizeBoxEdge(base, 'nw', -50, -50, big);
+check(corner.left === 150 && corner.top === 100 && corner.width === 350 && corner.height === 250,
+  'угол меняет обе стороны сразу');
+
+const tooNarrow = resizeBoxEdge(base, 'w', 500, 0, big);
+check(tooNarrow.width === MIN_WIDTH && tooNarrow.left + tooNarrow.width <= 500,
+  'сужение левой стороной останавливается на минимуме');
+
+const outside = resizeBoxEdge(base, 'n', 0, -400, big);
+check(outside.top >= 0 && outside.top + outside.height <= big.height, 'растягивание не выходит за редактор');
+
+check(JSON.stringify(resizeBox(base, 40, 30, big)) === JSON.stringify(resizeBoxEdge(base, 'se', 40, 30, big)),
+  'угловой resizeBox остался частным случаем resizeBoxEdge');
 
 console.log(failures === 0 ? '\nРедактор: все проверки пройдены' : `\nРедактор: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

@@ -66,6 +66,12 @@
   height: 380px;
 }
 
+/*
+ * Три слоя обязаны совпадать до пикселя, иначе выделение и каретка в поле
+ * ввода разъезжаются с отрисованным текстом. Поэтому типографика задаётся
+ * здесь одним блоком, а лигатуры выключены: в подсветке текст разрезан на
+ * span-ы, и пары вроде != там не склеиваются, а в textarea — склеились бы.
+ */
 .editor__highlight,
 .editor__input,
 .editor__mirror {
@@ -73,12 +79,25 @@
   padding: var(--editor-padding);
   font-family: var(--font-mono);
   font-size: var(--editor-font-size);
+  font-weight: 400;
   line-height: var(--editor-line-height);
   letter-spacing: normal;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "clig" 0, "calt" 0;
   tab-size: 2;
   white-space: pre;
   word-wrap: normal;
   border: 0;
+}
+
+/* У <code> собственный шрифт из стилей браузера — возвращаем общий */
+.editor__highlight code {
+  font: inherit;
+  letter-spacing: inherit;
+  font-variant-ligatures: inherit;
+  font-feature-settings: inherit;
+  tab-size: inherit;
+  white-space: inherit;
 }
 
 .editor__highlight {
@@ -123,6 +142,34 @@
 .tok-literal { color: var(--tok-literal); }
 .tok-word    { color: var(--tok-word); }
 
+.editor__resizer {
+  height: 10px;
+  margin-top: 2px;
+  border-radius: var(--radius-pill);
+  cursor: ns-resize;
+  touch-action: none;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 calc(50% - 18px),
+    var(--color-line) calc(50% - 18px) calc(50% + 18px),
+    transparent calc(50% + 18px)
+  );
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: background-image 0.2s;
+}
+
+.editor__resizer:hover,
+.editor__resizer.is-active {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 calc(50% - 26px),
+    var(--color-accent) calc(50% - 26px) calc(50% + 26px),
+    transparent calc(50% + 26px)
+  );
+}
+
 .editor__legend {
   display: flex;
   flex-wrap: wrap;
@@ -151,7 +198,6 @@
   border-radius: var(--radius-md);
   background-color: var(--color-panel);
   box-shadow: var(--shadow-panel);
-  overflow: hidden;
 }
 
 /* Окно, поставленное вручную, помечается акцентной полоской заголовка */
@@ -160,6 +206,7 @@
 }
 
 .hint__bar {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -206,6 +253,8 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 .hint__list {
@@ -246,14 +295,57 @@
   white-space: nowrap;
 }
 
-.hint__grip {
+/* Ручки изменения размера: полосы по сторонам и квадраты в углах */
+.hint__resize {
   position: absolute;
-  right: 0;
-  bottom: 0;
+  touch-action: none;
+  z-index: 2;
+}
+
+/*
+ * Ручки сидят по центру рамки и заходят наружу: внутри у панели описания
+ * своя полоса прокрутки, и она перехватывала бы нажатие у правого края.
+ */
+.hint__resize--n,
+.hint__resize--s {
+  left: 16px;
+  right: 16px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.hint__resize--e,
+.hint__resize--w {
+  top: 16px;
+  bottom: 16px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.hint__resize--n { top: -5px; }
+.hint__resize--s { bottom: -5px; }
+.hint__resize--e { right: -5px; }
+.hint__resize--w { left: -5px; }
+
+.hint__resize--ne,
+.hint__resize--nw,
+.hint__resize--se,
+.hint__resize--sw {
   width: 18px;
   height: 18px;
-  cursor: nwse-resize;
-  touch-action: none;
+}
+
+.hint__resize--ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.hint__resize--nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.hint__resize--sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.hint__resize--se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+/* Уголок видно всегда — по нему понятно, что окно тянется */
+.hint__resize--se {
+  width: 20px;
+  height: 20px;
+  bottom: -4px;
+  right: -4px;
   background-image: linear-gradient(
     135deg,
     transparent 0 45%,
@@ -265,8 +357,17 @@
   opacity: 0.7;
 }
 
-.hint__grip:hover {
+.hint__resize--se:hover {
   opacity: 1;
+}
+
+/* Подсветка края под курсором — видно, что сторону можно потянуть */
+.hint__resize:hover {
+  background-color: rgba(77, 227, 255, 0.22);
+}
+
+.hint__resize--se:hover {
+  background-color: transparent;
 }
 
 .hintdoc {

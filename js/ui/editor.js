@@ -17,7 +17,7 @@ import {
 import { highlight } from '../editor/highlight.js';
 import { suggest } from '../editor/complete.js';
 import {
-  boxNearCaret, clampBox, defaultSize, forgetBox, loadBox, moveBox, resizeBox, saveBox,
+  boxNearCaret, clampBox, defaultSize, forgetBox, loadBox, moveBox, resizeBoxEdge, saveBox,
 } from '../editor/hint-box.js';
 import { escapeHtml } from './html.js';
 
@@ -102,7 +102,7 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
       <div class="editor__gutter" aria-hidden="true"></div>
       <div class="editor__area">
         <pre class="editor__highlight" aria-hidden="true"><code></code></pre>
-        <textarea id="code" class="editor__input mono" spellcheck="false" autocomplete="off"
+        <textarea id="code" class="editor__input" spellcheck="false" autocomplete="off"
                   autocapitalize="off" autocorrect="off" wrap="off"
                   aria-label="Код решения"></textarea>
         <div class="editor__mirror" aria-hidden="true"></div>
@@ -118,9 +118,18 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
           <ul class="hint__list" role="listbox" aria-label="Подсказки"></ul>
           <div class="hintdoc"></div>
         </div>
-        <span class="hint__grip" title="Потяните, чтобы изменить размер"></span>
+        <span class="hint__resize hint__resize--n" data-edge="n"></span>
+        <span class="hint__resize hint__resize--s" data-edge="s"></span>
+        <span class="hint__resize hint__resize--e" data-edge="e"></span>
+        <span class="hint__resize hint__resize--w" data-edge="w"></span>
+        <span class="hint__resize hint__resize--ne" data-edge="ne"></span>
+        <span class="hint__resize hint__resize--nw" data-edge="nw"></span>
+        <span class="hint__resize hint__resize--sw" data-edge="sw"></span>
+        <span class="hint__resize hint__resize--se" data-edge="se" title="Потяните, чтобы изменить размер"></span>
       </div>
     </div>
+    <div class="editor__resizer" role="separator" aria-label="Изменить высоту редактора"
+         title="Потяните, чтобы изменить высоту редактора"></div>
     <p class="editor__legend">
       <span><b>Ctrl + Space</b> — подсказки</span>
       <span><b>Ctrl + Enter</b> — запустить тесты</span>
@@ -135,7 +144,8 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
   const mirror = container.querySelector('.editor__mirror');
   const hint = container.querySelector('.hint');
   const hintBar = container.querySelector('.hint__bar');
-  const hintGrip = container.querySelector('.hint__grip');
+  const editorArea = container.querySelector('.editor__area');
+  const editorResizer = container.querySelector('.editor__resizer');
   const list = container.querySelector('.hint__list');
   const doc = container.querySelector('.hintdoc');
   const editorEl = container.querySelector('.editor');
@@ -251,8 +261,68 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
     startPointerAction(event, (start, dx, dy, area) => moveBox(start, dx, dy, area));
   });
 
-  hintGrip.addEventListener('pointerdown', event => {
-    startPointerAction(event, (start, dx, dy, area) => resizeBox(start, dx, dy, area));
+  // Клик по списку, описанию или краю — работа с окном, а не уход из него
+  hint.addEventListener('pointerdown', () => {
+    holdingHint = true;
+  }, true);
+
+  window.addEventListener('pointerup', () => {
+    // Отпускаем флаг после того, как отработают обработчики blur
+    setTimeout(() => {
+      holdingHint = false;
+    }, 200);
+  });
+
+  hint.addEventListener('pointerdown', event => {
+    const edge = event.target.closest('[data-edge]')?.dataset.edge;
+    if (!edge) return;
+    startPointerAction(event, (start, dx, dy, area) => resizeBoxEdge(start, edge, dx, dy, area));
+  });
+
+  /* --- высота редактора ------------------------------------------------- */
+
+  const HEIGHT_KEY = 'codequest.editor.height';
+  const MIN_EDITOR_HEIGHT = 200;
+  const MAX_EDITOR_HEIGHT = 900;
+
+  function applyEditorHeight(height) {
+    const next = Math.max(MIN_EDITOR_HEIGHT, Math.min(height, MAX_EDITOR_HEIGHT));
+    editorArea.style.height = `${next}px`;
+    return next;
+  }
+
+  try {
+    const saved = Number(localStorage.getItem(HEIGHT_KEY));
+    if (saved) applyEditorHeight(saved);
+  } catch {
+    /* хранилище недоступно — остаётся высота по умолчанию */
+  }
+
+  editorResizer.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = editorArea.offsetHeight;
+    editorResizer.classList.add('is-active');
+
+    const move = moveEvent => {
+      applyEditorHeight(startHeight + (moveEvent.clientY - startY));
+      if (!hint.hidden) placeHint();
+    };
+
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      editorResizer.classList.remove('is-active');
+      try {
+        localStorage.setItem(HEIGHT_KEY, String(editorArea.offsetHeight));
+      } catch {
+        /* не сохранилось — не страшно */
+      }
+      render();
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop);
   });
 
   hintBar.addEventListener('pointerdown', event => {
