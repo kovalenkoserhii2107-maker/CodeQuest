@@ -8,6 +8,9 @@ import {
 import { tokenize, highlight } from '../js/editor/highlight.js';
 import { suggest, inferType, localNames, completionContext } from '../js/editor/complete.js';
 import { JS_API } from '../js/data/js-api.js';
+import {
+  boxNearCaret, clampBox, defaultSize, moveBox, resizeBox, MIN_WIDTH, MIN_HEIGHT,
+} from '../js/editor/hint-box.js';
 
 let failures = 0;
 const check = (ok, message, extra = '') => {
@@ -138,6 +141,34 @@ for (const item of JS_API) {
 }
 check(JS_API.every(item => item.insert && item.summary.length > 10), 'все записи справочника заполнены');
 check(JS_API.find(i => i.name === 'sort').mutates === true, 'sort помечен как меняющий массив');
+
+/* --- Окно подсказок ------------------------------------------------------ */
+
+const area = { width: 600, height: 400 };
+
+const nearCaret = boxNearCaret({ top: 20, left: 100, lineHeight: 20 }, { width: 520, height: 240 }, area);
+check(nearCaret.top === 46, 'окно встаёт под строкой с кареткой');
+check(nearCaret.left + nearCaret.width + 8 <= area.width, 'окно не вылезает за правый край');
+
+const flipped = boxNearCaret({ top: 360, left: 10, lineHeight: 20 }, { width: 520, height: 240 }, area);
+check(flipped.top + flipped.height <= area.height, 'у нижнего края окно переворачивается вверх');
+
+const moved = moveBox({ left: 100, top: 100, width: 300, height: 200 }, 50, -40, area);
+check(moved.left === 150 && moved.top === 60, 'окно перетаскивается на смещение мыши');
+
+const pushed = moveBox({ left: 100, top: 100, width: 300, height: 200 }, 900, 900, area);
+check(pushed.left + pushed.width <= area.width && pushed.top + pushed.height <= area.height,
+  'перетаскивание удерживает окно внутри редактора');
+
+const grown = resizeBox({ left: 0, top: 0, width: 300, height: 200 }, 1000, 1000, area);
+check(grown.width <= area.width && grown.height <= area.height, 'размер ограничен размерами редактора');
+
+const shrunk = resizeBox({ left: 0, top: 0, width: 300, height: 200 }, -500, -500, area);
+check(shrunk.width === MIN_WIDTH && shrunk.height === MIN_HEIGHT, 'окно не ужимается меньше минимума');
+
+const tiny = clampBox({ left: 0, top: 0, width: 520, height: 260 }, { width: 320, height: 220 });
+check(tiny.width <= 320 && tiny.height <= 220, 'на узком экране окно ужимается под редактор');
+check(defaultSize({ width: 300, height: 200 }).width >= MIN_WIDTH, 'размер по умолчанию не меньше минимального');
 
 console.log(failures === 0 ? '\nРедактор: все проверки пройдены' : `\nРедактор: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

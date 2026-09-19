@@ -16,6 +16,9 @@ import {
 } from '../editor/edit-ops.js';
 import { highlight } from '../editor/highlight.js';
 import { suggest } from '../editor/complete.js';
+import {
+  boxNearCaret, clampBox, defaultSize, forgetBox, loadBox, moveBox, resizeBox, saveBox,
+} from '../editor/hint-box.js';
 import { escapeHtml } from './html.js';
 
 const MAX_ITEMS = 9;
@@ -105,8 +108,17 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
         <div class="editor__mirror" aria-hidden="true"></div>
       </div>
       <div class="hint" hidden>
-        <ul class="hint__list" role="listbox" aria-label="Подсказки"></ul>
-        <div class="hintdoc"></div>
+        <div class="hint__bar">
+          <span class="hint__title">Справочник</span>
+          <span class="hint__drag-hint">перетащите за заголовок</span>
+          <button class="hint__action" type="button" data-action="reset" title="Вернуть окно к курсору" aria-label="Вернуть окно к курсору">⤣</button>
+          <button class="hint__action" type="button" data-action="close" title="Закрыть подсказки" aria-label="Закрыть подсказки">×</button>
+        </div>
+        <div class="hint__body">
+          <ul class="hint__list" role="listbox" aria-label="Подсказки"></ul>
+          <div class="hintdoc"></div>
+        </div>
+        <span class="hint__grip" title="Потяните, чтобы изменить размер"></span>
       </div>
     </div>
     <p class="editor__legend">
@@ -122,14 +134,22 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
   const gutter = container.querySelector('.editor__gutter');
   const mirror = container.querySelector('.editor__mirror');
   const hint = container.querySelector('.hint');
+  const hintBar = container.querySelector('.hint__bar');
+  const hintGrip = container.querySelector('.hint__grip');
   const list = container.querySelector('.hint__list');
   const doc = container.querySelector('.hintdoc');
+  const editorEl = container.querySelector('.editor');
 
   textarea.value = value;
 
   let items = [];
   let active = 0;
   let replaceFrom = 0;
+  // Положение и размер окна подсказок: null — окно следует за кареткой
+  let box = loadBox();
+  // Пока тащим окно или жмём его кнопки, поле ввода теряет фокус — но окно
+  // закрывать нельзя, иначе перетащить его невозможно
+  let holdingHint = false;
 
   /* --- отрисовка ------------------------------------------------------- */
 
@@ -159,6 +179,105 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
     items = [];
   }
 
+  function bounds() {
+    return { width: editorEl.clientWidth, height: editorEl.clientHeight };
+  }
+
+  function applyBox(next) {
+    hint.style.left = `${next.left}px`;
+    hint.style.top = `${next.top}px`;
+    hint.style.width = `${next.width}px`;
+    hint.style.height = `${next.height}px`;
+  }
+
+  /** Окно либо стоит там, куда его поставили, либо идёт за кареткой. */
+  function placeHint() {
+    const area = bounds();
+    const size = box ? { width: box.width, height: box.height } : defaultSize(area);
+
+    if (box?.pinned) {
+      const placed = clampBox({ ...size, left: box.left, top: box.top }, area);
+      applyBox(placed);
+      hint.classList.add('is-pinned');
+      return;
+    }
+
+    const caret = caretPosition(textarea, mirror, textarea.selectionStart);
+    const placed = boxNearCaret(
+      { top: caret.top, left: caret.left + gutter.offsetWidth, lineHeight: caret.lineHeight },
+      size,
+      area,
+    );
+    applyBox(placed);
+    hint.classList.remove('is-pinned');
+  }
+
+  /** Общая механика «зажали — тянем»: и для переноса, и для размера. */
+  function startPointerAction(event, onMove) {
+    event.preventDefault();          // не отбираем фокус у поля ввода
+    event.stopPropagation();
+    holdingHint = true;
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startBox = {
+      left: hint.offsetLeft,
+      top: hint.offsetTop,
+      width: hint.offsetWidth,
+      height: hint.offsetHeight,
+    };
+
+    const move = moveEvent => {
+      const next = onMove(startBox, moveEvent.clientX - startX, moveEvent.clientY - startY, bounds());
+      applyBox(next);
+      box = { ...next, pinned: true };
+    };
+
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      if (box) saveBox(box);
+      hint.classList.add('is-pinned');
+      holdingHint = false;
+      textarea.focus();
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop);
+  }
+
+  hintBar.addEventListener('pointerdown', event => {
+    if (event.target.closest('.hint__action')) return;
+    startPointerAction(event, (start, dx, dy, area) => moveBox(start, dx, dy, area));
+  });
+
+  hintGrip.addEventListener('pointerdown', event => {
+    startPointerAction(event, (start, dx, dy, area) => resizeBox(start, dx, dy, area));
+  });
+
+  hintBar.addEventListener('pointerdown', event => {
+    if (event.target.closest('.hint__action')) holdingHint = true;
+  });
+
+  hintBar.addEventListener('click', event => {
+    const action = event.target.closest('.hint__action')?.dataset.action;
+    if (!action) return;
+    event.preventDefault();
+    holdingHint = false;
+
+    if (action === 'close') {
+      hideHint();
+      return;
+    }
+
+    // Возврат к каретке: размер сохраняем, привязку к месту снимаем
+    box = box ? { ...box, pinned: false } : null;
+    if (box) saveBox(box);
+    else forgetBox();
+    placeHint();
+    textarea.focus();
+  });
+
   function renderHint() {
     list.innerHTML = items
       .map(
@@ -172,21 +291,8 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
       .join('');
     doc.innerHTML = docHtml(items[active]);
 
-    const { top, left, lineHeight } = caretPosition(textarea, mirror, textarea.selectionStart);
-
-    // Показываем до замеров: скрытый элемент не имеет размеров
     hint.hidden = false;
-    const editor = container.querySelector('.editor');
-    const gutterWidth = gutter.offsetWidth;
-    const maxLeft = Math.max(0, editor.clientWidth - hint.offsetWidth - 8);
-    const maxTop = editor.clientHeight - hint.offsetHeight - 8;
-
-    let nextTop = top + lineHeight + 6;
-    // Не помещается снизу — показываем над строкой
-    if (nextTop > maxTop) nextTop = Math.max(8, top - hint.offsetHeight - 6);
-
-    hint.style.left = `${Math.min(Math.max(0, left + gutterWidth), maxLeft)}px`;
-    hint.style.top = `${Math.max(0, nextTop)}px`;
+    placeHint();
   }
 
   function showHint({ force = false } = {}) {
@@ -239,7 +345,12 @@ export function createEditor(container, { value = '', onInput, onRun } = {}) {
   });
 
   textarea.addEventListener('scroll', syncScroll);
-  textarea.addEventListener('blur', () => setTimeout(hideHint, 120));
+  textarea.addEventListener('blur', event => {
+    if (holdingHint || hint.contains(event.relatedTarget)) return;
+    setTimeout(() => {
+      if (!holdingHint) hideHint();
+    }, 120);
+  });
   textarea.addEventListener('click', hideHint);
 
   textarea.addEventListener('keydown', event => {

@@ -35,6 +35,7 @@ const SHELL = [
   'js/editor/edit-ops.js',
   'js/editor/highlight.js',
   'js/editor/complete.js',
+  'js/editor/hint-box.js',
   'js/data/js-api.js',
   'js/data/ship-data.js',
   'js/data/dashboard.js',
