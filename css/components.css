@@ -801,3 +801,20 @@
 .popover__links a:hover {
   color: var(--color-accent);
 }
+
+/*
+ * Выключенная кнопка должна выглядеть выключенной: без этого игрок жмёт
+ * «Отправить корабль» и не понимает, почему ничего не происходит.
+ */
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
+.btn:disabled:hover,
+.btn[disabled]:hover {
+  transform: none;
+  box-shadow: none;
+}

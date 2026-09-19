@@ -731,6 +731,320 @@ export const QUESTS = [
       },
     ],
   },
+  /* ---------------------------------------------------------------- 9 -- */
+  {
+    id: 'plan',
+    order: 9,
+    title: 'Полётный план',
+    topic: 'Арифметика и округление вверх',
+    difficulty: 3,
+    reward: { credits: 30000, xp: 170 },
+    unlocks: { view: 'routes', label: 'Маршруты' },
+    story:
+      'Корабль собран и допущен к вылету, но диспетчер не выпустит его без ' +
+      'расчёта: сколько топлива сжечь и сколько часов лететь. Тяжёлый корабль ' +
+      'ест больше — это и придётся посчитать.',
+    brief:
+      'Напишите функцию planFlight(ship, distance), которая возвращает объект плана:\n' +
+      '• distance — переданное расстояние;\n' +
+      '• fuel — расход топлива: масса корабля × расстояние ÷ 1000, округлённое ВВЕРХ;\n' +
+      '• hours — время в пути: расстояние ÷ 12, округлённое ВВЕРХ.\n' +
+      'Топливо и часы дробными не бывают: бак заправляют целыми тоннами, ' +
+      'а смену считают целыми часами.',
+    theory: [
+      'Math.ceil(4.1) вернёт 5 — округление вверх, даже если остаток крошечный.',
+      'Масса корабля лежит в ship.mass: объект приходит целиком, поле берите точкой.',
+      'Порядок действий обычный: ship.mass * distance / 1000.',
+    ],
+    fn: 'planFlight',
+    starter:
+      'function planFlight(ship, distance) {\n' +
+      '  // посчитайте расход топлива и время в пути\n' +
+      '}\n',
+    hints: [
+      'Расход: Math.ceil(ship.mass * distance / 1000).',
+      'Часы: Math.ceil(distance / 12).',
+      'Верните объект целиком: return { distance, fuel, hours };',
+    ],
+    solution:
+      'function planFlight(ship, distance) {\n' +
+      '  const fuel = Math.ceil(ship.mass * distance / 1000);\n' +
+      '  const hours = Math.ceil(distance / 12);\n' +
+      '\n' +
+      '  return { distance, fuel, hours };\n' +
+      '}\n',
+    practice: {
+      title: 'Утвердите план у диспетчера',
+      hint:
+        'Посчитайте план для своего корабля и положите его в базу. Корабль ' +
+        'лежит в corp.ship — это запись, которую вы сами туда занесли.',
+      example: 'db.insert("plans", planFlight(corp.ship, 240))',
+      validate: value => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть сохранённый план полёта';
+        if (typeof value.fuel !== 'number' || typeof value.hours !== 'number') {
+          return 'В плане нет числовых полей fuel и hours — передайте результат planFlight';
+        }
+        if (value.fuel <= 0) return 'Расход топлива получился нулевым: проверьте массу корабля в corp.ship';
+        if (typeof value.id !== 'number') return 'План не попал в базу: оберните результат в db.insert("plans", …)';
+        return true;
+      },
+      commit: value =>
+        `План утверждён: ${value.fuel} т топлива на ${value.hours} ч пути`,
+    },
+    tests: [
+      { name: 'Ближний рейс', args: [{ mass: 430 }, 240], expected: { distance: 240, fuel: 104, hours: 20 } },
+      { name: 'Дальний рейс', args: [{ mass: 430 }, 680], expected: { distance: 680, fuel: 293, hours: 57 } },
+      { name: 'Лёгкий корабль', args: [{ mass: 100 }, 100], expected: { distance: 100, fuel: 10, hours: 9 } },
+      {
+        name: 'Остаток округляется вверх',
+        expr: 'return planFlight({ mass: 1 }, 1).fuel;',
+        expected: 1,
+      },
+      { name: 'Нулевое расстояние', args: [{ mass: 430 }, 0], expected: { distance: 0, fuel: 0, hours: 0 } },
+    ],
+  },
+
+  /* --------------------------------------------------------------- 10 -- */
+  {
+    id: 'expedition',
+    order: 10,
+    title: 'Первая экспедиция',
+    topic: 'Цикл с накоплением и выходом',
+    difficulty: 4,
+    reward: { credits: 35000, xp: 190 },
+    unlocks: { view: 'expedition', label: 'Экспедиция' },
+    story:
+      'План есть, бак полон, буры на месте. Осталось написать саму экспедицию: ' +
+      'корабль уходит к поясу, час за часом грызёт породу и возвращается, ' +
+      'когда кончится время или забьётся трюм.',
+    brief:
+      'Напишите функцию runExpedition(ship, plan), которая проводит рейс.\n' +
+      'ship: { drills, fuel, cargo } — число буров, топливо в баке, вместимость трюма.\n' +
+      'plan: { hours, fuel, richness } — часы работы, нужное топливо, тонн руды с бура за час.\n\n' +
+      'Если топлива в баке меньше, чем требует план, рейс не состоится:\n' +
+      'верните { ok: false, ore: 0, hours: 0, fuelLeft: ship.fuel, full: false }.\n\n' +
+      'Иначе за каждый час добывается ship.drills × plan.richness тонн.\n' +
+      'Как только руды набралось не меньше вместимости трюма — трюм полон, ' +
+      'груз равен ровно ship.cargo, и рейс прерывается досрочно.\n' +
+      'Верните { ok: true, ore, hours, fuelLeft, full }, где hours — сколько часов ' +
+      'реально отработали, fuelLeft — остаток топлива, full — забился ли трюм.',
+    theory: [
+      'Счётчик до нужного числа: for (let hour = 1; hour <= plan.hours; hour += 1) { … }',
+      'Накопление идёт в переменной снаружи цикла: let ore = 0; внутри ore += добыча.',
+      'break прерывает цикл досрочно — ровно то, что нужно для полного трюма.',
+      'Проверку топлива делайте до цикла: незачем считать рейс, которого не будет.',
+    ],
+    fn: 'runExpedition',
+    starter:
+      'function runExpedition(ship, plan) {\n' +
+      '  // сначала проверьте топливо, потом ведите цикл по часам\n' +
+      '}\n',
+    hints: [
+      'Отказ: if (ship.fuel < plan.fuel) return { ok: false, ore: 0, hours: 0, fuelLeft: ship.fuel, full: false };',
+      'В цикле запоминайте отработанный час: hours = hour;',
+      'Полный трюм: if (ore >= ship.cargo) { ore = ship.cargo; full = true; break; }',
+    ],
+    solution:
+      'function runExpedition(ship, plan) {\n' +
+      '  if (ship.fuel < plan.fuel) {\n' +
+      '    return { ok: false, ore: 0, hours: 0, fuelLeft: ship.fuel, full: false };\n' +
+      '  }\n' +
+      '\n' +
+      '  let ore = 0;\n' +
+      '  let hours = 0;\n' +
+      '  let full = false;\n' +
+      '\n' +
+      '  for (let hour = 1; hour <= plan.hours; hour += 1) {\n' +
+      '    hours = hour;\n' +
+      '    ore += ship.drills * plan.richness;\n' +
+      '\n' +
+      '    if (ore >= ship.cargo) {\n' +
+      '      ore = ship.cargo;\n' +
+      '      full = true;\n' +
+      '      break;\n' +
+      '    }\n' +
+      '  }\n' +
+      '\n' +
+      '  return { ok: true, ore, hours, fuelLeft: ship.fuel - plan.fuel, full };\n' +
+      '}\n',
+    practice: {
+      title: 'Отправьте корабль в рейс',
+      hint:
+        'Проведите рейс своей функцией и запишите результат в базу. Корабль и ' +
+        'план возьмите из corp: corp.expeditionShip и corp.expeditionPlan уже ' +
+        'собраны по вашим модулям, баку и последнему плану.',
+      example: 'db.insert("expeditions", runExpedition(corp.expeditionShip, corp.expeditionPlan))',
+      validate: (value, context) => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть сохранённый отчёт о рейсе';
+        if (typeof value.ore !== 'number') return 'В отчёте нет числового поля ore — передайте результат runExpedition';
+        if (value.ok !== true) {
+          const fuel = context?.corp?.expeditionShip?.fuel ?? 0;
+          const need = context?.corp?.expeditionPlan?.fuel ?? 0;
+          return `Рейс не состоялся: в баке ${fuel} т, а нужно ${need} т. Заправьтесь в разделе «Маршруты»`;
+        }
+        if (value.ore <= 0) return 'Рейс прошёл, но руды нет: купите бур на верфи — добывать нечем';
+        if (typeof value.id !== 'number') return 'Отчёт не попал в базу: оберните результат в db.insert("expeditions", …)';
+        return true;
+      },
+      commit: (value, api) => {
+        const delivered = api.deliverExpedition(value);
+        return delivered;
+      },
+    },
+    tests: [
+      {
+        name: 'Обычный рейс',
+        args: [{ drills: 1, fuel: 200, cargo: 150 }, { hours: 20, fuel: 104, richness: 3 }],
+        expected: { ok: true, ore: 60, hours: 20, fuelLeft: 96, full: false },
+      },
+      {
+        name: 'Трюм забился досрочно',
+        args: [{ drills: 3, fuel: 200, cargo: 150 }, { hours: 20, fuel: 104, richness: 3 }],
+        expected: { ok: true, ore: 150, hours: 17, fuelLeft: 96, full: true },
+      },
+      {
+        name: 'Не хватило топлива',
+        args: [{ drills: 2, fuel: 50, cargo: 150 }, { hours: 20, fuel: 104, richness: 3 }],
+        expected: { ok: false, ore: 0, hours: 0, fuelLeft: 50, full: false },
+      },
+      {
+        name: 'Без буров руды нет',
+        args: [{ drills: 0, fuel: 200, cargo: 150 }, { hours: 20, fuel: 104, richness: 3 }],
+        expected: { ok: true, ore: 0, hours: 20, fuelLeft: 96, full: false },
+      },
+      {
+        name: 'Топлива ровно впритык — рейс идёт',
+        expr: 'return runExpedition({ drills: 1, fuel: 104, cargo: 150 }, { hours: 10, fuel: 104, richness: 2 }).ok;',
+        expected: true,
+      },
+    ],
+  },
+
+  /* --------------------------------------------------------------- 11 -- */
+  {
+    id: 'trade',
+    order: 11,
+    title: 'Торговля рудой',
+    topic: 'Сортировка и распределение по лимитам',
+    difficulty: 5,
+    reward: { credits: 40000, xp: 220 },
+    unlocks: { view: 'market', label: 'Рынок' },
+    story:
+      'Трюм полон, а счёт пуст. Покупатели на бирже дают разную цену и берут ' +
+      'разный объём: тот, кто платит больше всех, возьмёт совсем немного. ' +
+      'Продать нужно так, чтобы выручка была наибольшей.',
+    brief:
+      'Напишите функцию sellOre(amount, offers), которая распродаёт руду выгоднее всего.\n' +
+      'offers — массив предложений { buyer, price, limit }.\n\n' +
+      'Идите от самой высокой цены к низкой. Каждому покупателю отдавайте ' +
+      'столько, сколько он готов взять, но не больше остатка руды.\n' +
+      'Верните { sold, revenue, deals }, где deals — массив совершённых сделок ' +
+      '{ buyer, amount, sum } в порядке продажи.\n' +
+      'Покупателей, которым ничего не досталось, в deals быть не должно.\n' +
+      'Исходный массив offers менять нельзя — отсортируйте копию.',
+    theory: [
+      'Копия массива: [...offers] — sort меняет массив на месте, а чужие данные портить нельзя.',
+      'По убыванию цены: sort((a, b) => b.price - a.price).',
+      'Сколько отдать этому покупателю: Math.min(остаток, offer.limit).',
+      'Когда руда кончилась, дальше идти незачем: if (left === 0) break;',
+    ],
+    fn: 'sellOre',
+    starter:
+      'function sellOre(amount, offers) {\n' +
+      '  // отсортируйте копию предложений и распродайте руду\n' +
+      '}\n',
+    hints: [
+      'const sorted = [...offers].sort((a, b) => b.price - a.price);',
+      'Внутри цикла: const take = Math.min(left, offer.limit); if (take === 0) continue;',
+      'Выручка копится: revenue += take * offer.price; а остаток уменьшается: left -= take;',
+    ],
+    solution:
+      'function sellOre(amount, offers) {\n' +
+      '  const sorted = [...offers].sort((a, b) => b.price - a.price);\n' +
+      '\n' +
+      '  let left = amount;\n' +
+      '  let revenue = 0;\n' +
+      '  const deals = [];\n' +
+      '\n' +
+      '  for (const offer of sorted) {\n' +
+      '    if (left <= 0) break;\n' +
+      '\n' +
+      '    const take = Math.min(left, offer.limit);\n' +
+      '    if (take <= 0) continue;\n' +
+      '\n' +
+      '    deals.push({ buyer: offer.buyer, amount: take, sum: take * offer.price });\n' +
+      '    revenue += take * offer.price;\n' +
+      '    left -= take;\n' +
+      '  }\n' +
+      '\n' +
+      '  return { sold: amount - left, revenue, deals };\n' +
+      '}\n',
+    practice: {
+      title: 'Продайте добытое',
+      hint:
+        'Руда в бункере лежит в corp.ore, предложения покупателей — в corp.offers. ' +
+        'Продайте и запишите сделку: выручка попадёт на счёт корпорации.',
+      example: 'db.insert("deals", sellOre(corp.ore, corp.offers))',
+      validate: (value, context) => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть сохранённый отчёт о продаже';
+        if (typeof value.revenue !== 'number') return 'В отчёте нет числового поля revenue — передайте результат sellOre';
+        if (!Array.isArray(value.deals)) return 'В отчёте нет массива deals со сделками';
+        if (value.revenue <= 0) {
+          const ore = context?.corp?.ore ?? 0;
+          return ore > 0
+            ? 'Выручка нулевая: проверьте, что цена умножается на объём'
+            : 'В бункере нет руды — сначала сходите в экспедицию';
+        }
+        if (typeof value.id !== 'number') return 'Сделка не попала в базу: оберните результат в db.insert("deals", …)';
+        return true;
+      },
+      commit: (value, api) => api.settleDeal(value),
+    },
+    tests: [
+      {
+        name: 'Хватает самому дорогому',
+        args: [30, [{ buyer: 'Гефест', price: 900, limit: 40 }, { buyer: 'Орион', price: 720, limit: 90 }]],
+        expected: { sold: 30, revenue: 27000, deals: [{ buyer: 'Гефест', amount: 30, sum: 27000 }] },
+      },
+      {
+        name: 'Руда делится между двумя',
+        args: [60, [{ buyer: 'Гефест', price: 900, limit: 40 }, { buyer: 'Орион', price: 720, limit: 90 }]],
+        expected: {
+          sold: 60,
+          revenue: 50400,
+          deals: [
+            { buyer: 'Гефест', amount: 40, sum: 36000 },
+            { buyer: 'Орион', amount: 20, sum: 14400 },
+          ],
+        },
+      },
+      {
+        name: 'Порядок предложений не важен',
+        expr:
+          'const offers = [{ buyer: "Склады", price: 540, limit: 500 }, { buyer: "Гефест", price: 900, limit: 40 }];\n' +
+          'return sellOre(40, offers).revenue;',
+        expected: 36000,
+      },
+      {
+        name: 'Исходный массив не меняется',
+        expr:
+          'const offers = [{ buyer: "Склады", price: 540, limit: 500 }, { buyer: "Гефест", price: 900, limit: 40 }];\n' +
+          'sellOre(100, offers);\n' +
+          'return offers[0].buyer;',
+        expected: 'Склады',
+      },
+      {
+        name: 'Продавать нечего',
+        args: [0, [{ buyer: 'Гефест', price: 900, limit: 40 }]],
+        expected: { sold: 0, revenue: 0, deals: [] },
+      },
+      {
+        name: 'Спрос меньше груза',
+        args: [100, [{ buyer: 'Гефест', price: 900, limit: 40 }]],
+        expected: { sold: 40, revenue: 36000, deals: [{ buyer: 'Гефест', amount: 40, sum: 36000 }] },
+      },
+    ],
+  },
 ];
 
 /** Задание по идентификатору. */

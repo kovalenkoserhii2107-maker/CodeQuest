@@ -17,6 +17,9 @@ export const KNOWN_COLLECTIONS = [
   { name: 'crew', title: 'Экипаж' },
   { name: 'ships', title: 'Корабли' },
   { name: 'reports', title: 'Отчёты' },
+  { name: 'plans', title: 'Полётные планы' },
+  { name: 'expeditions', title: 'Экспедиции' },
+  { name: 'deals', title: 'Сделки' },
   { name: 'logs', title: 'Журнал' },
 ];
 
