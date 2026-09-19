@@ -3,10 +3,11 @@
  * чтобы зависшее решение можно было прервать, не «уронив» вкладку.
  *
  * Понимает два вида сообщений:
- *   { kind: 'tests' }   — прогнать решение против тестов задачи;
- *   { kind: 'widgets' } — посчитать показания приборов Мостика.
+ *   { kind: 'tests' }   — прогнать решение против тестов задания;
+ *   { kind: 'widgets' } — посчитать данные для разделов корпорации;
+ *   { kind: 'console' } — выполнить команду, набранную игроком в консоли.
  */
-import { runQuestTests, runPlayerCode } from './runner-core.js';
+import { runQuestTests, runPlayerCode, runConsoleInput } from './runner-core.js';
 
 self.addEventListener('message', async event => {
   const { id, kind = 'tests' } = event.data;
@@ -19,6 +20,13 @@ self.addEventListener('message', async event => {
         results.push({ id: job.id, ...outcome });
       }
       self.postMessage({ id, results });
+      return;
+    }
+
+    if (kind === 'console') {
+      const { source, input, context } = event.data;
+      const result = await runConsoleInput(source, input, context ?? {});
+      self.postMessage({ id, result });
       return;
     }
 

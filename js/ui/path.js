@@ -5,7 +5,7 @@
  * будущие закрыты — сюжет раскрывается по одному шагу.
  */
 import { QUESTS } from '../data/quests.js';
-import { isSolved, currentQuest, questChain } from '../state.js';
+import { isSolved, isPracticed, isQuestClosed, currentQuest, questChain } from '../state.js';
 import { escapeHtml } from './html.js';
 
 export function renderPath({ onOpenQuest }) {
@@ -19,8 +19,9 @@ export function renderPath({ onOpenQuest }) {
     <ol class="chain">
       ${chain
         .map(quest => {
-          const done = isSolved(quest.id);
+          const done = isQuestClosed(quest.id);
           const active = current?.id === quest.id;
+          const testsOnly = isSolved(quest.id) && !isPracticed(quest.id);
           const state = done ? 'done' : active ? 'active' : 'locked';
 
           const title = done || active ? escapeHtml(quest.title) : 'Задание закрыто';
@@ -37,8 +38,8 @@ export function renderPath({ onOpenQuest }) {
               <div class="chain__body">
                 <div class="chain__head">
                   <h3 class="chain__title">${title}</h3>
-                  <span class="badge ${done ? 'badge--ok' : active ? 'badge--info' : 'badge--idle'}">
-                    ${done ? 'решено' : active ? 'текущее' : 'закрыто'}
+                  <span class="badge ${done ? 'badge--ok' : testsOnly ? 'badge--warn' : active ? 'badge--info' : 'badge--idle'}">
+                    ${done ? 'закрыто' : testsOnly ? 'нужна практика' : active ? 'текущее' : 'закрыто'}
                   </span>
                 </div>
                 <p class="chain__story">${story}</p>
@@ -46,10 +47,16 @@ export function renderPath({ onOpenQuest }) {
                 ${
                   done || active
                     ? `<div class="chain__foot">
-                         <span class="chain__unlock">Открывает: ${escapeHtml(quest.unlocks.label)}</span>
-                         <button class="btn ${active ? 'btn--primary' : 'btn--ghost'} btn--sm" type="button" data-quest="${quest.id}">
-                           ${done ? 'Открыть заново' : 'Взяться за задание'}
-                         </button>
+                         <span class="chain__unlock">
+                           ${testsOnly
+                             ? `Практика: <code class="mono">${escapeHtml(quest.practice.example)}</code>`
+                             : `Открывает: ${escapeHtml(quest.unlocks.label)}`}
+                         </span>
+                         ${testsOnly
+                           ? '<a class="btn btn--primary btn--sm" href="#/console">В консоль</a>'
+                           : `<button class="btn ${active ? 'btn--primary' : 'btn--ghost'} btn--sm" type="button" data-quest="${quest.id}">
+                                ${done ? 'Открыть заново' : 'Взяться за задание'}
+                              </button>`}
                        </div>`
                     : ''
                 }
@@ -72,6 +79,6 @@ export function renderPath({ onOpenQuest }) {
 
 /** Сколько заданий решено — для подписи в боковой панели. */
 export function chainProgress() {
-  const done = QUESTS.filter(quest => isSolved(quest.id)).length;
+  const done = QUESTS.filter(quest => isQuestClosed(quest.id)).length;
   return { done, total: QUESTS.length };
 }

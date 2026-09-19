@@ -2,7 +2,7 @@
  * Обёртка над воркером: следит за таймаутом и умеет работать в запасном
  * режиме (без воркера), если страницу открыли не через сервер.
  */
-import { runQuestTests, runPlayerCode } from './runner-core.js';
+import { runQuestTests, runPlayerCode, runConsoleInput } from './runner-core.js';
 
 const TIMEOUT_MS = 3000;
 
@@ -134,5 +134,50 @@ export function evaluateWidgets(jobs) {
     active.addEventListener('message', onMessage);
     active.addEventListener('error', onError);
     active.postMessage({ id, kind: 'widgets', jobs });
+  });
+}
+
+/**
+ * Выполнить команду из консоли корпорации.
+ * @param {string} source все решения игрока
+ * @param {string} input что он набрал
+ * @param {object} context данные корпорации, доступные в команде
+ */
+export function runConsole(source, input, context = {}) {
+  const active = typeof Worker === 'undefined' ? null : ensureWorker();
+
+  if (!active) return runConsoleInput(source, input, context);
+
+  const id = nextId++;
+  return new Promise(resolve => {
+    const timer = setTimeout(() => {
+      cleanup();
+      active.terminate();
+      worker = null;
+      resolve({ value: undefined, logs: [], error: 'Команда выполняется дольше 3 секунд и была прервана' });
+    }, TIMEOUT_MS);
+
+    function onMessage(event) {
+      if (event.data.id !== id) return;
+      cleanup();
+      resolve(event.data.result ?? { value: undefined, logs: [], error: 'Консоль не ответила' });
+    }
+
+    function onError() {
+      cleanup();
+      workerBroken = true;
+      worker = null;
+      runConsoleInput(source, input, context).then(resolve);
+    }
+
+    function cleanup() {
+      clearTimeout(timer);
+      active.removeEventListener('message', onMessage);
+      active.removeEventListener('error', onError);
+    }
+
+    active.addEventListener('message', onMessage);
+    active.addEventListener('error', onError);
+    active.postMessage({ id, kind: 'console', source, input, context });
   });
 }

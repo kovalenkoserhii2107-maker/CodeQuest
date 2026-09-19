@@ -10,6 +10,7 @@ import {
   resetProgress, isViewUnlocked, currentQuest, isQuestAvailable,
 } from './state.js';
 import { renderPath } from './ui/path.js';
+import { renderConsole } from './ui/console.js';
 import { renderTask } from './ui/task.js';
 import { renderLog } from './ui/log.js';
 import { renderView, corporationName, toast } from './ui.js';
@@ -19,6 +20,7 @@ import { refreshNotificationDot } from './shell.js';
 const VIEW_TITLES = {
   path: 'Путь корпорации',
   task: 'Задание',
+  console: 'Консоль корпорации',
   command: 'Командный центр',
   shipyard: 'Верфь',
   warehouse: 'Склад',
@@ -93,7 +95,11 @@ function render() {
   // Закрытый раздел не открыть по прямой ссылке
   if (!isViewUnlocked(name)) {
     const quest = QUESTS.find(item => item.unlocks?.view === name);
-    toast(`Раздел откроется после задания «${quest?.title ?? ''}»`);
+    toast(
+      name === 'console'
+        ? 'Консоль откроется после первых пройденных тестов'
+        : `Раздел откроется, когда задание «${quest?.title ?? ''}» будет закрыто практикой`,
+    );
     navigate('#/path');
     return;
   }
@@ -102,6 +108,11 @@ function render() {
 
   if (name === 'path') {
     renderPath({ onOpenQuest: openQuest });
+    return;
+  }
+
+  if (name === 'console') {
+    renderConsole();
     return;
   }
 
@@ -129,7 +140,7 @@ function render() {
       onOpenQuest: openQuest,
       onSolved: outcome => {
         toast(`+${outcome.credits} ¢ · +${outcome.xp} XP`);
-        if (outcome.unlockedView) toast(`Открыт раздел «${outcome.unlockedView.label}»`);
+        toast(`Осталась практика: вызовите ${outcome.quest.fn} в консоли`);
         renderNav();
       },
     });

@@ -15,7 +15,16 @@ function emptyState() {
     version: 1,
     credits: 0,
     xp: 0,
-    solved: {},     // questId -> { at, withSolution }
+    solved: {},     // questId -> { at, withSolution }: тесты пройдены
+    practiced: {},  // questId -> { at }: функция введена в строй через консоль
+    corp: {         // база корпорации: то, что игрок создал своими вызовами
+      commander: null,
+      shipyard: null,
+      warehouseCapacity: null,
+      ship: null,
+      report: null,
+    },
+    consoleHistory: [],
     solutions: {},  // questId -> код, прошедший тесты: на нём работает Мостик
     drafts: {},     // questId -> исходный код игрока
     log: [],
@@ -32,6 +41,9 @@ function readStorage() {
     const s = { ...emptyState(), ...parsed };
     if (!s.inventory) s.inventory = [];
     if (!s.crew) s.crew = [];
+    if (!s.practiced) s.practiced = {};
+    if (!s.corp) s.corp = emptyState().corp;
+    if (!s.consoleHistory) s.consoleHistory = [];
     return s;
   } catch {
     // Повреждённое или недоступное хранилище не должно ломать игру.
@@ -66,14 +78,24 @@ export function isSolved(questId) {
   return Boolean(state.solved[questId]);
 }
 
+/** Практика пройдена: функция вызвана в консоли и результат принят. */
+export function isPracticed(questId) {
+  return Boolean(state.practiced[questId]);
+}
+
+/** Задание закрыто целиком: и тесты, и практика. */
+export function isQuestClosed(questId) {
+  return isSolved(questId) && isPracticed(questId);
+}
+
 /** Задания по порядку цепочки. */
 export function questChain() {
   return [...QUESTS].sort((a, b) => a.order - b.order);
 }
 
-/** Текущее задание — первое нерешённое в цепочке. */
+/** Текущее задание — первое незакрытое в цепочке. */
 export function currentQuest() {
-  return questChain().find(quest => !isSolved(quest.id)) ?? null;
+  return questChain().find(quest => !isQuestClosed(quest.id)) ?? null;
 }
 
 /**
@@ -85,16 +107,25 @@ export function isQuestAvailable(questId) {
   return currentQuest()?.id === questId;
 }
 
-/** Раздел интерфейса открыт, если решено задание, которое его включает. */
+/** Консоль открывается, как только пройдены тесты первого задания. */
+export function isConsoleUnlocked() {
+  return QUESTS.some(quest => isSolved(quest.id));
+}
+
+/**
+ * Раздел открыт, если задание закрыто целиком: тесты пройдены И функция
+ * введена в строй в консоли. Одной теории мало — нужен реальный вызов.
+ */
 export function isViewUnlocked(viewId) {
+  if (viewId === 'console') return isConsoleUnlocked();
   const quest = QUESTS.find(item => item.unlocks?.view === viewId);
   if (!quest) return true;  // базовые разделы доступны всегда
-  return isSolved(quest.id);
+  return isQuestClosed(quest.id);
 }
 
 /** Открытые разделы — для меню и маршрутизации. */
 export function unlockedViews() {
-  return QUESTS.filter(quest => isSolved(quest.id)).map(quest => quest.unlocks?.view).filter(Boolean);
+  return QUESTS.filter(quest => isQuestClosed(quest.id)).map(quest => quest.unlocks?.view).filter(Boolean);
 }
 
 /** Уровень пилота по накопленному опыту. */
@@ -173,17 +204,49 @@ export function completeQuest(questId, { withSolution = false, source = null } =
 
   addLog(`Задача «${quest.title}» решена: +${credits} ¢, +${xp} XP`, 'success');
 
-  const unlockedView = quest.unlocks ?? null;
-  if (unlockedView) addLog(`Открыт раздел «${unlockedView.label}»`, 'unlock');
-
-  const next = currentQuest();
-  if (next) addLog(`Следующее задание: «${next.title}»`, 'info');
+  addLog(`Осталась практика: вызовите ${quest.fn} в консоли`, 'info');
 
   const levelUp = playerLevel() > levelBefore;
   if (levelUp) addLog(`Повышение: уровень пилота ${playerLevel()}`, 'unlock');
 
   emit();
-  return { credits, xp, levelUp, unlockedView, next: currentQuest() };
+  return { credits, xp, levelUp, quest, next: currentQuest() };
+}
+
+/**
+ * Практика пройдена: результат вызова записан в базу корпорации,
+ * раздел интерфейса открывается именно здесь.
+ */
+export function markPracticed(questId, { note = '' } = {}) {
+  const quest = questById(questId);
+  if (!quest || isPracticed(questId)) return null;
+
+  state.practiced[questId] = { at: new Date().toISOString() };
+  addLog(note || `Функция ${quest.fn} введена в строй`, 'success');
+  if (quest.unlocks) addLog(`Открыт раздел «${quest.unlocks.label}»`, 'unlock');
+
+  const next = currentQuest();
+  if (next) addLog(`Следующее задание: «${next.title}»`, 'info');
+
+  emit();
+  return { quest, next };
+}
+
+/** Записать объект, созданный игроком, в базу корпорации. */
+export function setCorpRecord(key, value) {
+  state.corp[key] = value;
+  emit();
+}
+
+export function corpRecord(key) {
+  return state.corp?.[key] ?? null;
+}
+
+/** История команд консоли — она переживает перезагрузку. */
+export function pushConsoleHistory(entry) {
+  state.consoleHistory.unshift(entry);
+  state.consoleHistory = state.consoleHistory.slice(0, 50);
+  persist();
 }
 
 /** Полный сброс прогресса. */

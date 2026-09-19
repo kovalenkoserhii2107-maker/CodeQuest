@@ -30,6 +30,7 @@ const SHELL = [
   'js/data/quests.js',
   'js/data/js-api.js',
   'js/ui/path.js',
+  'js/ui/console.js',
   'js/ui/sim.js',
   'js/ui/task.js',
   'js/ui/log.js',
