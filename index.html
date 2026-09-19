@@ -302,6 +302,8 @@
               <p>Массу и энергобаланс считает ваша функция assembleShip на модулях со склада.</p>
             </div>
           </div>
+          <div class="panel" id="ship-scheme"></div>
+
           <div class="grid grid--split">
             <div class="panel" id="ship-summary"></div>
             <div class="panel" id="ship-modules"></div>
@@ -344,6 +346,43 @@
               <p>Каждая панель — функция, которую вы написали. Она запускается заново при каждой отрисовке.</p>
             </div>
           </div>
+
+          <details class="panel chart-help">
+            <summary>Что панель умеет рисовать</summary>
+            <p class="chart-help__intro">
+              Верните из функции объект с полем <code class="mono">type</code> — и вместо числа появится график.
+              Остальные поля (<code class="mono">title</code>, <code class="mono">note</code>,
+              <code class="mono">rows</code>, <code class="mono">list</code>) работают как раньше.
+            </p>
+            <ul class="chart-help__list">
+              <li>
+                <b class="mono">gauge</b> — круговая шкала доли от максимума.
+                <code class="mono">{ type: "gauge", value: 340, max: 1000, label: "Масса", unit: "т" }</code>
+              </li>
+              <li>
+                <b class="mono">fill</b> — полоса заполненности.
+                <code class="mono">{ type: "fill", value: 7, max: 10, label: "Трюм" }</code>
+                Добавьте <code class="mono">tone: "progress"</code>, если полная полоса — это хорошо.
+              </li>
+              <li>
+                <b class="mono">balance</b> — шкала с нулём посередине: значение может быть отрицательным.
+                <code class="mono">{ type: "balance", value: -20, max: 120, label: "Энергия" }</code>
+              </li>
+              <li>
+                <b class="mono">bar</b> — столбики по списку.
+                <code class="mono">{ type: "bar", items: [{ label: "Руда", value: 12 }], unit: "т" }</code>
+              </li>
+              <li>
+                <b class="mono">spark</b> — линия по точкам.
+                <code class="mono">{ type: "spark", points: [3, 7, 5, 9] }</code>
+              </li>
+            </ul>
+            <p class="chart-help__intro">
+              Данные берите из базы — тогда график живёт сам:
+              <code class="mono">dashboard.add("mass", db =&gt; ({ type: "bar", items: db.all("ships").map(s =&gt; ({ label: s.name, value: s.mass })) }))</code>
+            </p>
+          </details>
+
           <div class="grid grid--widgets" id="panels-grid"></div>
         </section>
 
