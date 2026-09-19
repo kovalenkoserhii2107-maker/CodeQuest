@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="CodeQuest Orbital — игровой тренажёр JavaScript: решайте задачи и улучшайте космический корабль.">
+  <meta name="description" content="CodeQuest — космическая корпорация, которой управляет ваш код на JavaScript.">
   <meta name="theme-color" content="#05070f">
-  <title>CodeQuest Orbital — Тренажёр</title>
+  <title>CodeQuest — корпорация на вашем коде</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
@@ -26,7 +26,7 @@
   <div class="layout">
 
     <aside class="sidebar">
-      <a class="brand" href="index.html">
+      <a class="brand" href="#/path">
         <span class="brand__mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#04121a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2c3 3 4.5 6.5 4.5 10L12 22l-4.5-10C7.5 8.5 9 5 12 2z"></path>
@@ -35,39 +35,75 @@
         </span>
         <span class="brand__text">
           <span class="brand__name">CodeQuest</span>
-          <span class="brand__tagline">Тренажёр JS</span>
+          <span class="brand__tagline">Корпорация</span>
         </span>
       </a>
 
-      <nav class="nav" aria-label="Разделы тренажёра">
+      <nav class="nav" aria-label="Разделы">
         <div>
-          
-          <p class="nav__group-title">Полёт</p>
+          <p class="nav__group-title">Работа</p>
           <ul class="nav__list">
             <li>
-              <a class="nav__link" href="#/map" data-route="map">
-                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4L3 7v13l6-3 6 3 6-3V4l-6 3-6-3z"/><path d="M9 4v13M15 7v13"/></svg>
-                <span>Карта секторов</span>
-              </a>
-            </li>
-            <li>
-              <a class="nav__link" href="#/bridge" data-route="bridge">
-                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 20h10M12 17v3M7 9h4M7 13h7"/></svg>
-                <span>Мостик</span>
-              </a>
-            </li>
-            <li>
-              <a class="nav__link" href="#/ship" data-route="ship">
-                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l4 8v8l-4 4-4-4v-8l4-8z"/><path d="M8 14l-4 3M16 14l4 3"/></svg>
-                <span>Корабль</span>
+              <a class="nav__link" href="#/path" data-route="path">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18h4l4-12h4"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="6" r="2"/></svg>
+                <span>Путь корпорации</span>
               </a>
             </li>
             <li>
               <a class="nav__link" href="#/task" data-route="task">
                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 5l-2 14"/></svg>
-                <span>Задача</span>
+                <span>Задание</span>
               </a>
             </li>
+          </ul>
+        </div>
+
+        <!-- Разделы корпорации появляются по мере решения заданий -->
+        <div id="nav-corp" hidden>
+          <p class="nav__group-title">Корпорация</p>
+          <ul class="nav__list">
+            <li hidden data-view-item="command">
+              <a class="nav__link" href="#/command" data-route="command">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 20h10M12 17v3"/></svg>
+                <span>Командный центр</span>
+              </a>
+            </li>
+            <li hidden data-view-item="shipyard">
+              <a class="nav__link" href="#/shipyard" data-route="shipyard">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M6 21V9l6-5 6 5v12"/><path d="M10 21v-6h4v6"/></svg>
+                <span>Верфь</span>
+              </a>
+            </li>
+            <li hidden data-view-item="warehouse">
+              <a class="nav__link" href="#/warehouse" data-route="warehouse">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7l9-4 9 4v13H3z"/><path d="M3 12h18M9 20V12"/></svg>
+                <span>Склад</span>
+              </a>
+            </li>
+            <li hidden data-view-item="crew">
+              <a class="nav__link" href="#/crew" data-route="crew">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3 3 0 010 6M18 20c0-2.3-1-4.4-2.6-5.7"/></svg>
+                <span>Экипаж</span>
+              </a>
+            </li>
+            <li hidden data-view-item="ship">
+              <a class="nav__link" href="#/ship" data-route="ship">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l4 8v8l-4 4-4-4v-8l4-8z"/><path d="M8 14l-4 3M16 14l4 3"/></svg>
+                <span>Корабль</span>
+              </a>
+            </li>
+            <li hidden data-view-item="flight">
+              <a class="nav__link" href="#/flight" data-route="flight">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M5 10l7-7 7 7"/><circle cx="12" cy="17" r="3"/></svg>
+                <span>Диагностика</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="nav__group-title">Прочее</p>
+          <ul class="nav__list">
             <li>
               <a class="nav__link" href="#/log" data-route="log">
                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -76,29 +112,11 @@
             </li>
           </ul>
         </div>
-
-        <div id="corp-nav-group">
-          <p class="nav__group-title">Корпорация</p>
-          <ul class="nav__list">
-            <li id="nav-dashboard-item" hidden>
-              <a class="nav__link" href="#/dashboard" data-route="dashboard">
-                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-                <span>Центр управления</span>
-              </a>
-            </li>
-            <li>
-              <a class="nav__link" href="missions.html">
-                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20l5-2 6-6 3-7-7 3-6 6-2 5z"/><circle cx="14" cy="10" r="1.6"/></svg>
-                <span>Миссии</span>
-              </a>
-            </li>
-          </ul>
-        </div>
       </nav>
 
-      <div class="sidebar__footer" id="ship-summary">
-        <strong>Корабль «Квест»</strong>
-        Мощность систем — <span id="ship-power">0</span>
+      <div class="sidebar__footer">
+        <strong id="corp-name">Корпорация не создана</strong>
+        <span id="corp-progress">Задание 1 из 6</span>
       </div>
     </aside>
 
@@ -106,13 +124,13 @@
 
       <header class="topbar">
         <div>
-          <p class="topbar__crumbs">Тренажёр / <span id="crumb-view">Карта секторов</span></p>
-          <h1 class="topbar__title" id="view-title">Карта секторов</h1>
+          <p class="topbar__crumbs" id="crumb-view">Путь корпорации</p>
+          <h1 class="topbar__title" id="view-title">Путь корпорации</h1>
         </div>
 
         <div class="hud">
           <div class="hud__item">
-            <span class="hud__label">Пилот</span>
+            <span class="hud__label">Командир</span>
             <span class="hud__value mono">ур. <span id="hud-level">1</span></span>
             <span class="progress hud__progress"><span class="progress__bar" id="hud-xp-bar" style="width: 0%"></span></span>
           </div>
@@ -121,8 +139,8 @@
             <span class="hud__value mono" id="hud-credits">0 ¢</span>
           </div>
           <div class="hud__item">
-            <span class="hud__label">Решено</span>
-            <span class="hud__value mono" id="hud-solved">0 / 0</span>
+            <span class="hud__label">Заданий</span>
+            <span class="hud__value mono" id="hud-solved">0 / 6</span>
           </div>
         </div>
 
@@ -136,597 +154,132 @@
             <div class="popover" id="notifications-popover" hidden role="dialog" aria-label="Уведомления">
               <p class="popover__title">Уведомления</p>
               <div id="notifications-body"></div>
-              <a class="popover__foot" href="index.html#/log">Открыть бортовой журнал</a>
+              <a class="popover__foot" href="#/log">Открыть журнал</a>
             </div>
           </div>
 
           <button class="icon-button" type="button" id="theme-toggle"
                   aria-label="Включить светлую тему" aria-pressed="false"></button>
 
-          <div class="popover-host">
-            <button class="user-chip" type="button" id="account-button"
-                    aria-haspopup="dialog" aria-expanded="false">
-              <span class="user-chip__avatar" aria-hidden="true">СК</span>
-              <span>
-                <span class="user-chip__name">Сергей Коваленко</span>
-                <span class="user-chip__role">Директор флота</span>
-              </span>
-            </button>
-            <div class="popover popover--wide" id="account-popover" hidden role="dialog" aria-label="Профиль пилота">
-              <p class="popover__title">Сергей Коваленко · директор флота</p>
-              <div id="account-body"></div>
-            </div>
-          </div>
-          <button class="btn btn--ghost btn--sm" type="button" id="reset-progress">Сброс прогресса</button>
+          <button class="btn btn--ghost btn--sm" type="button" id="reset-progress">Начать заново</button>
         </div>
       </header>
 
       <p class="banner banner--warn" id="fallback-banner" hidden>
         Страница открыта без локального сервера, поэтому код выполняется в основном потоке:
         бесконечный цикл придётся прерывать перезагрузкой вкладки. Запустите
-        <code>python3 -m http.server 8000</code> в папке проекта и откройте
-        <code>http://localhost:8000/index.html</code>.
+        <code>python3 -m http.server 8000</code> в папке проекта.
       </p>
 
       <main class="content">
-        <!-- ------------------------- Дашборд ------------------------- -->
-        <section class="view" id="view-dashboard" hidden aria-labelledby="dashboard-title">
 
-
-        <!-- ------------- Приветственный экран ------------- -->
-        <section class="hero" aria-labelledby="hero-title">
-          <div>
-            <p class="hero__eyebrow">
-              <span class="badge badge--ok badge--pulse">Онлайн</span>
-              Сектор Орион · цикл 4419
-            </p>
-            <h1 id="hero-title">Флот корпорации работает штатно</h1>
-            <p>
-              Двадцать четыре судна на маршрутах, три грузовых конвоя в точке перехода,
-              один исследовательский зонд готовится к выходу за пояс астероидов.
-              Следующее окно запуска откроется через 6 часов 12 минут.
-            </p>
-            <div class="hero__actions">
-              <a class="btn btn--primary" href="missions.html">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                Открыть реестр миссий
-              </a>
-              <a class="btn btn--ghost" href="index.html">Запустить тренажёр JS</a>
-            </div>
-          </div>
-
-          <dl class="hero__stats">
-            <div class="hero__stat">
-              <dt>Активных судов</dt>
-              <dd>24 / 31</dd>
-            </div>
-            <div class="hero__stat">
-              <dt>Топливо флота</dt>
-              <dd>78 %</dd>
-            </div>
-            <div class="hero__stat">
-              <dt>Экипаж на смене</dt>
-              <dd>146</dd>
-            </div>
-            <div class="hero__stat">
-              <dt>Бюджет корпорации</dt>
-              <dd id="player-budget">0 ¢</dd>
-            </div>
-          </dl>
-        </section>
-
-        <!-- ------------- Ключевые метрики ------------- -->
-        <section aria-labelledby="metrics-title">
+        <!-- ------------------------- Путь ------------------------- -->
+        <section class="view" id="view-path" aria-labelledby="path-title">
           <div class="section-head">
             <div>
-              <h2 id="metrics-title">Ключевые показатели</h2>
-              <p>Обновлено 3 минуты назад · источник: бортовая телеметрия</p>
+              <h2 id="path-title">Путь корпорации</h2>
+              <p>Задания идут по порядку: следующее открывается после решённого предыдущего.</p>
             </div>
-            <button class="btn btn--ghost btn--sm" type="button">Обновить</button>
           </div>
+          <div id="quest-chain"></div>
+        </section>
 
-          <div class="grid grid--metrics">
-            <article class="metric">
-              <p class="metric__label">Выполнено миссий</p>
-              <p class="metric__value">128 <small>/ 140</small></p>
-              <p class="metric__delta metric__delta--up">▲ 12 % к прошлому циклу</p>
-            </article>
-            <article class="metric">
-              <p class="metric__label">Средний срок доставки</p>
-              <p class="metric__value">4.6 <small>суток</small></p>
-              <p class="metric__delta metric__delta--down">▼ 0.4 суток</p>
-            </article>
-            <article class="metric">
-              <p class="metric__label">Аварийные сигналы</p>
-              <p class="metric__value">3</p>
-              <p class="metric__delta metric__delta--flat">— без изменений</p>
-            </article>
-            <article class="metric">
-              <p class="metric__label">Загрузка доков</p>
-              <p class="metric__value">67 <small>%</small></p>
-              <p class="metric__delta metric__delta--up">▲ 8 % за сутки</p>
-            </article>
+        <!-- ------------------------- Задание ------------------------- -->
+        <section class="view" id="view-task" hidden aria-labelledby="task-title">
+          <div class="task" id="task-root">
+            <p class="empty-state">Выберите задание на «Пути корпорации».</p>
           </div>
         </section>
 
-        <!-- ------------- Флот и системы ------------- -->
-        <div class="grid grid--split">
-
-          <section class="panel" id="fleet" aria-labelledby="fleet-title">
-            <div class="panel__head">
-              <h2 class="panel__title" id="fleet-title">Состояние флота</h2>
-              <span class="panel__hint">Сектор Орион</span>
-            </div>
-
-            <div class="table-wrap">
-              <table class="table">
-                <caption class="visually-hidden">Список кораблей корпорации с текущим статусом</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Судно</th>
-                    <th scope="col">Класс</th>
-                    <th scope="col">Маршрут</th>
-                    <th scope="col">Топливо</th>
-                    <th scope="col">Статус</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Аврора</span>
-                          <span class="table__ship-id">CQ-1047</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Грузовой</td>
-                    <td>Гелиос-9 → Церера</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar" style="width: 82%"></div></div>
-                      <span class="table__num">82 %</span>
-                    </td>
-                    <td><span class="badge badge--ok">В пути</span></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Персей</span>
-                          <span class="table__ship-id">CQ-2210</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Разведчик</td>
-                    <td>Пояс астероидов</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar progress__bar--warn" style="width: 41%"></div></div>
-                      <span class="table__num">41 %</span>
-                    </td>
-                    <td><span class="badge badge--warn">Дозаправка</span></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Вега</span>
-                          <span class="table__ship-id">CQ-3308</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Буксир</td>
-                    <td>Док D-2</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar" style="width: 96%"></div></div>
-                      <span class="table__num">96 %</span>
-                    </td>
-                    <td><span class="badge badge--idle">В доке</span></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Кассиопея</span>
-                          <span class="table__ship-id">CQ-4165</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Танкер</td>
-                    <td>Титан → Гелиос-9</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar progress__bar--danger" style="width: 17%"></div></div>
-                      <span class="table__num">17 %</span>
-                    </td>
-                    <td><span class="badge badge--danger badge--pulse">Тревога</span></td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <div class="table__ship">
-                        <span class="table__ship-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l3.5 7v7L12 21l-3.5-4v-7L12 3z"/></svg>
-                        </span>
-                        <span>
-                          <span class="table__ship-name">Орион-Прайм</span>
-                          <span class="table__ship-id">CQ-5001</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td>Флагман</td>
-                    <td>Орбита Марса</td>
-                    <td>
-                      <div class="progress"><div class="progress__bar" style="width: 74%"></div></div>
-                      <span class="table__num">74 %</span>
-                    </td>
-                    <td><span class="badge badge--info">Патруль</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="panel" id="systems" aria-labelledby="systems-title">
-            <div class="panel__head">
-              <h2 class="panel__title" id="systems-title">Системы станции</h2>
-              <span class="panel__hint">Реальное время</span>
-            </div>
-
-            <div class="orbit" aria-hidden="true">
-              <span class="orbit__satellite"></span>
-              <span class="orbit__core"></span>
-            </div>
-
-            <div class="legend" aria-hidden="true">
-              <span><i></i> Энергия</span>
-              <span><i class="is-violet"></i> Навигация</span>
-              <span><i class="is-plasma"></i> Связь</span>
-            </div>
-
-            <div style="margin-top: var(--space-4)">
-              <div class="progress-row">
-                <div class="progress-row__head">
-                  <span>Реактор</span>
-                  <span class="progress-row__value">91 %</span>
-                </div>
-                <div class="progress"><div class="progress__bar" style="width: 91%"></div></div>
-              </div>
-              <div class="progress-row">
-                <div class="progress-row__head">
-                  <span>Система жизнеобеспечения</span>
-                  <span class="progress-row__value">88 %</span>
-                </div>
-                <div class="progress"><div class="progress__bar" style="width: 88%"></div></div>
-              </div>
-              <div class="progress-row">
-                <div class="progress-row__head">
-                  <span>Щиты</span>
-                  <span class="progress-row__value">54 %</span>
-                </div>
-                <div class="progress"><div class="progress__bar progress__bar--warn" style="width: 54%"></div></div>
-              </div>
-              <div class="progress-row">
-                <div class="progress-row__head">
-                  <span>Дальняя связь</span>
-                  <span class="progress-row__value">23 %</span>
-                </div>
-                <div class="progress"><div class="progress__bar progress__bar--danger" style="width: 23%"></div></div>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <!-- ------------- Активные миссии ------------- -->
-        <section aria-labelledby="missions-title">
+        <!-- ------------------------- Командный центр ------------------------- -->
+        <section class="view" id="view-command" hidden aria-labelledby="command-title">
           <div class="section-head">
             <div>
-              <h2 id="missions-title">Активные миссии</h2>
-              <p>7 контрактов в работе · 2 ожидают подтверждения совета</p>
+              <h2 id="command-title">Командный центр</h2>
+              <p>Личное дело и счёт корпорации. Карточку собирает ваша функция createCommander.</p>
             </div>
-            <a class="btn btn--ghost btn--sm" href="missions.html">Все миссии</a>
           </div>
-
-          <div class="grid grid--cards">
-            <article class="mission">
-              <div class="mission__top">
-                <div>
-                  <p class="mission__code">MSN-0912</p>
-                  <h3 class="mission__title">Поставка гелия-3</h3>
-                </div>
-                <span class="badge badge--ok">В работе</span>
-              </div>
-              <p class="mission__desc">
-                Транспортировка 400 тонн гелия-3 с лунной базы «Тихо» на орбитальный
-                перерабатывающий комплекс.
-              </p>
-              <div class="mission__meta">
-                <span>Судно <strong>CQ-1047</strong></span>
-                <span>Дедлайн <strong>12.04</strong></span>
-                <span>Награда <strong>820 K ¢</strong></span>
-              </div>
-              <div class="progress"><div class="progress__bar" style="width: 68%"></div></div>
-              <div class="mission__footer">
-                <div class="avatar-stack" aria-label="Экипаж миссии">
-                  <span class="avatar-stack__item">АК</span>
-                  <span class="avatar-stack__item">МД</span>
-                  <span class="avatar-stack__item avatar-stack__item--more">+3</span>
-                </div>
-                <button class="btn btn--ghost btn--sm" type="button">Детали</button>
-              </div>
-            </article>
-
-            <article class="mission">
-              <div class="mission__top">
-                <div>
-                  <p class="mission__code">MSN-0918</p>
-                  <h3 class="mission__title">Разведка сектора Ξ-7</h3>
-                </div>
-                <span class="badge badge--warn">Риск</span>
-              </div>
-              <p class="mission__desc">
-                Картографирование аномалии за поясом астероидов и установка трёх
-                автономных ретрансляторов.
-              </p>
-              <div class="mission__meta">
-                <span>Судно <strong>CQ-2210</strong></span>
-                <span>Дедлайн <strong>19.04</strong></span>
-                <span>Награда <strong>1.4 M ¢</strong></span>
-              </div>
-              <div class="progress"><div class="progress__bar progress__bar--warn" style="width: 35%"></div></div>
-              <div class="mission__footer">
-                <div class="avatar-stack" aria-label="Экипаж миссии">
-                  <span class="avatar-stack__item">ЛР</span>
-                  <span class="avatar-stack__item">ИТ</span>
-                </div>
-                <button class="btn btn--ghost btn--sm" type="button">Детали</button>
-              </div>
-            </article>
-
-            <article class="mission">
-              <div class="mission__top">
-                <div>
-                  <p class="mission__code">MSN-0921</p>
-                  <h3 class="mission__title">Эвакуация станции «Дельта»</h3>
-                </div>
-                <span class="badge badge--danger badge--pulse">Срочно</span>
-              </div>
-              <p class="mission__desc">
-                Снятие 28 сотрудников с повреждённой платформы и буксировка модуля
-                в ремонтный док D-2.
-              </p>
-              <div class="mission__meta">
-                <span>Судно <strong>CQ-3308</strong></span>
-                <span>Дедлайн <strong>сегодня</strong></span>
-                <span>Награда <strong>2.0 M ¢</strong></span>
-              </div>
-              <div class="progress"><div class="progress__bar progress__bar--danger" style="width: 12%"></div></div>
-              <div class="mission__footer">
-                <div class="avatar-stack" aria-label="Экипаж миссии">
-                  <span class="avatar-stack__item">ОВ</span>
-                  <span class="avatar-stack__item">НС</span>
-                  <span class="avatar-stack__item avatar-stack__item--more">+6</span>
-                </div>
-                <button class="btn btn--danger btn--sm" type="button">Приоритет</button>
-              </div>
-            </article>
+          <div class="grid grid--split">
+            <div class="panel" id="commander-card"></div>
+            <div class="panel" id="command-stats"></div>
           </div>
         </section>
 
-        <!-- ------------- Журнал и склады ------------- -->
-        <div class="grid grid--split">
-          <section class="panel" id="timeline" aria-labelledby="timeline-title">
-            <div class="panel__head">
-              <h2 class="panel__title" id="timeline-title">Журнал событий</h2>
-              <span class="panel__hint">Цикл 4419</span>
-            </div>
-
-            <ol class="timeline">
-              <li class="timeline__item">
-                <p class="timeline__time">14:02 UTC</p>
-                <p class="timeline__text"><b>CQ-1047 «Аврора»</b> вышла на разгонную траекторию к Церере.</p>
-              </li>
-              <li class="timeline__item timeline__item--warn">
-                <p class="timeline__time">13:41 UTC</p>
-                <p class="timeline__text">Щиты станции опустились до <b>54 %</b> после прохождения пылевого фронта.</p>
-              </li>
-              <li class="timeline__item timeline__item--danger">
-                <p class="timeline__time">12:57 UTC</p>
-                <p class="timeline__text"><b>CQ-4165 «Кассиопея»</b> передала сигнал бедствия: утечка в топливной магистрали.</p>
-              </li>
-              <li class="timeline__item">
-                <p class="timeline__time">11:30 UTC</p>
-                <p class="timeline__text">Совет директоров утвердил контракт <b>MSN-0921</b> на эвакуацию станции «Дельта».</p>
-              </li>
-              <li class="timeline__item">
-                <p class="timeline__time">09:15 UTC</p>
-                <p class="timeline__text">Док <b>D-4</b> завершил плановое обслуживание буксира <b>CQ-3308</b>.</p>
-              </li>
-            </ol>
-          </section>
-
-          <section class="panel" id="resources" aria-labelledby="resources-title">
-            <div class="panel__head">
-              <h2 class="panel__title" id="resources-title">Склады станции</h2>
-              <span class="panel__hint" id="warehouse-capacity">Занято: 0 / 0 т</span>
-            </div>
-
-            <div class="resource-list">
-              <div class="resource">
-                <span class="resource__icon" aria-hidden="true">He3</span>
-                <span>
-                  <span class="resource__name">Гелий-3</span>
-                  <span class="resource__sub">Топливный резерв</span>
-                </span>
-                <span class="resource__amount">1 240 т</span>
-              </div>
-              <div class="resource">
-                <span class="resource__icon" aria-hidden="true">Ti</span>
-                <span>
-                  <span class="resource__name">Титановый прокат</span>
-                  <span class="resource__sub">Ремонтный фонд</span>
-                </span>
-                <span class="resource__amount">860 т</span>
-              </div>
-              <div class="resource">
-                <span class="resource__icon" aria-hidden="true">O₂</span>
-                <span>
-                  <span class="resource__name">Кислород</span>
-                  <span class="resource__sub">Жизнеобеспечение</span>
-                </span>
-                <span class="resource__amount">412 т</span>
-              </div>
-              <div class="resource">
-                <span class="resource__icon" aria-hidden="true">Ir</span>
-                <span>
-                  <span class="resource__name">Иридиевые ячейки</span>
-                  <span class="resource__sub">Энергоблоки</span>
-                </span>
-                <span class="resource__amount">94 шт.</span>
-              </div>
-              <div class="resource">
-                <span class="resource__icon" aria-hidden="true">H₂O</span>
-                <span>
-                  <span class="resource__name">Техническая вода</span>
-                  <span class="resource__sub">Охлаждение реактора</span>
-                </span>
-                <span class="resource__amount">2 100 м³</span>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <!-- ------------- Верфь ------------- -->
-        <section id="shipyard" aria-labelledby="shipyard-title" style="margin-top: 40px">
+        <!-- ------------------------- Верфь ------------------------- -->
+        <section class="view" id="view-shipyard" hidden aria-labelledby="shipyard-title">
           <div class="section-head">
             <div>
-              <h2 id="shipyard-title">Верфь корпорации</h2>
-              <p>Доступные модули для покупки. Обновление каталога каждые 24 часа.</p>
+              <h2 id="shipyard-title">Верфь</h2>
+              <p>Каталог показывает ваш метод getCatalog, поиск — ваш findModule.</p>
             </div>
+            <span class="panel__hint" id="shipyard-source">—</span>
           </div>
-          <div class="grid grid--metrics" id="shipyard-catalog">
-            <!-- Каталог рендерится через JS -->
-          </div>
+          <div class="grid grid--cards" id="shipyard-catalog"></div>
         </section>
 
-        <!-- ------------- Экипаж и Биржа труда ------------- -->
-        <div class="grid grid--split" style="margin-top: 40px">
-          <section class="panel" id="crew" aria-labelledby="crew-title">
-            <div class="panel__head">
-              <h2 class="panel__title" id="crew-title">Командный состав</h2>
-              <span class="panel__hint">Свободный экипаж</span>
-            </div>
-            <div class="grid grid--crew" id="hired-crew">
-              <!-- Экипаж рендерится через JS -->
-            </div>
-          </section>
-
-          <section class="panel" id="labor-exchange" aria-labelledby="exchange-title">
-            <div class="panel__head">
-              <h2 class="panel__title" id="exchange-title">Биржа труда</h2>
-              <span class="panel__hint">Доступные кандидаты</span>
-            </div>
-            <div class="grid grid--crew" id="exchange-candidates">
-               <!-- Кандидаты рендерятся через JS -->
-            </div>
-          </section>
-        </div>
-      
-        </section>
-
-
-        <!-- ------------------------- Карта ------------------------- -->
-        <section class="view" id="view-map" aria-labelledby="map-title">
+        <!-- ------------------------- Склад ------------------------- -->
+        <section class="view" id="view-warehouse" hidden aria-labelledby="warehouse-title">
           <div class="section-head">
             <div>
-              <h2 id="map-title">Карта секторов</h2>
-              <p>Решайте задачи сектора, чтобы открыть маршрут дальше. Корабль отмечен свечением.</p>
+              <h2 id="warehouse-title">Склад</h2>
+              <p>Занятое место считает ваш метод usedSpace, приёмку — ваш addItem.</p>
             </div>
+            <span class="panel__hint" id="warehouse-capacity">—</span>
           </div>
-
-          <div class="grid grid--split grid--map">
-            <div class="panel map-panel">
-              <svg class="starmap" id="starmap" viewBox="0 0 1080 520" role="img" aria-label="Карта секторов">
-                <defs>
-                  <radialGradient id="node-glow" cx="50%" cy="50%">
-                    <stop offset="0%" stop-color="#4de3ff" stop-opacity="0.55"></stop>
-                    <stop offset="100%" stop-color="#4de3ff" stop-opacity="0"></stop>
-                  </radialGradient>
-                </defs>
-                <g id="starmap-routes"></g>
-                <g id="starmap-nodes"></g>
-              </svg>
-            </div>
-
-            <div class="panel" id="sector-panel">
-              <div class="panel__head">
-                <h3 class="panel__title" id="sector-name">Сектор</h3>
-                <span class="panel__hint" id="sector-state">—</span>
-              </div>
-              <p class="sector-brief" id="sector-brief"></p>
-              <ul class="quest-list" id="quest-list"></ul>
-            </div>
-          </div>
+          <div class="panel" id="warehouse-content"></div>
         </section>
 
-        <!-- ------------------------- Мостик ------------------------- -->
-        <section class="view" id="view-bridge" hidden aria-labelledby="bridge-title">
+        <!-- ------------------------- Экипаж ------------------------- -->
+        <section class="view" id="view-crew" hidden aria-labelledby="crew-title">
           <div class="section-head">
             <div>
-              <h2 id="bridge-title">Мостик</h2>
-              <p>Приборы корабля считают показания тем кодом, который вы написали. Решите задачу — прибор оживёт.</p>
+              <h2 id="crew-title">Экипаж</h2>
+              <p>Найм проходит через вашу функцию hireCrewMember: она считает деньги.</p>
             </div>
-            <span class="panel__hint" id="bridge-counter">—</span>
           </div>
-
-          <div class="grid grid--widgets" id="bridge-grid"></div>
+          <div class="grid grid--split">
+            <div class="panel">
+              <div class="panel__head"><h3 class="panel__title">Экипаж корпорации</h3></div>
+              <div id="hired-crew"></div>
+            </div>
+            <div class="panel">
+              <div class="panel__head"><h3 class="panel__title">Биржа труда</h3></div>
+              <div id="exchange-candidates"></div>
+            </div>
+          </div>
         </section>
 
         <!-- ------------------------- Корабль ------------------------- -->
         <section class="view" id="view-ship" hidden aria-labelledby="ship-title">
           <div class="section-head">
             <div>
-              <h2 id="ship-title">Корабль «Квест»</h2>
-              <p>Каждая решённая задача поднимает уровень своего модуля. Схема обновляется сразу.</p>
+              <h2 id="ship-title">Корабль</h2>
+              <p>Массу и энергобаланс считает ваша функция assembleShip на модулях со склада.</p>
             </div>
           </div>
-
           <div class="grid grid--split">
-            <div class="panel">
-              <div class="ship-stage" id="ship-stage"></div>
-            </div>
-            <div class="panel">
-              <div class="panel__head">
-                <h3 class="panel__title">Модули</h3>
-                <span class="panel__hint">Уровень / максимум</span>
-              </div>
-              <ul class="module-list" id="module-list"></ul>
-            </div>
+            <div class="panel" id="ship-summary"></div>
+            <div class="panel" id="ship-modules"></div>
           </div>
         </section>
 
-        <!-- ------------------------- Задача ------------------------- -->
-        <section class="view" id="view-task" hidden aria-labelledby="task-title">
-          <div class="task" id="task-root">
-            <p class="empty-state">Выберите задачу на карте секторов.</p>
+        <!-- ------------------------- Диагностика ------------------------- -->
+        <section class="view" id="view-flight" hidden aria-labelledby="flight-title">
+          <div class="section-head">
+            <div>
+              <h2 id="flight-title">Предстартовая диагностика</h2>
+              <p>Отчёт формирует ваша функция checkReadiness по кораблю и экипажу.</p>
+            </div>
           </div>
+          <div class="panel" id="flight-report"></div>
         </section>
 
         <!-- ------------------------- Журнал ------------------------- -->
         <section class="view" id="view-log" hidden aria-labelledby="log-title">
           <div class="section-head">
             <div>
-              <h2 id="log-title">Бортовой журнал</h2>
-              <p>История полёта: решённые задачи, открытые секторы, повышения.</p>
+              <h2 id="log-title">Журнал</h2>
+              <p>История корпорации: решённые задания, открытые разделы, покупки и найм.</p>
             </div>
           </div>
           <div class="panel">
@@ -736,16 +289,11 @@
       </main>
 
       <footer class="footer">
-        <p>© 4419 CodeQuest Orbital Corporation · тренажёр JavaScript</p>
-        <nav class="footer__links" aria-label="Служебные ссылки">
-          <a href="index.html">Центр управления</a>
-          <a href="missions.html">Миссии</a>
-        </nav>
+        <p>© 4419 CodeQuest — космическая корпорация, которой управляет ваш код</p>
       </footer>
     </div>
   </div>
 
-  <script type="module" src="js/ui.js"></script>
   <script type="module" src="js/main.js"></script>
   <script type="module" src="js/shell.js"></script>
 </body>

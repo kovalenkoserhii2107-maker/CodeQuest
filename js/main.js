@@ -1,76 +1,76 @@
 /**
- * Точка входа тренажёра: маршрутизация по хэшу, шапка с показателями,
- * подключение экранов и регистрация service worker.
+ * Точка входа: маршрутизация, шапка и постепенное открытие разделов.
+ *
+ * Разделы корпорации спрятаны, пока их не включило соответствующее задание:
+ * пункт меню появляется вместе с механикой, а не заранее.
  */
-import { questById } from './data/quests.js';
+import { QUESTS, questById } from './data/quests.js';
 import {
-  state,
-  subscribe,
-  shipPower,
-  playerLevel,
-  levelProgress,
-  solvedCount,
-  totalCount,
-  resetProgress,
-  isSolved,
+  state, subscribe, playerLevel, levelProgress, solvedCount, totalCount,
+  resetProgress, isViewUnlocked, currentQuest, isQuestAvailable,
 } from './state.js';
-import { renderMap, selectSector } from './ui/map.js';
-import { renderBridge } from './ui/bridge.js';
-import { renderShip } from './ui/ship.js';
+import { renderPath } from './ui/path.js';
 import { renderTask } from './ui/task.js';
 import { renderLog } from './ui/log.js';
+import { renderView, corporationName, toast } from './ui.js';
 import { isFallbackMode } from './runner.js';
 import { refreshNotificationDot } from './shell.js';
 
 const VIEW_TITLES = {
-  map: 'Карта секторов',
-  bridge: 'Мостик',
-  ship: 'Корабль «Квест»',
-  task: 'Задача',
-  log: 'Бортовой журнал',
-  dashboard: 'Центр управления',
+  path: 'Путь корпорации',
+  task: 'Задание',
+  command: 'Командный центр',
+  shipyard: 'Верфь',
+  warehouse: 'Склад',
+  crew: 'Экипаж',
+  ship: 'Корабль',
+  flight: 'Предстартовая диагностика',
+  log: 'Журнал',
 };
 
 const el = id => document.getElementById(id);
 
-/* --- Маршрутизация ------------------------------------------------------ */
-
-/** Разбор адреса вида #/task/total-mass. */
 function parseRoute() {
   const raw = location.hash.replace(/^#\/?/, '');
   const [name, param] = raw.split('/');
-  return { name: VIEW_TITLES[name] ? name : 'map', param: param ?? null };
+  return { name: VIEW_TITLES[name] ? name : 'path', param: param ?? null };
 }
 
-function navigate(path) {
+const navigate = path => {
   location.hash = path;
-}
+};
 
-function openQuest(questId) {
-  navigate(`#/task/${questId}`);
-}
+const openQuest = questId => navigate(`#/task/${questId}`);
 
-/* --- Шапка -------------------------------------------------------------- */
+/* --- Шапка и меню -------------------------------------------------------- */
 
 function renderHud() {
   el('hud-level').textContent = String(playerLevel());
   el('hud-xp-bar').style.width = `${Math.round(levelProgress() * 100)}%`;
-  el('hud-credits').textContent = `${state.credits} ¢`;
+  el('hud-credits').textContent = `${state.credits.toLocaleString()} ¢`;
   el('hud-solved').textContent = `${solvedCount()} / ${totalCount()}`;
-  el('ship-power').textContent = String(shipPower());
+  el('corp-name').textContent = corporationName();
+
+  const next = currentQuest();
+  el('corp-progress').textContent = next
+    ? `Задание ${next.order} из ${totalCount()}: ${next.title}`
+    : 'Цепочка пройдена';
+
   refreshNotificationDot();
 }
 
-/** Всплывающее сообщение о награде. */
-function toast(text) {
-  const node = document.createElement('div');
-  node.className = 'toast';
-  node.textContent = text;
-  document.body.append(node);
-  setTimeout(() => node.remove(), 4000);
-}
+/** Пункты меню появляются по мере открытия разделов. */
+function renderNav() {
+  let anyUnlocked = false;
 
-/* --- Экраны ------------------------------------------------------------- */
+  for (const item of document.querySelectorAll('[data-view-item]')) {
+    const unlocked = isViewUnlocked(item.dataset.viewItem);
+    item.hidden = !unlocked;
+    if (unlocked) anyUnlocked = true;
+  }
+
+  el('nav-corp').hidden = !anyUnlocked;
+}
 
 function showView(name) {
   for (const view of document.querySelectorAll('.view')) {
@@ -83,29 +83,25 @@ function showView(name) {
   el('crumb-view').textContent = VIEW_TITLES[name];
 }
 
+/* --- Маршрутизация ------------------------------------------------------- */
+
 function render() {
   const { name, param } = parseRoute();
-  showView(name);
+  renderNav();
   renderHud();
 
-  // Разблокировка меню Центра управления
-  const dashboardNav = el('nav-dashboard-item');
-  if (dashboardNav) {
-    dashboardNav.hidden = !isSolved('create-base');
-  }
-
-  if (name === 'map') {
-    renderMap({ onOpenQuest: openQuest });
+  // Закрытый раздел не открыть по прямой ссылке
+  if (!isViewUnlocked(name)) {
+    const quest = QUESTS.find(item => item.unlocks?.view === name);
+    toast(`Раздел откроется после задания «${quest?.title ?? ''}»`);
+    navigate('#/path');
     return;
   }
 
-  if (name === 'bridge') {
-    renderBridge({ onOpenQuest: openQuest });
-    return;
-  }
+  showView(name);
 
-  if (name === 'ship') {
-    renderShip({ onOpenQuest: openQuest });
+  if (name === 'path') {
+    renderPath({ onOpenQuest: openQuest });
     return;
   }
 
@@ -115,42 +111,53 @@ function render() {
   }
 
   if (name === 'task') {
-    const quest = param ? questById(param) : null;
+    const quest = param ? questById(param) : currentQuest();
     if (!quest) {
-      el('task-root').innerHTML =
-        '<p class="empty-state">Задача не выбрана. Откройте карту секторов и выберите задачу.</p>';
+      el('task-root').innerHTML = '<p class="empty-state">Все задания решены.</p>';
       return;
     }
+
+    if (!isQuestAvailable(quest.id)) {
+      el('task-root').innerHTML =
+        '<p class="empty-state">Это задание ещё закрыто. Решите текущее на «Пути корпорации».</p>';
+      return;
+    }
+
     el('view-title').textContent = quest.title;
-    el('crumb-view').textContent = `Задача · ${quest.title}`;
-    selectSector(quest.sector);
+    el('crumb-view').textContent = `Задание ${quest.order} из ${totalCount()}`;
     renderTask(quest, {
       onOpenQuest: openQuest,
       onSolved: outcome => {
         toast(`+${outcome.credits} ¢ · +${outcome.xp} XP`);
-        outcome.unlockedSectors.forEach(sector => toast(`Открыт сектор «${sector.name}»`));
+        if (outcome.unlockedView) toast(`Открыт раздел «${outcome.unlockedView.label}»`);
+        renderNav();
       },
     });
+    return;
   }
+
+  renderView(name);
 }
 
-/* --- Запуск ------------------------------------------------------------- */
+/* --- Запуск -------------------------------------------------------------- */
 
 window.addEventListener('hashchange', render);
-subscribe(renderHud);
+subscribe(() => {
+  renderNav();
+  renderHud();
+});
 
 el('reset-progress').addEventListener('click', () => {
-  if (window.confirm('Сбросить весь прогресс и начать заново?')) {
+  if (window.confirm('Начать заново? Прогресс, склад и экипаж будут очищены.')) {
     resetProgress();
-    navigate('#/map');
+    navigate('#/path');
     render();
   }
 });
 
-if (!location.hash) navigate('#/map');
+if (!location.hash) navigate('#/path');
 render();
 
-// Предупреждение о запуске без сервера: без него нет ни воркера, ни офлайна.
 if (isFallbackMode() || location.protocol === 'file:') {
   el('fallback-banner').hidden = false;
 }
@@ -158,7 +165,7 @@ if (isFallbackMode() || location.protocol === 'file:') {
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {
-      /* офлайн-режим просто не включится — игра работает и без него */
+      /* офлайн-режим просто не включится */
     });
   });
 }

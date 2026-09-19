@@ -1,16 +1,15 @@
 /**
- * Автопроверка учебного контента (запуск: node tests/check-quests.mjs).
+ * Автопроверка цепочки заданий (запуск: node tests/check-quests.mjs).
  *
  * Проверяет, что:
- *  1. эталонное решение каждой задачи проходит все её тесты;
- *  2. заготовка кода тесты НЕ проходит (иначе задача решается сама собой);
- *  3. связи секторов и задач согласованы между собой;
- *  4. каждый прибор Мостика считается на эталонном решении своей задачи.
+ *  1. эталонное решение каждого задания проходит его тесты;
+ *  2. заготовка кода тесты НЕ проходит;
+ *  3. цепочка непрерывна: порядок 1…N без дыр и повторов;
+ *  4. каждое задание открывает свой раздел, и этот раздел есть в интерфейсе.
  */
-import { QUESTS, SECTORS, ROUTES } from '../js/data/quests.js';
-import { MODULE_BY_ID, MODULES } from '../js/data/modules.js';
-import { runQuestTests, runPlayerCode } from '../js/runner-core.js';
-import { WIDGETS } from '../js/data/dashboard.js';
+import { readFileSync } from 'node:fs';
+import { QUESTS } from '../js/data/quests.js';
+import { runQuestTests } from '../js/runner-core.js';
 
 let failures = 0;
 const fail = message => {
@@ -18,86 +17,61 @@ const fail = message => {
   console.error('✖', message);
 };
 
-/* --- 1. Эталонные решения --------------------------------------------- */
+/* --- 1–2. Решения и заготовки -------------------------------------------- */
+
 for (const quest of QUESTS) {
   const report = await runQuestTests(quest.solution, quest);
   if (!report.ok) {
     const details = report.error ?? report.results
-      .filter(r => !r.pass)
-      .map(r => `${r.name}: ожидалось ${r.expected}, получено ${r.actual ?? r.error}`)
+      .filter(result => !result.pass)
+      .map(result => `${result.name}: ожидалось ${result.expected}, получено ${result.actual ?? result.error}`)
       .join('; ');
-    fail(`Решение задачи «${quest.title}» (${quest.id}) не проходит тесты — ${details}`);
+    fail(`Решение задания «${quest.title}» не проходит тесты — ${details}`);
   } else {
-    console.log(`✓ ${quest.id}: ${report.results.length} тест(ов)`);
+    console.log(`✓ ${quest.order}. ${quest.id}: ${report.results.length} тест(ов)`);
   }
+
+  const starter = await runQuestTests(quest.starter, quest);
+  if (starter.ok) fail(`Заготовка задания ${quest.id} проходит тесты — задание бессмысленно`);
 }
 
-/* --- 2. Заготовки не должны проходить тесты ---------------------------- */
+/* --- 3. Непрерывность цепочки -------------------------------------------- */
+
+const orders = QUESTS.map(quest => quest.order).sort((a, b) => a - b);
+const expected = QUESTS.map((_, index) => index + 1);
+if (JSON.stringify(orders) !== JSON.stringify(expected)) {
+  fail(`Порядок заданий с дырами или повторами: ${orders.join(', ')}`);
+}
+
+const ids = new Set(QUESTS.map(quest => quest.id));
+if (ids.size !== QUESTS.length) fail('Идентификаторы заданий повторяются');
+
 for (const quest of QUESTS) {
-  const report = await runQuestTests(quest.starter, quest);
-  if (report.ok) fail(`Заготовка задачи ${quest.id} проходит тесты — задача бессмысленна`);
-}
-
-/* --- 3. Согласованность данных ----------------------------------------- */
-const questIds = new Set(QUESTS.map(q => q.id));
-const sectorIds = new Set(SECTORS.map(s => s.id));
-
-for (const quest of QUESTS) {
-  if (!sectorIds.has(quest.sector)) fail(`Задача ${quest.id} ссылается на неизвестный сектор ${quest.sector}`);
-  if (!MODULE_BY_ID[quest.module]) fail(`Задача ${quest.id} ссылается на неизвестный модуль ${quest.module}`);
-  if (!quest.tests.length) fail(`У задачи ${quest.id} нет тестов`);
-}
-
-for (const sector of SECTORS) {
-  for (const required of sector.requires) {
-    if (!questIds.has(required)) fail(`Сектор ${sector.id} требует несуществующую задачу ${required}`);
-  }
-}
-
-for (const [from, to] of ROUTES) {
-  if (!sectorIds.has(from) || !sectorIds.has(to)) fail(`Маршрут ${from}→${to} ведёт в неизвестный сектор`);
-}
-
-for (const module of MODULES) {
-  const count = QUESTS.filter(q => q.module === module.id).length;
-  if (count !== module.maxLevel) {
-    fail(`У модуля ${module.id} maxLevel=${module.maxLevel}, а задач ${count} — уровни не сойдутся`);
-  }
-}
-
-/* --- 4. Приборы Мостика ------------------------------------------------- */
-for (const widget of WIDGETS) {
-  const quest = QUESTS.find(item => item.id === widget.questId);
-  if (!quest) {
-    fail(`Прибор «${widget.title}» ссылается на несуществующую задачу ${widget.questId}`);
-    continue;
-  }
-
-  const { value, error } = await runPlayerCode(quest.solution, quest.fn, widget.expr);
-  if (error) {
-    fail(`Прибор «${widget.title}» не считается на эталонном решении: ${error}`);
-  } else if (value === undefined) {
-    fail(`Прибор «${widget.title}» получил undefined — проверьте выражение`);
-  } else {
-    try {
-      const html = widget.render(value);
-      if (typeof html !== 'string' || html.trim() === '') {
-        fail(`Прибор «${widget.title}» ничего не отрисовал`);
-      } else {
-        console.log(`✓ прибор ${widget.id}: ${JSON.stringify(value).slice(0, 60)}`);
-      }
-    } catch (renderError) {
-      fail(`Прибор «${widget.title}» упал при отрисовке: ${renderError.message}`);
+  for (const field of ['story', 'brief', 'theory', 'fn', 'starter', 'solution', 'hints', 'tests', 'unlocks']) {
+    if (!quest[field] || (Array.isArray(quest[field]) && quest[field].length === 0)) {
+      fail(`У задания ${quest.id} не заполнено поле ${field}`);
     }
   }
+  if (quest.reward?.credits <= 0) fail(`У задания ${quest.id} нет награды`);
 }
 
-const widgetQuests = new Set(WIDGETS.map(widget => widget.questId));
+/* --- 4. Разделы интерфейса ----------------------------------------------- */
+
+const views = QUESTS.map(quest => quest.unlocks.view);
+if (new Set(views).size !== views.length) fail('Два задания открывают один и тот же раздел');
+
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 for (const quest of QUESTS) {
-  if (!widgetQuests.has(quest.id)) {
-    fail(`Для задачи ${quest.id} нет прибора на Мостике — результат некуда показать`);
-  }
+  const view = quest.unlocks.view;
+  if (!html.includes(`id="view-${view}"`)) fail(`В интерфейсе нет раздела view-${view} для задания ${quest.id}`);
+  if (!html.includes(`data-view-item="${view}"`)) fail(`В меню нет пункта для раздела ${view}`);
 }
 
-console.log(failures === 0 ? '\nВсе проверки пройдены' : `\nПроблем: ${failures}`);
+// Разделы, закрытые заданиями, не должны быть видны до их решения
+for (const quest of QUESTS) {
+  const item = html.match(new RegExp(`<li hidden data-view-item="${quest.unlocks.view}"`));
+  if (!item) fail(`Пункт меню ${quest.unlocks.view} не скрыт по умолчанию`);
+}
+
+console.log(failures === 0 ? '\nЦепочка: все проверки пройдены' : `\nЦепочка: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

@@ -1,898 +1,477 @@
 /**
- * Секторы карты и учебные задачи.
+ * Цепочка заданий: строгая прогрессия по сюжету.
  *
- * Тест задачи описывается одним из двух способов:
- *   { name, args: [...], expected }  — функцию вызовут с этими аргументами;
- *   { name, expr: 'return ...', expected } — тело функции, внутри доступна
- *   решаемая функция (или класс) по имени. Второй способ нужен там, где
- *   аргумент — колбэк или объект с методами (такое нельзя передать в воркер).
+ * Задания идут одно за другим — следующее открывается только после решения
+ * предыдущего. Каждое задание включает механику корпорации и открывает
+ * соответствующую вкладку интерфейса: пока код не написан, раздела нет.
  *
- * Результат сравнивается глубоким сравнением; промисы ожидаются через await.
+ * Поля задания:
+ *   id, order      — порядок в цепочке;
+ *   story          — сюжетная подводка (зачем это нужно корпорации);
+ *   brief          — само условие;
+ *   theory         — что понадобится;
+ *   fn             — имя функции или класса, которое ждут тесты;
+ *   starter        — заготовка в редакторе;
+ *   hints          — подсказки по нажатию;
+ *   solution       — эталон (можно подсмотреть за половину награды);
+ *   tests          — { name, args, expected } или { name, expr, expected };
+ *   unlocks        — какой раздел интерфейса открывает решение.
  */
 
-export const SECTORS = [
-  {
-    id: 'hq',
-    name: 'Штаб-квартира',
-    x: 50,
-    y: 200,
-    module: 'base',
-    brief: 'Пустырь на окраине. Здесь будет заложен фундамент вашей корпорации.',
-    requires: [],
-  },
-  {
-    id: 'dock',
-    name: 'Док «Гелиос-9»',
-    x: 120,
-    y: 300,
-    module: 'reactor',
-    brief: 'Стартовая орбита. Пока реактор не выведен на режим, дальше не уйти.',
-    requires: ['connect-shipyard'],
-  },
-  {
-    id: 'belt',
-    name: 'Пояс астероидов',
-    x: 340,
-    y: 170,
-    module: 'cargo',
-    brief: 'Здесь корпорация добывает руду. Нужно навести порядок в трюме.',
-    requires: ['fuel-percent', 'reactor-status'],
-  },
-  {
-    id: 'relay',
-    name: 'Ретранслятор R-14',
-    x: 560,
-    y: 330,
-    module: 'comms',
-    brief: 'Станция ловит обрывки сигналов. Их нужно расшифровать и разобрать.',
-    requires: ['total-mass'],
-  },
-  {
-    id: 'mars',
-    name: 'Орбита Марса',
-    x: 780,
-    y: 180,
-    module: 'navigation',
-    brief: 'Транспортный узел: десятки маршрутов, и все нужно отсортировать.',
-    requires: ['decode-signal'],
-  },
-  {
-    id: 'deep',
-    name: 'Сектор Ξ-7',
-    x: 960,
-    y: 380,
-    module: 'shields',
-    brief: 'Аномалия за поясом. Щиты держатся на честном слове, зонды молчат.',
-    requires: ['sort-routes'],
-  },
-];
-
-/** Связи между секторами — по ним рисуются маршруты на карте. */
-export const ROUTES = [
-  ['hq', 'dock'],
-  ['dock', 'belt'],
-  ['belt', 'relay'],
-  ['relay', 'mars'],
-  ['mars', 'deep'],
-  ['dock', 'relay'],
-];
-
 export const QUESTS = [
-  /* ------------------------------------------------------------------ */
-  /* Сектор: Штаб-квартира — основание                                   */
-  /* ------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------- 1 -- */
   {
-    id: 'create-base',
-    sector: 'hq',
-    module: 'base',
-    title: 'Регистрация корпорации',
+    id: 'commander',
+    order: 1,
+    title: 'Личное дело командира',
+    topic: 'Объекты: поля и значения',
     difficulty: 1,
-    topic: 'Объекты, создание',
-    reward: { credits: 15000, xp: 50 },
+    reward: { credits: 20000, xp: 50 },
+    unlocks: { view: 'command', label: 'Командный центр' },
+    story:
+      'Совет Колоний не выдаёт лицензию безымянным. Пока в реестре нет вашего ' +
+      'личного дела, корпорации не существует — ни счёта, ни доступа к сети верфей.',
     brief:
-      'Первый шаг к звездам — регистрация корпорации. ' +
-      'Напишите функцию createSpaceport(name), которая принимает название базы ' +
-      'и возвращает объект с полями: name (переданное имя), credits (0), ' +
-      'inventory (пустой массив) и crew (пустой массив).',
+      'Напишите функцию createCommander(name), которая возвращает объект командира с полями:\n' +
+      '• name — переданное имя;\n' +
+      '• rank — строка "Командир";\n' +
+      '• experience — 0;\n' +
+      '• credits — 0.',
     theory: [
-      'Объекты создаются с помощью фигурных скобок: { key: "value" }.',
-      'Массив — это квадратные скобки [].',
-      'Если ключ совпадает с именем переменной, можно писать короче: { name } вместо { name: name }.'
+      'Объект записывается фигурными скобками: { ключ: значение, другой: 1 }.',
+      'Если имя свойства совпадает с именем переменной, работает сокращение: { name } вместо { name: name }.',
+      'Строки пишут в кавычках, числа — без: rank: "Командир", experience: 0.',
     ],
-    fn: 'createSpaceport',
+    fn: 'createCommander',
     starter:
-      'function createSpaceport(name) {\n' +
-      '  // верните объект космопорта\n' +
+      'function createCommander(name) {\n' +
+      '  // верните объект командира с четырьмя полями\n' +
       '}\n',
     hints: [
-      'return { name: name, credits: 0, inventory: [], crew: [] };'
+      'Функция должна вернуть объект целиком: return { ... };',
+      'return { name, rank: "Командир", experience: 0, credits: 0 };',
     ],
     solution:
-      'function createSpaceport(name) {\n' +
-      '  return { name, credits: 0, inventory: [], crew: [] };\n' +
+      'function createCommander(name) {\n' +
+      '  return { name, rank: "Командир", experience: 0, credits: 0 };\n' +
       '}\n',
     tests: [
-      { name: 'Создание "Авангард"', args: ['Авангард'], expected: { name: 'Авангард', credits: 0, inventory: [], crew: [] } },
-      { name: 'Создание "Звезда"', args: ['Звезда'], expected: { name: 'Звезда', credits: 0, inventory: [], crew: [] } },
-    ],
-  },
-  {
-    id: 'connect-shipyard',
-    sector: 'hq',
-    module: 'base',
-    title: 'Подключение Верфи',
-    difficulty: 1,
-    topic: 'Объекты, мутация',
-    reward: { credits: 26000, xp: 50 },
-    brief:
-      'Нам нужен доступ к каталогу модулей. ' +
-      'Напишите функцию connectShipyard(spaceport, shipyardName), которая ' +
-      'добавляет объекту spaceport новое свойство shipyard, равное переданному имени, ' +
-      'и возвращает этот объект.',
-    theory: [
-      'Чтобы добавить свойство в существующий объект, используйте точечную нотацию: obj.key = value.',
-      'Функция должна вернуть измененный объект (return spaceport).'
-    ],
-    fn: 'connectShipyard',
-    starter:
-      'function connectShipyard(spaceport, shipyardName) {\n' +
-      '  // добавьте свойство shipyard в объект spaceport и верните его\n' +
-      '}\n',
-    hints: [
-      'spaceport.shipyard = shipyardName;\nreturn spaceport;'
-    ],
-    solution:
-      'function connectShipyard(spaceport, shipyardName) {\n' +
-      '  spaceport.shipyard = shipyardName;\n' +
-      '  return spaceport;\n' +
-      '}\n',
-    tests: [
-      { name: 'Верфь "Орион"', args: [{ name: 'База', credits: 0 }, 'Орион'], expected: { name: 'База', credits: 0, shipyard: 'Орион' } },
-      { name: 'Верфь "Сириус"', args: [{ name: 'Альфа', credits: 0 }, 'Сириус'], expected: { name: 'Альфа', credits: 0, shipyard: 'Сириус' } },
+      {
+        name: 'Личное дело заведено',
+        args: ['Сергей Коваленко'],
+        expected: { name: 'Сергей Коваленко', rank: 'Командир', experience: 0, credits: 0 },
+      },
+      {
+        name: 'Имя подставляется, а не зашивается',
+        args: ['Анна Кравец'],
+        expected: { name: 'Анна Кравец', rank: 'Командир', experience: 0, credits: 0 },
+      },
+      { name: 'Опыт — число', expr: 'return typeof createCommander("Тест").experience;', expected: 'number' },
     ],
   },
 
-  /* ------------------------------------------------------------------ */
-  /* Сектор: Док «Гелиос-9» — реактор                                    */
-  /* ------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------- 2 -- */
   {
-    id: 'fuel-percent',
-    sector: 'dock',
-    module: 'reactor',
-    title: 'Датчик топлива',
-    difficulty: 1,
-    topic: 'Переменные, числа, Math',
-    reward: { credits: 80, xp: 40 },
-    brief:
-      'Бортовой датчик показывает запас топлива в тоннах, а экипажу нужен процент. ' +
-      'Напишите функцию fuelPercent(current, capacity): она возвращает заполненность ' +
-      'бака в процентах, округлённую до целого. Если ёмкость равна нулю, верните 0 — ' +
-      'делить на ноль нельзя.',
-    theory: [
-      'Числа в JavaScript делятся без остатка целочисленности: 1 / 3 даст 0.333…',
-      'Math.round(x) округляет до ближайшего целого: Math.round(41.6) → 42.',
-      'Условие можно записать коротко: if (capacity === 0) return 0;',
-    ],
-    fn: 'fuelPercent',
-    starter:
-      'function fuelPercent(current, capacity) {\n' +
-      '  // 1. защититесь от нулевой ёмкости\n' +
-      '  // 2. посчитайте долю и переведите её в проценты\n' +
-      '  // 3. округлите результат\n' +
-      '}\n',
-    hints: [
-      'Доля = current / capacity. Проценты — это доля, умноженная на 100.',
-      'Округление: Math.round(current / capacity * 100).',
-    ],
-    solution:
-      'function fuelPercent(current, capacity) {\n' +
-      '  if (capacity === 0) return 0;\n' +
-      '  return Math.round((current / capacity) * 100);\n' +
-      '}\n',
-    tests: [
-      { name: 'Полный бак', args: [400, 400], expected: 100 },
-      { name: 'Половина бака', args: [200, 400], expected: 50 },
-      { name: 'Округление вверх', args: [123, 400], expected: 31 },
-      { name: 'Пустой бак', args: [0, 400], expected: 0 },
-      { name: 'Нулевая ёмкость', args: [50, 0], expected: 0 },
-    ],
-  },
-  {
-    id: 'reactor-status',
-    sector: 'dock',
-    module: 'reactor',
-    title: 'Диагностика реактора',
-    difficulty: 1,
-    topic: 'Условия, логические операторы',
-    reward: { credits: 110, xp: 55 },
-    brief:
-      'Функция reactorStatus(temperature, pressure) возвращает строку состояния:\n' +
-      '• "тревога" — если температура 900 и выше ИЛИ давление 12 и выше;\n' +
-      '• "внимание" — если температура 700 и выше ИЛИ давление 9 и выше;\n' +
-      '• "норма" — во всех остальных случаях.\n' +
-      'Порядок проверок важен: сначала самое опасное.',
-    theory: [
-      'Оператор || («или») истинен, когда истинно хотя бы одно условие.',
-      'if / else if / else проверяются сверху вниз — первое подошедшее и сработает.',
-      'Сравнение «больше или равно» — это >=.',
-    ],
-    fn: 'reactorStatus',
-    starter:
-      'function reactorStatus(temperature, pressure) {\n' +
-      '  // сначала проверьте аварийные пороги, затем предупреждающие\n' +
-      '}\n',
-    hints: [
-      'Начните с самого строгого условия: if (temperature >= 900 || pressure >= 12) ...',
-      'Последним поставьте return "норма" — это ветка else.',
-    ],
-    solution:
-      'function reactorStatus(temperature, pressure) {\n' +
-      '  if (temperature >= 900 || pressure >= 12) return "тревога";\n' +
-      '  if (temperature >= 700 || pressure >= 9) return "внимание";\n' +
-      '  return "норма";\n' +
-      '}\n',
-    tests: [
-      { name: 'Спокойный режим', args: [520, 4], expected: 'норма' },
-      { name: 'Горячий реактор', args: [740, 5], expected: 'внимание' },
-      { name: 'Высокое давление', args: [500, 10], expected: 'внимание' },
-      { name: 'Критическая температура', args: [905, 3], expected: 'тревога' },
-      { name: 'Критическое давление', args: [600, 12], expected: 'тревога' },
-      { name: 'Граница нормы', args: [699, 8], expected: 'норма' },
-    ],
-  },
-
-  /* ------------------------------------------------------------------ */
-  /* Сектор: Пояс астероидов — грузовой трюм                             */
-  /* ------------------------------------------------------------------ */
-  {
-    id: 'total-mass',
-    sector: 'belt',
-    module: 'cargo',
-    title: 'Опись груза',
+    id: 'shipyard',
+    order: 2,
+    title: 'Космоверфь',
+    topic: 'Объекты с методами, this',
     difficulty: 2,
-    topic: 'Массивы: reduce',
-    reward: { credits: 130, xp: 60 },
+    reward: { credits: 30000, xp: 70 },
+    unlocks: { view: 'shipyard', label: 'Верфь' },
+    story:
+      'Лицензия есть — пора договариваться с верфью. Каталог модулей бесполезен, ' +
+      'пока по нему нельзя искать: диспетчер должен уметь ответить, есть ли нужная деталь.',
     brief:
-      'В трюме лежит массив контейнеров вида { name: "Руда", mass: 120 }. ' +
-      'Функция totalMass(cargo) должна вернуть суммарную массу всех контейнеров. ' +
-      'Для пустого трюма — 0.',
+      'Напишите функцию createShipyard(name, modules), которая возвращает объект с полями ' +
+      'name и modules и двумя методами:\n' +
+      '• getCatalog() — возвращает массив модулей;\n' +
+      '• findModule(id) — возвращает модуль с таким id или null, если такого нет.',
     theory: [
-      'reduce «сворачивает» массив в одно значение: arr.reduce((acc, item) => ..., 0).',
-      'acc — накопитель, второй аргумент reduce — его стартовое значение.',
-      'То же можно сделать обычным циклом for…of — оба решения верны.',
+      'Метод — функция внутри объекта: { getCatalog() { return this.modules; } }.',
+      'Ключевое слово this внутри метода указывает на сам объект.',
+      'find возвращает первый подходящий элемент или undefined — превратить его в null помогает ?? null.',
     ],
-    fn: 'totalMass',
+    fn: 'createShipyard',
     starter:
-      'function totalMass(cargo) {\n' +
-      '  // сложите поле mass каждого контейнера\n' +
+      'function createShipyard(name, modules) {\n' +
+      '  return {\n' +
+      '    name,\n' +
+      '    modules,\n' +
+      '    // добавьте методы getCatalog и findModule\n' +
+      '  };\n' +
       '}\n',
     hints: [
-      'cargo.reduce((sum, item) => sum + item.mass, 0)',
-      'Не забудьте стартовое значение 0 — иначе пустой массив выбросит ошибку.',
+      'getCatalog() { return this.modules; },',
+      'findModule(id) { return this.modules.find(m => m.id === id) ?? null; }',
     ],
     solution:
-      'function totalMass(cargo) {\n' +
-      '  return cargo.reduce((sum, item) => sum + item.mass, 0);\n' +
+      'function createShipyard(name, modules) {\n' +
+      '  return {\n' +
+      '    name,\n' +
+      '    modules,\n' +
+      '    getCatalog() {\n' +
+      '      return this.modules;\n' +
+      '    },\n' +
+      '    findModule(id) {\n' +
+      '      return this.modules.find(module => module.id === id) ?? null;\n' +
+      '    },\n' +
+      '  };\n' +
       '}\n',
     tests: [
+      { name: 'Название верфи сохранено', expr: 'return createShipyard("Орион", []).name;', expected: 'Орион' },
       {
-        name: 'Три контейнера',
-        args: [[{ name: 'Руда', mass: 120 }, { name: 'Вода', mass: 40 }, { name: 'Ячейки', mass: 15 }]],
-        expected: 175,
-      },
-      { name: 'Один контейнер', args: [[{ name: 'Титан', mass: 860 }]], expected: 860 },
-      { name: 'Пустой трюм', args: [[]], expected: 0 },
-    ],
-  },
-  {
-    id: 'heavy-cargo',
-    sector: 'belt',
-    module: 'cargo',
-    title: 'Перегруз',
-    difficulty: 2,
-    topic: 'Массивы: filter + map',
-    reward: { credits: 140, xp: 65 },
-    brief:
-      'Функция heavyCargo(cargo, limit) возвращает массив названий контейнеров, ' +
-      'масса которых строго больше limit. Порядок — как в исходном массиве. ' +
-      'Если таких нет, вернётся пустой массив.',
-    theory: [
-      'filter оставляет элементы, для которых колбэк вернул true.',
-      'map превращает каждый элемент в новое значение.',
-      'Методы можно соединять в цепочку: arr.filter(...).map(...)',
-    ],
-    fn: 'heavyCargo',
-    starter:
-      'function heavyCargo(cargo, limit) {\n' +
-      '  // отберите тяжёлые контейнеры и верните только их названия\n' +
-      '}\n',
-    hints: [
-      'Сначала filter по item.mass > limit, затем map в item.name.',
-      'Строго больше — это >, а не >=.',
-    ],
-    solution:
-      'function heavyCargo(cargo, limit) {\n' +
-      '  return cargo.filter(item => item.mass > limit).map(item => item.name);\n' +
-      '}\n',
-    tests: [
-      {
-        name: 'Два тяжёлых',
-        args: [[{ name: 'Руда', mass: 120 }, { name: 'Вода', mass: 40 }, { name: 'Титан', mass: 300 }], 100],
-        expected: ['Руда', 'Титан'],
-      },
-      {
-        name: 'Граница не считается',
-        args: [[{ name: 'Руда', mass: 100 }], 100],
-        expected: [],
-      },
-      { name: 'Пустой трюм', args: [[], 10], expected: [] },
-    ],
-  },
-  {
-    id: 'pack-containers',
-    sector: 'belt',
-    module: 'cargo',
-    title: 'Погрузка по контейнерам',
-    difficulty: 3,
-    topic: 'Циклы и накопление состояния',
-    reward: { credits: 170, xp: 80 },
-    brief:
-      'Ящики грузят по порядку в контейнеры вместимостью capacity тонн. ' +
-      'Если очередной ящик не влезает в текущий контейнер — берут новый. ' +
-      'Функция packContainers(boxes, capacity) принимает массив чисел (массы ящиков) ' +
-      'и возвращает количество использованных контейнеров. Пустой список — 0.',
-    theory: [
-      'Заведите переменные: счётчик контейнеров и текущую загрузку.',
-      'Цикл for…of перебирает значения массива по очереди.',
-      'Ящик, равный вместимости, помещается ровно — это не перегруз.',
-    ],
-    fn: 'packContainers',
-    starter:
-      'function packContainers(boxes, capacity) {\n' +
-      '  // идите по ящикам и открывайте новый контейнер, когда место кончилось\n' +
-      '}\n',
-    hints: [
-      'Стартуйте с containers = 0 и current = 0, первый же ящик откроет контейнер.',
-      'Если current + box > capacity — увеличьте счётчик и обнулите current.',
-    ],
-    solution:
-      'function packContainers(boxes, capacity) {\n' +
-      '  let containers = 0;\n' +
-      '  let current = 0;\n' +
-      '  for (const box of boxes) {\n' +
-      '    if (containers === 0 || current + box > capacity) {\n' +
-      '      containers += 1;\n' +
-      '      current = 0;\n' +
-      '    }\n' +
-      '    current += box;\n' +
-      '  }\n' +
-      '  return containers;\n' +
-      '}\n',
-    tests: [
-      { name: 'Ровно один контейнер', args: [[40, 30, 30], 100], expected: 1 },
-      { name: 'Нужен второй', args: [[40, 30, 40], 100], expected: 2 },
-      { name: 'Каждый ящик свой', args: [[90, 95, 100], 100], expected: 3 },
-      { name: 'Пустая погрузка', args: [[], 100], expected: 0 },
-      { name: 'Ящик ровно по объёму', args: [[100, 100], 100], expected: 2 },
-    ],
-  },
-
-  /* ------------------------------------------------------------------ */
-  /* Сектор: Ретранслятор R-14 — связь                                   */
-  /* ------------------------------------------------------------------ */
-  {
-    id: 'decode-signal',
-    sector: 'relay',
-    module: 'comms',
-    title: 'Расшифровка сигнала',
-    difficulty: 2,
-    topic: 'Строки: replace, split, trim',
-    reward: { credits: 150, xp: 70 },
-    brief:
-      'Сигнал приходит с помехами: символ "#" — это шум, символ "_" — пробел, ' +
-      'регистр произвольный. Функция decodeSignal(signal) должна убрать все "#", ' +
-      'заменить "_" на пробелы, привести текст к нижнему регистру и обрезать ' +
-      'пробелы по краям.',
-    theory: [
-      'replaceAll("#", "") удаляет все вхождения символа.',
-      'split("_").join(" ") — ещё один способ заменить разделитель.',
-      'toLowerCase() и trim() возвращают новую строку, исходная не меняется.',
-    ],
-    fn: 'decodeSignal',
-    starter:
-      'function decodeSignal(signal) {\n' +
-      '  // уберите шум, замените подчёркивания, приведите к нижнему регистру\n' +
-      '}\n',
-    hints: [
-      'Методы строк можно вызывать цепочкой: signal.replaceAll(...).replaceAll(...)',
-      'trim() применяйте в самом конце, когда подчёркивания уже стали пробелами.',
-    ],
-    solution:
-      'function decodeSignal(signal) {\n' +
-      '  return signal\n' +
-      '    .replaceAll("#", "")\n' +
-      '    .replaceAll("_", " ")\n' +
-      '    .toLowerCase()\n' +
-      '    .trim();\n' +
-      '}\n',
-    tests: [
-      { name: 'Простой сигнал', args: ['SOS_ГЕЛИОС'], expected: 'sos гелиос' },
-      { name: 'С шумом', args: ['A#VRO#RA_НА_КУРСЕ'], expected: 'avrora на курсе' },
-      { name: 'Пробелы по краям', args: ['_ТРЕВОГА_'], expected: 'тревога' },
-      { name: 'Только шум', args: ['###'], expected: '' },
-    ],
-  },
-  {
-    id: 'parse-telemetry',
-    sector: 'relay',
-    module: 'comms',
-    title: 'Разбор телеметрии',
-    difficulty: 3,
-    topic: 'Строки → объект, Number',
-    reward: { credits: 180, xp: 85 },
-    brief:
-      'Телеметрия приходит строкой вида "fuel=82;shield=54;crew=12". ' +
-      'Функция parseTelemetry(raw) должна вернуть объект { fuel: 82, shield: 54, crew: 12 } — ' +
-      'значения именно числами, а не строками. Пустая строка даёт пустой объект {}.',
-    theory: [
-      'split(";") разобьёт строку на пары "ключ=значение".',
-      'Каждую пару можно снова разбить: const [key, value] = pair.split("=").',
-      'Number("82") превращает строку в число 82.',
-    ],
-    fn: 'parseTelemetry',
-    starter:
-      'function parseTelemetry(raw) {\n' +
-      '  const result = {};\n' +
-      '  // разберите строку на пары и заполните объект\n' +
-      '  return result;\n' +
-      '}\n',
-    hints: [
-      'Если raw пустая — сразу верните {}.',
-      'Записать свойство по вычисляемому имени: result[key] = Number(value);',
-    ],
-    solution:
-      'function parseTelemetry(raw) {\n' +
-      '  const result = {};\n' +
-      '  if (raw === "") return result;\n' +
-      '  for (const pair of raw.split(";")) {\n' +
-      '    const [key, value] = pair.split("=");\n' +
-      '    result[key] = Number(value);\n' +
-      '  }\n' +
-      '  return result;\n' +
-      '}\n',
-    tests: [
-      { name: 'Три параметра', args: ['fuel=82;shield=54;crew=12'], expected: { fuel: 82, shield: 54, crew: 12 } },
-      { name: 'Один параметр', args: ['fuel=100'], expected: { fuel: 100 } },
-      { name: 'Пустая строка', args: [''], expected: {} },
-      { name: 'Значения — числа', args: ['x=7'], expected: { x: 7 } },
-    ],
-  },
-
-  /* ------------------------------------------------------------------ */
-  /* Сектор: Орбита Марса — навигация                                    */
-  /* ------------------------------------------------------------------ */
-  {
-    id: 'sort-routes',
-    sector: 'mars',
-    module: 'navigation',
-    title: 'Очередь на вылет',
-    difficulty: 3,
-    topic: 'Сортировка без мутации',
-    reward: { credits: 190, xp: 90 },
-    brief:
-      'Функция sortRoutes(routes) принимает массив маршрутов { to, hours } и возвращает ' +
-      'НОВЫЙ массив, отсортированный по hours по возрастанию. При равном времени — ' +
-      'по названию to в алфавитном порядке. Исходный массив менять нельзя.',
-    theory: [
-      'sort сортирует массив на месте, поэтому сначала делают копию: [...routes].',
-      'Компаратор возвращает отрицательное число, ноль или положительное.',
-      'Строки сравнивают через localeCompare: a.to.localeCompare(b.to).',
-    ],
-    fn: 'sortRoutes',
-    starter:
-      'function sortRoutes(routes) {\n' +
-      '  // скопируйте массив и отсортируйте копию\n' +
-      '}\n',
-    hints: [
-      'Копия массива: const copy = [...routes]; или routes.slice().',
-      'Компаратор: (a, b) => a.hours - b.hours || a.to.localeCompare(b.to)',
-    ],
-    solution:
-      'function sortRoutes(routes) {\n' +
-      '  return [...routes].sort((a, b) => a.hours - b.hours || a.to.localeCompare(b.to));\n' +
-      '}\n',
-    tests: [
-      {
-        name: 'Сортировка по времени',
-        args: [[{ to: 'Церера', hours: 40 }, { to: 'Титан', hours: 12 }, { to: 'Марс', hours: 26 }]],
-        expected: [{ to: 'Титан', hours: 12 }, { to: 'Марс', hours: 26 }, { to: 'Церера', hours: 40 }],
-      },
-      {
-        name: 'Равное время — по алфавиту',
-        args: [[{ to: 'Фобос', hours: 9 }, { to: 'Деймос', hours: 9 }]],
-        expected: [{ to: 'Деймос', hours: 9 }, { to: 'Фобос', hours: 9 }],
-      },
-      {
-        name: 'Исходный массив не изменился',
+        name: 'Каталог возвращается целиком',
         expr:
-          'const input = [{ to: "Церера", hours: 40 }, { to: "Титан", hours: 12 }];\n' +
-          'sortRoutes(input);\n' +
-          'return input.map(r => r.to);',
-        expected: ['Церера', 'Титан'],
-      },
-    ],
-  },
-  {
-    id: 'find-route',
-    sector: 'mars',
-    module: 'navigation',
-    title: 'Поиск маршрута',
-    difficulty: 2,
-    topic: 'find, некорректные данные',
-    reward: { credits: 160, xp: 75 },
-    brief:
-      'Функция findRoute(routes, destination) возвращает первый маршрут, у которого ' +
-      'поле to совпадает с destination. Если такого нет — null (именно null, не undefined).',
-    theory: [
-      'find возвращает первый подходящий элемент или undefined.',
-      'Оператор ?? подставляет запасное значение: value ?? null.',
-      'Строгое сравнение === не приводит типы и потому безопаснее.',
-    ],
-    fn: 'findRoute',
-    starter:
-      'function findRoute(routes, destination) {\n' +
-      '  // найдите маршрут и не забудьте про null\n' +
-      '}\n',
-    hints: [
-      'routes.find(route => route.to === destination)',
-      'Замените undefined на null: ... ?? null',
-    ],
-    solution:
-      'function findRoute(routes, destination) {\n' +
-      '  return routes.find(route => route.to === destination) ?? null;\n' +
-      '}\n',
-    tests: [
-      {
-        name: 'Маршрут найден',
-        args: [[{ to: 'Титан', hours: 12 }, { to: 'Марс', hours: 26 }], 'Марс'],
-        expected: { to: 'Марс', hours: 26 },
+          'const yard = createShipyard("Орион", [{ id: "a", name: "Бур" }, { id: "b", name: "Реактор" }]);\n' +
+          'return yard.getCatalog();',
+        expected: [{ id: 'a', name: 'Бур' }, { id: 'b', name: 'Реактор' }],
       },
       {
-        name: 'Маршрута нет',
-        args: [[{ to: 'Титан', hours: 12 }], 'Плутон'],
+        name: 'Поиск находит модуль по id',
+        expr:
+          'const yard = createShipyard("Орион", [{ id: "a", name: "Бур" }, { id: "b", name: "Реактор" }]);\n' +
+          'return yard.findModule("b").name;',
+        expected: 'Реактор',
+      },
+      {
+        name: 'Неизвестный модуль даёт null',
+        expr: 'return createShipyard("Орион", [{ id: "a" }]).findModule("нет-такого");',
         expected: null,
       },
-      { name: 'Пустой список', args: [[], 'Марс'], expected: null },
-    ],
-  },
-  {
-    id: 'best-route',
-    sector: 'mars',
-    module: 'navigation',
-    title: 'Лучший курс',
-    difficulty: 4,
-    topic: 'Функции высшего порядка',
-    reward: { credits: 220, xp: 110 },
-    brief:
-      'Функция bestRoute(routes, score) принимает массив маршрутов и функцию оценки. ' +
-      'Она возвращает маршрут с максимальной оценкой score(route). Если оценки равны, ' +
-      'побеждает тот, кто встретился раньше. Пустой массив — null.',
-    theory: [
-      'Функцию можно передать в другую функцию как обычное значение.',
-      'Вызов колбэка выглядит так: const value = score(route);',
-      'Идти циклом и хранить лучшего — надёжнее, чем сортировать весь массив.',
-    ],
-    fn: 'bestRoute',
-    starter:
-      'function bestRoute(routes, score) {\n' +
-      '  // переберите маршруты и запомните лучший по score()\n' +
-      '}\n',
-    hints: [
-      'Заведите best = null и bestValue = -Infinity.',
-      'Обновляйте лучшего только при строгом «больше» — тогда первый выиграет ничью.',
-    ],
-    solution:
-      'function bestRoute(routes, score) {\n' +
-      '  let best = null;\n' +
-      '  let bestValue = -Infinity;\n' +
-      '  for (const route of routes) {\n' +
-      '    const value = score(route);\n' +
-      '    if (value > bestValue) {\n' +
-      '      bestValue = value;\n' +
-      '      best = route;\n' +
-      '    }\n' +
-      '  }\n' +
-      '  return best;\n' +
-      '}\n',
-    tests: [
-      {
-        name: 'Максимальная награда',
-        expr:
-          'const routes = [{ to: "Титан", reward: 120 }, { to: "Марс", reward: 300 }];\n' +
-          'return bestRoute(routes, r => r.reward).to;',
-        expected: 'Марс',
-      },
-      {
-        name: 'Минимальное время через минус',
-        expr:
-          'const routes = [{ to: "Титан", hours: 40 }, { to: "Марс", hours: 12 }];\n' +
-          'return bestRoute(routes, r => -r.hours).to;',
-        expected: 'Марс',
-      },
-      {
-        name: 'Ничья — побеждает первый',
-        expr:
-          'const routes = [{ to: "Фобос", reward: 10 }, { to: "Деймос", reward: 10 }];\n' +
-          'return bestRoute(routes, r => r.reward).to;',
-        expected: 'Фобос',
-      },
-      { name: 'Пустой массив', expr: 'return bestRoute([], r => r.reward);', expected: null },
+      { name: 'Пустая верфь не ломается', expr: 'return createShipyard("Пустая", []).getCatalog().length;', expected: 0 },
     ],
   },
 
-  /* ------------------------------------------------------------------ */
-  /* Сектор: Ξ-7 — щиты и лаборатория                                    */
-  /* ------------------------------------------------------------------ */
+  /* ---------------------------------------------------------------- 3 -- */
   {
-    id: 'shield-matrix',
-    sector: 'deep',
-    module: 'shields',
-    title: 'Пробоина в щите',
-    difficulty: 4,
-    topic: 'Вложенные массивы и циклы',
-    reward: { credits: 230, xp: 115 },
+    id: 'warehouse',
+    order: 3,
+    title: 'Склад корпорации',
+    topic: 'Методы, состояние объекта, валидация',
+    difficulty: 3,
+    reward: { credits: 26000, xp: 90 },
+    unlocks: { view: 'warehouse', label: 'Склад' },
+    story:
+      'Купленные модули нужно где-то держать. Склад не резиновый: если принять груз ' +
+      'сверх вместимости, перекрытия не выдержат — приёмка обязана уметь отказывать.',
     brief:
-      'Щит — это матрица чисел (массив массивов), где число — прочность ячейки. ' +
-      'Функция weakestCell(grid) возвращает объект { row, col, value } самой слабой ячейки. ' +
-      'Если минимумов несколько — берётся первый при обходе сверху вниз и слева направо. ' +
-      'Для пустой матрицы верните null.',
+      'Напишите функцию createWarehouse(capacity), которая возвращает склад — объект с полями ' +
+      'capacity и items (пустой массив) и методами:\n' +
+      '• usedSpace() — суммарный вес всех принятых модулей (для пустого склада 0);\n' +
+      '• addItem(item) — если модуль помещается, кладёт его в items и возвращает true; ' +
+      'если не помещается — ничего не меняет и возвращает false.',
     theory: [
-      'Вложенный цикл: внешний идёт по строкам, внутренний — по ячейкам строки.',
-      'Индексы удобно брать через обычный for (let row = 0; row < grid.length; row++).',
-      'Строгое «меньше» при сравнении сохранит первый найденный минимум.',
+      'reduce удобно считает сумму: this.items.reduce((sum, item) => sum + item.weight, 0).',
+      'Методы могут вызывать друг друга через this: внутри addItem доступен this.usedSpace().',
+      'Модуль ровно по остатку помещается — сравнивайте через <=, а не <.',
     ],
-    fn: 'weakestCell',
+    fn: 'createWarehouse',
     starter:
-      'function weakestCell(grid) {\n' +
-      '  // пройдите матрицу и найдите минимальное значение с его координатами\n' +
+      'function createWarehouse(capacity) {\n' +
+      '  return {\n' +
+      '    capacity,\n' +
+      '    items: [],\n' +
+      '    // добавьте методы usedSpace и addItem\n' +
+      '  };\n' +
       '}\n',
     hints: [
-      'Стартовое значение минимума — Infinity, тогда первая же ячейка его заменит.',
-      'grid[row][col] — обращение к ячейке по координатам.',
+      'usedSpace() { return this.items.reduce((sum, item) => sum + item.weight, 0); },',
+      'addItem(item) { if (this.usedSpace() + item.weight > this.capacity) return false; this.items.push(item); return true; }',
     ],
     solution:
-      'function weakestCell(grid) {\n' +
-      '  let best = null;\n' +
-      '  let min = Infinity;\n' +
-      '  for (let row = 0; row < grid.length; row++) {\n' +
-      '    for (let col = 0; col < grid[row].length; col++) {\n' +
-      '      if (grid[row][col] < min) {\n' +
-      '        min = grid[row][col];\n' +
-      '        best = { row, col, value: min };\n' +
-      '      }\n' +
-      '    }\n' +
-      '  }\n' +
-      '  return best;\n' +
+      'function createWarehouse(capacity) {\n' +
+      '  return {\n' +
+      '    capacity,\n' +
+      '    items: [],\n' +
+      '    usedSpace() {\n' +
+      '      return this.items.reduce((sum, item) => sum + item.weight, 0);\n' +
+      '    },\n' +
+      '    addItem(item) {\n' +
+      '      if (this.usedSpace() + item.weight > this.capacity) return false;\n' +
+      '      this.items.push(item);\n' +
+      '      return true;\n' +
+      '    },\n' +
+      '  };\n' +
       '}\n',
     tests: [
+      { name: 'Пустой склад ничего не занимает', expr: 'return createWarehouse(500).usedSpace();', expected: 0 },
       {
-        name: 'Минимум в середине',
-        args: [[[80, 75, 90], [60, 42, 70], [88, 91, 55]]],
-        expected: { row: 1, col: 1, value: 42 },
-      },
-      {
-        name: 'Первый из одинаковых',
-        args: [[[10, 10], [10, 10]]],
-        expected: { row: 0, col: 0, value: 10 },
-      },
-      { name: 'Одна строка', args: [[[9, 3, 7]]], expected: { row: 0, col: 1, value: 3 } },
-      { name: 'Пустая матрица', args: [[]], expected: null },
-    ],
-  },
-  {
-    id: 'reinforce-shields',
-    sector: 'deep',
-    module: 'shields',
-    title: 'Усиление щита',
-    difficulty: 4,
-    topic: 'map по вложенным массивам, неизменяемость',
-    reward: { credits: 210, xp: 100 },
-    brief:
-      'Функция reinforce(grid, amount) возвращает НОВУЮ матрицу щита, где каждая ячейка ' +
-      'усилена на amount, но не больше 100. Исходную матрицу менять нельзя.',
-    theory: [
-      'map можно применять вложенно: grid.map(row => row.map(cell => ...)).',
-      'map всегда создаёт новый массив, поэтому исходные данные остаются целыми.',
-      'Ограничить сверху помогает Math.min(value, 100).',
-    ],
-    fn: 'reinforce',
-    starter:
-      'function reinforce(grid, amount) {\n' +
-      '  // пройдите строки и ячейки, вернув новую матрицу\n' +
-      '}\n',
-    hints: [
-      'Внешний map идёт по строкам, внутренний — по ячейкам строки.',
-      'Значение ячейки: Math.min(cell + amount, 100).',
-    ],
-    solution:
-      'function reinforce(grid, amount) {\n' +
-      '  return grid.map(row => row.map(cell => Math.min(cell + amount, 100)));\n' +
-      '}\n',
-    tests: [
-      {
-        name: 'Обычное усиление',
-        args: [[[10, 20], [30, 40]], 5],
-        expected: [[15, 25], [35, 45]],
-      },
-      {
-        name: 'Потолок в 100',
-        args: [[[95, 100], [80, 99]], 10],
-        expected: [[100, 100], [90, 100]],
-      },
-      { name: 'Пустая матрица', args: [[], 10], expected: [] },
-      {
-        name: 'Исходная матрица не изменилась',
+        name: 'Модуль принят',
         expr:
-          'const grid = [[10, 20]];\n' +
-          'reinforce(grid, 5);\n' +
-          'return grid;',
-        expected: [[10, 20]],
-      },
-    ],
-  },
-  {
-    id: 'module-class',
-    sector: 'deep',
-    module: 'lab',
-    title: 'Чертёж модуля',
-    difficulty: 4,
-    topic: 'Классы, методы, this',
-    reward: { credits: 240, xp: 120 },
-    brief:
-      'Опишите класс ShipModule:\n' +
-      '• конструктор принимает name и level (по умолчанию 1);\n' +
-      '• метод upgrade() поднимает уровень на 1, но не выше 3, и возвращает сам объект (this);\n' +
-      '• метод describe() возвращает строку вида "Реактор (ур. 2)".',
-    theory: [
-      'Значение по умолчанию задаётся прямо в параметрах: constructor(name, level = 1).',
-      'Внутри методов к полям обращаются через this: this.level += 1.',
-      'Возврат this позволяет писать цепочки: module.upgrade().upgrade().',
-    ],
-    fn: 'ShipModule',
-    starter:
-      'class ShipModule {\n' +
-      '  constructor(name, level = 1) {\n' +
-      '    // сохраните поля\n' +
-      '  }\n' +
-      '\n' +
-      '  upgrade() {\n' +
-      '    // поднимите уровень и верните this\n' +
-      '  }\n' +
-      '\n' +
-      '  describe() {\n' +
-      '    // верните строку "Имя (ур. N)"\n' +
-      '  }\n' +
-      '}\n',
-    hints: [
-      'Ограничить уровень поможет Math.min(this.level + 1, 3).',
-      'Строку удобно собрать шаблоном: `${this.name} (ур. ${this.level})`',
-    ],
-    solution:
-      'class ShipModule {\n' +
-      '  constructor(name, level = 1) {\n' +
-      '    this.name = name;\n' +
-      '    this.level = level;\n' +
-      '  }\n' +
-      '\n' +
-      '  upgrade() {\n' +
-      '    this.level = Math.min(this.level + 1, 3);\n' +
-      '    return this;\n' +
-      '  }\n' +
-      '\n' +
-      '  describe() {\n' +
-      '    return `${this.name} (ур. ${this.level})`;\n' +
-      '  }\n' +
-      '}\n',
-    tests: [
-      {
-        name: 'Уровень по умолчанию',
-        expr: 'return new ShipModule("Реактор").describe();',
-        expected: 'Реактор (ур. 1)',
+          'const w = createWarehouse(500);\n' +
+          'const ok = w.addItem({ name: "Реактор", weight: 150 });\n' +
+          'return { ok, used: w.usedSpace(), count: w.items.length };',
+        expected: { ok: true, used: 150, count: 1 },
       },
       {
-        name: 'Улучшение поднимает уровень',
-        expr: 'return new ShipModule("Щиты", 1).upgrade().describe();',
-        expected: 'Щиты (ур. 2)',
-      },
-      {
-        name: 'Выше третьего не растёт',
-        expr: 'return new ShipModule("Трюм", 3).upgrade().level;',
-        expected: 3,
-      },
-      {
-        name: 'upgrade возвращает сам объект',
-        expr: 'const m = new ShipModule("Антенна"); return m.upgrade() === m;',
-        expected: true,
-      },
-    ],
-  },
-  {
-    id: 'probe-scan',
-    sector: 'deep',
-    module: 'lab',
-    title: 'Данные с зонда',
-    difficulty: 5,
-    topic: 'Промисы, async/await',
-    reward: { credits: 260, xp: 130 },
-    brief:
-      'Зонд умеет отдавать замеры по одному: probe.read() возвращает промис с числом. ' +
-      'Напишите асинхронную функцию collectSamples(probe, count): она делает count замеров ' +
-      'по очереди и возвращает промис с массивом полученных чисел. При count = 0 — пустой массив.',
-    theory: [
-      'async function всегда возвращает промис, даже если внутри обычный return.',
-      'await приостанавливает функцию до выполнения промиса: const value = await probe.read().',
-      'Замеры «по очереди» — это await внутри обычного цикла for.',
-    ],
-    fn: 'collectSamples',
-    starter:
-      'async function collectSamples(probe, count) {\n' +
-      '  // сделайте count замеров и соберите их в массив\n' +
-      '}\n',
-    hints: [
-      'Соберите результаты в массив: const samples = []; samples.push(await probe.read());',
-      'Цикл for (let i = 0; i < count; i++) выполнит ровно count замеров.',
-    ],
-    solution:
-      'async function collectSamples(probe, count) {\n' +
-      '  const samples = [];\n' +
-      '  for (let i = 0; i < count; i++) {\n' +
-      '    samples.push(await probe.read());\n' +
-      '  }\n' +
-      '  return samples;\n' +
-      '}\n',
-    tests: [
-      {
-        name: 'Три замера по очереди',
+        name: 'Перегруз отклонён и склад не изменился',
         expr:
-          'let n = 0;\n' +
-          'const probe = { read: () => Promise.resolve(++n * 10) };\n' +
-          'return collectSamples(probe, 3);',
-        expected: [10, 20, 30],
+          'const w = createWarehouse(200);\n' +
+          'w.addItem({ name: "Реактор", weight: 150 });\n' +
+          'const ok = w.addItem({ name: "Двигатель", weight: 200 });\n' +
+          'return { ok, used: w.usedSpace(), count: w.items.length };',
+        expected: { ok: false, used: 150, count: 1 },
       },
       {
-        name: 'Ноль замеров',
+        name: 'Ровно по остатку помещается',
         expr:
-          'const probe = { read: () => Promise.resolve(1) };\n' +
-          'return collectSamples(probe, 0);',
-        expected: [],
-      },
-      {
-        name: 'Возвращается именно промис',
-        expr:
-          'const probe = { read: () => Promise.resolve(5) };\n' +
-          'const result = collectSamples(probe, 1);\n' +
-          'return typeof result.then === "function";',
+          'const w = createWarehouse(300);\n' +
+          'w.addItem({ weight: 150 });\n' +
+          'return w.addItem({ weight: 150 });',
         expected: true,
       },
       {
-        name: 'Замеры идут строго по очереди',
+        name: 'Два склада не делят один массив',
         expr:
-          'const order = [];\n' +
-          'let n = 0;\n' +
-          'const probe = { read: () => { const id = ++n; order.push(id); return Promise.resolve(id); } };\n' +
-          'return collectSamples(probe, 3).then(() => order.join(","));',
-        expected: '1,2,3',
+          'const a = createWarehouse(500);\n' +
+          'const b = createWarehouse(500);\n' +
+          'a.addItem({ weight: 10 });\n' +
+          'return b.items.length;',
+        expected: 0,
+      },
+    ],
+  },
+
+  /* ---------------------------------------------------------------- 4 -- */
+  {
+    id: 'hire',
+    order: 4,
+    title: 'Биржа труда',
+    topic: 'Копии объектов, спред, условия',
+    difficulty: 3,
+    reward: { credits: 24000, xp: 100 },
+    unlocks: { view: 'crew', label: 'Экипаж' },
+    story:
+      'Корабль без людей — груда железа. На бирже есть кандидаты, но найм обязан ' +
+      'считать деньги: нельзя нанимать в долг.',
+    brief:
+      'Напишите функцию hireCrewMember(commander, candidate), которая возвращает НОВЫЙ объект командира:\n' +
+      '• если кредитов хватает (credits >= candidate.hireCost) — списывает стоимость и добавляет ' +
+      'кандидата в массив crew;\n' +
+      '• если не хватает — возвращает копию командира без изменений.\n' +
+      'Исходный объект commander менять нельзя.',
+    theory: [
+      'Копия объекта с изменениями: { ...commander, credits: 0 }.',
+      'Копия массива с новым элементом: [...commander.crew, candidate].',
+      'Сравнение «хватает ли денег» — это credits >= hireCost.',
+    ],
+    fn: 'hireCrewMember',
+    starter:
+      'function hireCrewMember(commander, candidate) {\n' +
+      '  // верните нового командира: с нанятым кандидатом или без изменений\n' +
+      '}\n',
+    hints: [
+      'Сначала проверьте: if (commander.credits < candidate.hireCost) return { ...commander };',
+      'return { ...commander, credits: commander.credits - candidate.hireCost, crew: [...commander.crew, candidate] };',
+    ],
+    solution:
+      'function hireCrewMember(commander, candidate) {\n' +
+      '  if (commander.credits < candidate.hireCost) {\n' +
+      '    return { ...commander };\n' +
+      '  }\n' +
+      '\n' +
+      '  return {\n' +
+      '    ...commander,\n' +
+      '    credits: commander.credits - candidate.hireCost,\n' +
+      '    crew: [...commander.crew, candidate],\n' +
+      '  };\n' +
+      '}\n',
+    tests: [
+      {
+        name: 'Кандидат нанят, деньги списаны',
+        args: [
+          { name: 'Сергей', credits: 20000, crew: [] },
+          { id: 'c1', name: 'Анна Кравец', role: 'Капитан', hireCost: 15000 },
+        ],
+        expected: {
+          name: 'Сергей',
+          credits: 5000,
+          crew: [{ id: 'c1', name: 'Анна Кравец', role: 'Капитан', hireCost: 15000 }],
+        },
+      },
+      {
+        name: 'Денег не хватает — экипаж прежний',
+        args: [
+          { name: 'Сергей', credits: 1000, crew: [] },
+          { id: 'c1', name: 'Анна Кравец', role: 'Капитан', hireCost: 15000 },
+        ],
+        expected: { name: 'Сергей', credits: 1000, crew: [] },
+      },
+      {
+        name: 'Ровно по бюджету найм проходит',
+        expr:
+          'const result = hireCrewMember({ name: "С", credits: 15000, crew: [] }, { hireCost: 15000 });\n' +
+          'return result.credits;',
+        expected: 0,
+      },
+      {
+        name: 'Исходный командир не изменился',
+        expr:
+          'const commander = { name: "С", credits: 20000, crew: [] };\n' +
+          'hireCrewMember(commander, { hireCost: 15000 });\n' +
+          'return { credits: commander.credits, crew: commander.crew.length };',
+        expected: { credits: 20000, crew: 0 },
+      },
+    ],
+  },
+
+  /* ---------------------------------------------------------------- 5 -- */
+  {
+    id: 'assemble',
+    order: 5,
+    title: 'Сборка корабля',
+    topic: 'reduce по объектам, агрегация',
+    difficulty: 4,
+    reward: { credits: 28000, xp: 120 },
+    unlocks: { view: 'ship', label: 'Корабль' },
+    story:
+      'Модули лежат на складе по отдельности. Корабль — это их сумма: общая масса ' +
+      'и энергобаланс решают, полетит он или останется в доке.',
+    brief:
+      'Напишите функцию assembleShip(name, modules), которая возвращает объект корабля:\n' +
+      '• name — название;\n' +
+      '• modules — переданный массив;\n' +
+      '• mass — сумма weight всех модулей;\n' +
+      '• energy — сумма energy всех модулей (у реактора она положительная, у потребителей отрицательная).\n' +
+      'Для пустого списка модулей mass и energy равны 0.',
+    theory: [
+      'reduce складывает поле каждого элемента: modules.reduce((sum, m) => sum + m.weight, 0).',
+      'Стартовое значение 0 обязательно — иначе пустой массив выбросит ошибку.',
+      'Считать можно двумя вызовами reduce: отдельно массу, отдельно энергию.',
+    ],
+    fn: 'assembleShip',
+    starter:
+      'function assembleShip(name, modules) {\n' +
+      '  // посчитайте массу и энергобаланс, верните объект корабля\n' +
+      '}\n',
+    hints: [
+      'const mass = modules.reduce((sum, module) => sum + module.weight, 0);',
+      'return { name, modules, mass, energy };',
+    ],
+    solution:
+      'function assembleShip(name, modules) {\n' +
+      '  const mass = modules.reduce((sum, module) => sum + module.weight, 0);\n' +
+      '  const energy = modules.reduce((sum, module) => sum + module.energy, 0);\n' +
+      '\n' +
+      '  return { name, modules, mass, energy };\n' +
+      '}\n',
+    tests: [
+      {
+        name: 'Масса и энергия посчитаны',
+        expr:
+          'const ship = assembleShip("Квест", [\n' +
+          '  { name: "Реактор", weight: 150, energy: 120 },\n' +
+          '  { name: "Двигатель", weight: 200, energy: -60 },\n' +
+          ']);\n' +
+          'return { name: ship.name, mass: ship.mass, energy: ship.energy };',
+        expected: { name: 'Квест', mass: 350, energy: 60 },
+      },
+      {
+        name: 'Пустой корабль — нули',
+        expr: 'const ship = assembleShip("Каркас", []); return { mass: ship.mass, energy: ship.energy };',
+        expected: { mass: 0, energy: 0 },
+      },
+      {
+        name: 'Энергобаланс уходит в минус',
+        expr:
+          'return assembleShip("Тест", [{ weight: 10, energy: -40 }, { weight: 10, energy: -30 }]).energy;',
+        expected: -70,
+      },
+      {
+        name: 'Модули сохранены в корабле',
+        expr: 'return assembleShip("Тест", [{ weight: 1, energy: 1 }]).modules.length;',
+        expected: 1,
+      },
+    ],
+  },
+
+  /* ---------------------------------------------------------------- 6 -- */
+  {
+    id: 'preflight',
+    order: 6,
+    title: 'Предстартовая диагностика',
+    topic: 'Массив проблем, some, проверки',
+    difficulty: 4,
+    reward: { credits: 32000, xp: 150 },
+    unlocks: { view: 'flight', label: 'Диагностика' },
+    story:
+      'Диспетчер не выпустит корабль без проверки. Нужен отчёт: готов к вылету или ' +
+      'список причин, почему нет.',
+    brief:
+      'Напишите функцию checkReadiness(ship, crew), которая возвращает объект ' +
+      '{ ready, problems }:\n' +
+      '• problems — массив строк с найденными проблемами в таком порядке:\n' +
+      '  «Нет двигателя» — если среди ship.modules нет модуля с type "engine";\n' +
+      '  «Не хватает энергии» — если ship.energy меньше 0;\n' +
+      '  «Нет капитана» — если в crew нет человека с role "Капитан";\n' +
+      '• ready — true, если проблем нет.',
+    theory: [
+      'some проверяет, есть ли хотя бы один подходящий элемент: modules.some(m => m.type === "engine").',
+      'Собирать проблемы удобно в массив: const problems = []; problems.push("...").',
+      'Пустой массив — это «проблем нет»: ready = problems.length === 0.',
+    ],
+    fn: 'checkReadiness',
+    starter:
+      'function checkReadiness(ship, crew) {\n' +
+      '  const problems = [];\n' +
+      '  // проверьте двигатель, энергию и капитана\n' +
+      '  return { ready: problems.length === 0, problems };\n' +
+      '}\n',
+    hints: [
+      'if (!ship.modules.some(module => module.type === "engine")) problems.push("Нет двигателя");',
+      'if (!crew.some(member => member.role === "Капитан")) problems.push("Нет капитана");',
+    ],
+    solution:
+      'function checkReadiness(ship, crew) {\n' +
+      '  const problems = [];\n' +
+      '\n' +
+      '  if (!ship.modules.some(module => module.type === "engine")) {\n' +
+      '    problems.push("Нет двигателя");\n' +
+      '  }\n' +
+      '  if (ship.energy < 0) {\n' +
+      '    problems.push("Не хватает энергии");\n' +
+      '  }\n' +
+      '  if (!crew.some(member => member.role === "Капитан")) {\n' +
+      '    problems.push("Нет капитана");\n' +
+      '  }\n' +
+      '\n' +
+      '  return { ready: problems.length === 0, problems };\n' +
+      '}\n',
+    tests: [
+      {
+        name: 'Корабль готов к вылету',
+        args: [
+          { modules: [{ type: 'engine' }, { type: 'reactor' }], energy: 60 },
+          [{ role: 'Капитан' }],
+        ],
+        expected: { ready: true, problems: [] },
+      },
+      {
+        name: 'Нет двигателя',
+        args: [{ modules: [{ type: 'reactor' }], energy: 120 }, [{ role: 'Капитан' }]],
+        expected: { ready: false, problems: ['Нет двигателя'] },
+      },
+      {
+        name: 'Три проблемы сразу и в нужном порядке',
+        args: [{ modules: [], energy: -10 }, []],
+        expected: { ready: false, problems: ['Нет двигателя', 'Не хватает энергии', 'Нет капитана'] },
+      },
+      {
+        name: 'Нулевая энергия проблемой не считается',
+        args: [{ modules: [{ type: 'engine' }], energy: 0 }, [{ role: 'Капитан' }]],
+        expected: { ready: true, problems: [] },
       },
     ],
   },
 ];
 
-/** Задачи выбранного сектора в порядке объявления. */
-export function questsOfSector(sectorId) {
-  return QUESTS.filter(quest => quest.sector === sectorId);
-}
-
-/** Задача по идентификатору. */
+/** Задание по идентификатору. */
 export function questById(id) {
   return QUESTS.find(quest => quest.id === id) ?? null;
+}
+
+/** Задание, которое открывает указанный раздел интерфейса. */
+export function questForView(viewId) {
+  return QUESTS.find(quest => quest.unlocks?.view === viewId) ?? null;
 }
