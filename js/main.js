@@ -11,6 +11,7 @@ import {
 } from './state.js';
 import { renderPath } from './ui/path.js';
 import { renderConsole } from './ui/console.js';
+import { renderDatabase, renderPanels } from './ui/dbview.js';
 import { renderTask } from './ui/task.js';
 import { renderLog } from './ui/log.js';
 import { renderView, corporationName, toast } from './ui.js';
@@ -27,6 +28,8 @@ const VIEW_TITLES = {
   crew: 'Экипаж',
   ship: 'Корабль',
   flight: 'Предстартовая диагностика',
+  database: 'Бортовая база данных',
+  panels: 'Ваши панели',
   log: 'Журнал',
 };
 
@@ -113,6 +116,16 @@ function render() {
 
   if (name === 'console') {
     renderConsole();
+    return;
+  }
+
+  if (name === 'database') {
+    renderDatabase();
+    return;
+  }
+
+  if (name === 'panels') {
+    renderPanels();
     return;
   }
 

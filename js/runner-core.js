@@ -1,3 +1,5 @@
+import { Database } from './db.js';
+
 /**
  * Ядро проверки решений. Здесь нет ни DOM, ни воркера — только запуск
  * пользовательского кода и сравнение результатов с ожидаемыми.
@@ -204,6 +206,63 @@ export function previewValue(value, depth = 0) {
 }
 
 /**
+ * Объекты db и dashboard для консоли.
+ *
+ * Код игрока выполняется в воркере, поэтому работает не с настоящей базой, а
+ * с её копией: чтение отвечает сразу, а записи копятся списком операций и
+ * применяются к настоящей базе уже в основном потоке. Ровно так же ведёт себя
+ * обычный клиент базы данных.
+ */
+export function createConsoleApi(dbStore = {}, panels = []) {
+  const local = new Database(dbStore);
+  const ops = [];
+
+  const db = {
+    insert(name, record) {
+      const saved = local.insert(name, record);
+      ops.push({ type: 'insert', name, record });
+      return saved;
+    },
+    update(name, id, patch) {
+      const updated = local.update(name, id, patch);
+      if (updated) ops.push({ type: 'update', name, id, patch });
+      return updated;
+    },
+    remove(name, id) {
+      const removed = local.remove(name, id);
+      if (removed) ops.push({ type: 'remove', name, id });
+      return removed;
+    },
+    all: name => local.all(name),
+    get: (name, id) => local.get(name, id),
+    last: name => local.last(name),
+    find: (name, predicate) => local.find(name, predicate),
+    filter: (name, predicate) => local.filter(name, predicate),
+    count: name => local.count(name),
+    collections: () => local.collections(),
+  };
+
+  const dashboard = {
+    /** Зарегистрировать панель: исходник функции сохраняется и будет запускаться снова. */
+    add(name, render, options = {}) {
+      if (typeof name !== 'string' || !name.trim()) throw new Error('У панели должно быть имя');
+      if (typeof render !== 'function') throw new Error('Панель — это функция, которая возвращает описание');
+
+      const preview = render(db);
+      ops.push({ type: 'panel.add', name, source: render.toString(), title: options.title ?? name });
+      return preview;
+    },
+    remove(name) {
+      ops.push({ type: 'panel.remove', name });
+      return true;
+    },
+    list: () => panels.map(panel => ({ name: panel.name, title: panel.title })),
+  };
+
+  return { db, dashboard, ops };
+}
+
+/**
  * Выполнить произвольную команду из консоли на коде игрока.
  *
  * source — все решения, которые уже написал игрок (они попадают в область
@@ -211,9 +270,12 @@ export function previewValue(value, depth = 0) {
  * ввод как выражение и вернуть его значение; если это не выражение, а набор
  * инструкций — выполняем как есть.
  *
- * @returns {Promise<{value: unknown, preview: string|null, logs: string[], error: string|null}>}
+ * @returns {Promise<{value, preview, logs, ops, error}>} ops — записи в базу, их применит основной поток
  */
-export async function runConsoleInput(source, input, context = {}) {
+export async function runConsoleInput(source, input, payload = {}) {
+  const { data = {}, dbStore = {}, panels = [] } = payload;
+  const { db, dashboard, ops } = createConsoleApi(dbStore, panels);
+  const context = { ...data, db, dashboard };
   const logs = [];
   const consoleShim = {
     log: (...args) => logs.push(args.map(formatValue).join(' ')),
@@ -235,14 +297,14 @@ export async function runConsoleInput(source, input, context = {}) {
     try {
       run = build(`return (async () => { ${input} })();`);
     } catch (error) {
-      return { value: undefined, preview: null, logs, error: `Синтаксическая ошибка: ${error.message}` };
+      return { value: undefined, preview: null, logs, ops, error: `Синтаксическая ошибка: ${error.message}` };
     }
   }
 
   try {
     const value = await run(consoleShim, ...contextValues);
-    return { value: toPlain(value), preview: previewValue(value), logs, error: null };
+    return { value: toPlain(value), preview: previewValue(value), logs, ops, error: null };
   } catch (error) {
-    return { value: undefined, preview: null, logs, error: `${error.name}: ${error.message}` };
+    return { value: undefined, preview: null, logs, ops, error: `${error.name}: ${error.message}` };
   }
 }

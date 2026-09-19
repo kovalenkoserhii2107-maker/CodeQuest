@@ -11,6 +11,7 @@ import {
   addCrewMember, addLog, solvedCount, totalCount, corpRecord,
 } from './state.js';
 import { runPlayerCode, errorPanel } from './ui/sim.js';
+import { renderPanelCards } from './ui/dbview.js';
 import { escapeHtml, showValue } from './ui/html.js';
 
 const player = new PlayerState();
@@ -61,6 +62,9 @@ export async function renderCommand() {
         .map(([key, val]) => `<div class="widget__row"><span>${key}</span><b class="mono">${escapeHtml(showValue(val))}</b></div>`)
         .join('')}
       <p class="widget__note">Карточку собрала ваша функция из первого задания.</p>`;
+
+  // Панели, написанные игроком, живут прямо на Командном центре
+  renderPanelCards('command-panels');
 
   const crew = player.crew;
   stats.innerHTML = `
