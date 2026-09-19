@@ -12,13 +12,22 @@
 
 export const SECTORS = [
   {
+    id: 'hq',
+    name: 'Штаб-квартира',
+    x: 50,
+    y: 200,
+    module: 'base',
+    brief: 'Пустырь на окраине. Здесь будет заложен фундамент вашей корпорации.',
+    requires: [],
+  },
+  {
     id: 'dock',
     name: 'Док «Гелиос-9»',
     x: 120,
     y: 300,
     module: 'reactor',
     brief: 'Стартовая орбита. Пока реактор не выведен на режим, дальше не уйти.',
-    requires: [],
+    requires: ['connect-shipyard'],
   },
   {
     id: 'belt',
@@ -60,6 +69,7 @@ export const SECTORS = [
 
 /** Связи между секторами — по ним рисуются маршруты на карте. */
 export const ROUTES = [
+  ['hq', 'dock'],
   ['dock', 'belt'],
   ['belt', 'relay'],
   ['relay', 'mars'],
@@ -68,6 +78,80 @@ export const ROUTES = [
 ];
 
 export const QUESTS = [
+  /* ------------------------------------------------------------------ */
+  /* Сектор: Штаб-квартира — основание                                   */
+  /* ------------------------------------------------------------------ */
+  {
+    id: 'create-base',
+    sector: 'hq',
+    module: 'base',
+    title: 'Регистрация корпорации',
+    difficulty: 1,
+    topic: 'Объекты, создание',
+    reward: { credits: 15000, xp: 50 },
+    brief:
+      'Первый шаг к звездам — регистрация корпорации. ' +
+      'Напишите функцию createSpaceport(name), которая принимает название базы ' +
+      'и возвращает объект с полями: name (переданное имя), credits (0), ' +
+      'inventory (пустой массив) и crew (пустой массив).',
+    theory: [
+      'Объекты создаются с помощью фигурных скобок: { key: "value" }.',
+      'Массив — это квадратные скобки [].',
+      'Если ключ совпадает с именем переменной, можно писать короче: { name } вместо { name: name }.'
+    ],
+    fn: 'createSpaceport',
+    starter:
+      'function createSpaceport(name) {\n' +
+      '  // верните объект космопорта\n' +
+      '}\n',
+    hints: [
+      'return { name: name, credits: 0, inventory: [], crew: [] };'
+    ],
+    solution:
+      'function createSpaceport(name) {\n' +
+      '  return { name, credits: 0, inventory: [], crew: [] };\n' +
+      '}\n',
+    tests: [
+      { name: 'Создание "Авангард"', args: ['Авангард'], expected: { name: 'Авангард', credits: 0, inventory: [], crew: [] } },
+      { name: 'Создание "Звезда"', args: ['Звезда'], expected: { name: 'Звезда', credits: 0, inventory: [], crew: [] } },
+    ],
+  },
+  {
+    id: 'connect-shipyard',
+    sector: 'hq',
+    module: 'base',
+    title: 'Подключение Верфи',
+    difficulty: 1,
+    topic: 'Объекты, мутация',
+    reward: { credits: 26000, xp: 50 },
+    brief:
+      'Нам нужен доступ к каталогу модулей. ' +
+      'Напишите функцию connectShipyard(spaceport, shipyardName), которая ' +
+      'добавляет объекту spaceport новое свойство shipyard, равное переданному имени, ' +
+      'и возвращает этот объект.',
+    theory: [
+      'Чтобы добавить свойство в существующий объект, используйте точечную нотацию: obj.key = value.',
+      'Функция должна вернуть измененный объект (return spaceport).'
+    ],
+    fn: 'connectShipyard',
+    starter:
+      'function connectShipyard(spaceport, shipyardName) {\n' +
+      '  // добавьте свойство shipyard в объект spaceport и верните его\n' +
+      '}\n',
+    hints: [
+      'spaceport.shipyard = shipyardName;\nreturn spaceport;'
+    ],
+    solution:
+      'function connectShipyard(spaceport, shipyardName) {\n' +
+      '  spaceport.shipyard = shipyardName;\n' +
+      '  return spaceport;\n' +
+      '}\n',
+    tests: [
+      { name: 'Верфь "Орион"', args: [{ name: 'База', credits: 0 }, 'Орион'], expected: { name: 'База', credits: 0, shipyard: 'Орион' } },
+      { name: 'Верфь "Сириус"', args: [{ name: 'Альфа', credits: 0 }, 'Сириус'], expected: { name: 'Альфа', credits: 0, shipyard: 'Сириус' } },
+    ],
+  },
+
   /* ------------------------------------------------------------------ */
   /* Сектор: Док «Гелиос-9» — реактор                                    */
   /* ------------------------------------------------------------------ */

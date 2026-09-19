@@ -2,7 +2,7 @@ import { PlayerState } from './player.js';
 import { Warehouse } from './warehouse.js';
 import { Shipyard } from './shipyard.js';
 import { LaborExchange } from './crew.js';
-import { subscribe } from './state.js'; // Подписка на глобальное состояние
+import { subscribe, isSolved } from './state.js'; // Подписка на глобальное состояние
 
 // Инициализация классов-оберток
 const player = new PlayerState();
@@ -36,6 +36,16 @@ export function updateDashboard() {
 export function renderShipyard() {
   const container = document.getElementById('shipyard-catalog');
   if (!container) return;
+
+  if (!isSolved('connect-shipyard')) {
+    container.innerHTML = `
+      <article class="metric" style="border: 1px dashed var(--warning); opacity: 0.8">
+        <p class="metric__label" style="color: var(--warning)">ВЕРФЬ НЕДОСТУПНА</p>
+        <p style="font-size: 0.9rem; margin-top: 8px;">Выполните задачу «Подключение Верфи» в тренажере.</p>
+      </article>
+    `;
+    return;
+  }
 
   container.innerHTML = '';
   const catalog = shipyard.getCatalog();
@@ -76,6 +86,12 @@ export function renderCrew() {
   const hiredContainer = document.getElementById('hired-crew');
   const exchangeContainer = document.getElementById('exchange-candidates');
   if (!hiredContainer || !exchangeContainer) return;
+
+  if (!isSolved('create-base')) {
+    hiredContainer.innerHTML = '<p class="panel__empty" style="color: var(--warning)">Доступ запрещен. Сначала решите задачу «Регистрация корпорации».</p>';
+    exchangeContainer.innerHTML = '<p class="panel__empty" style="color: var(--warning)">Биржа недоступна.</p>';
+    return;
+  }
 
   // Отрисовка нанятого экипажа
   hiredContainer.innerHTML = '';
