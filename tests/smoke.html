@@ -18,7 +18,9 @@
     import { runPlayerCode } from '../js/ui/sim.js';
     import {
       completeQuest, currentQuest, isQuestAvailable, isViewUnlocked, resetProgress, state,
+      isPracticed, isQuestClosed, markPracticed, setCorpRecord, corpRecord,
     } from '../js/state.js';
+    import { runConsole } from '../js/runner.js';
 
     const problems = [];
     const lines = [];
@@ -50,14 +52,36 @@
     check(!isQuestAvailable(QUESTS[1].id), 'следующее задание закрыто');
     check(!isViewUnlocked(QUESTS[0].unlocks.view), 'раздел закрыт до решения');
 
-    const outcome = completeQuest(QUESTS[0].id, { source: QUESTS[0].solution });
-    check(outcome.unlockedView.view === QUESTS[0].unlocks.view, 'решение открывает свой раздел');
-    check(isViewUnlocked(QUESTS[0].unlocks.view), 'раздел стал доступен');
+    completeQuest(QUESTS[0].id, { source: QUESTS[0].solution });
+    check(state.credits === QUESTS[0].reward.credits, 'награда за тесты начислена');
+    check(!isViewUnlocked(QUESTS[0].unlocks.view), 'после одних тестов раздел ещё закрыт');
+    check(isViewUnlocked('console'), 'консоль открылась после первых тестов');
+    check(!isQuestAvailable(QUESTS[1].id), 'следующее задание ждёт практику');
+
+    // 4. Практика: вызов своей функции в консоли закрывает задание
+    const quest = QUESTS[0];
+    const command = 'createCommander("Сергей Коваленко")';
+    const run = await runConsole(quest.solution, command, { corp: { credits: 0 } });
+    check(!run.error && run.value?.name === 'Сергей Коваленко', 'консоль выполняет команду на коде игрока');
+    check(typeof run.preview === 'string' && run.preview.includes('Командир'), 'консоль показывает читаемый результат');
+
+    check(quest.practice.validate(run.value, { corp: {} }) === true, 'валидатор принимает настоящий вызов');
+    check(quest.practice.validate({ name: 'X' }, { corp: {} }) !== true, 'валидатор не принимает огрызок объекта');
+
+    quest.practice.commit(run.value, { setRecord: (key, value) => setCorpRecord(key, value) }, { corp: {} });
+    markPracticed(quest.id, { note: 'тест' });
+
+    check(corpRecord('commander')?.name === 'Сергей Коваленко', 'объект игрока записан в базу корпорации');
+    check(isPracticed(quest.id) && isQuestClosed(quest.id), 'задание закрыто целиком');
+    check(isViewUnlocked(QUESTS[0].unlocks.view), 'раздел открылся после практики');
     check(isQuestAvailable(QUESTS[1].id), 'следующее задание открылось');
     check(!isQuestAvailable(QUESTS[2].id), 'задание через одно всё ещё закрыто');
-    check(state.credits === QUESTS[0].reward.credits, 'награда начислена');
 
-    // 4. Мост «код игрока → симулятор»
+    // Ошибка в команде не ломает консоль
+    const badRun = await runConsole(quest.solution, 'createCommander(', {});
+    check(Boolean(badRun.error), 'синтаксическая ошибка возвращается текстом, а не падением');
+
+    // 5. Мост «код игрока → раздел интерфейса»
     const card = await runPlayerCode('commander', 'return createCommander("Тест");');
     check(card.value?.name === 'Тест' && !card.error, 'раздел получает данные из кода игрока');
 
@@ -65,7 +89,10 @@
     check(Boolean(locked.error), 'нерешённое задание не отдаёт данные разделу');
 
     resetProgress();
-    check(Object.keys(state.solved).length === 0 && state.credits === 0, 'сброс возвращает игру в начало');
+    check(
+      Object.keys(state.solved).length === 0 && state.credits === 0 && !corpRecord('commander'),
+      'сброс возвращает игру в начало и очищает базу корпорации',
+    );
 
     document.getElementById('out').textContent = lines.join('\n');
     document.title = problems.length === 0

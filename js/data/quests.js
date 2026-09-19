@@ -55,6 +55,22 @@ export const QUESTS = [
       'function createCommander(name) {\n' +
       '  return { name, rank: "Командир", experience: 0, credits: 0 };\n' +
       '}\n',
+    practice: {
+      title: 'Занесите себя в реестр',
+      hint: 'Тесты — это теория. Теперь вызовите свою функцию в консоли и укажите своё имя: объект попадёт в базу корпорации.',
+      example: 'createCommander("Сергей Коваленко")',
+      validate: value => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть объект командира';
+        if (typeof value.name !== 'string' || value.name.trim().length < 2) return 'В объекте нет осмысленного имени — передайте своё имя аргументом';
+        if (value.rank !== 'Командир') return 'Поле rank должно быть строкой «Командир»';
+        return true;
+      },
+      commit: (value, api) => {
+        const name = value.name.trim();
+        api.setRecord('commander', { name, rank: value.rank, experience: value.experience ?? 0 });
+        return `Личное дело «${name}» занесено в реестр корпорации`;
+      },
+    },
     tests: [
       {
         name: 'Личное дело заведено',
@@ -118,6 +134,21 @@ export const QUESTS = [
       '    },\n' +
       '  };\n' +
       '}\n',
+    practice: {
+      title: 'Подключите верфь к каталогу',
+      hint: 'В консоли доступен объект corp: corp.catalog — настоящий каталог модулей. Передайте его своей функции.',
+      example: 'createShipyard("Орион", corp.catalog)',
+      validate: value => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть объект верфи';
+        if (typeof value.name !== 'string' || !value.name.trim()) return 'У верфи нет названия';
+        if (!Array.isArray(value.modules) || value.modules.length === 0) return 'В верфь не передан каталог модулей: используйте corp.catalog';
+        return true;
+      },
+      commit: (value, api) => {
+        api.setRecord('shipyard', { name: value.name.trim(), modules: value.modules.length });
+        return `Верфь «${value.name.trim()}» подключена: ${value.modules.length} модулей в каталоге`;
+      },
+    },
     tests: [
       { name: 'Название верфи сохранено', expr: 'return createShipyard("Орион", []).name;', expected: 'Орион' },
       {
@@ -194,6 +225,21 @@ export const QUESTS = [
       '    },\n' +
       '  };\n' +
       '}\n',
+    practice: {
+      title: 'Разверните склад',
+      hint: 'Создайте склад на 1000 тонн — эта вместимость станет настоящим лимитом корпорации.',
+      example: 'createWarehouse(1000)',
+      validate: value => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть объект склада';
+        if (typeof value.capacity !== 'number' || value.capacity <= 0) return 'У склада нет положительной вместимости';
+        if (!Array.isArray(value.items)) return 'У склада нет массива items';
+        return true;
+      },
+      commit: (value, api) => {
+        api.setRecord('warehouseCapacity', value.capacity);
+        return `Склад развёрнут: вместимость ${value.capacity} т`;
+      },
+    },
     tests: [
       { name: 'Пустой склад ничего не занимает', expr: 'return createWarehouse(500).usedSpace();', expected: 0 },
       {
@@ -277,6 +323,24 @@ export const QUESTS = [
       '    crew: [...commander.crew, candidate],\n' +
       '  };\n' +
       '}\n',
+    practice: {
+      title: 'Наймите первого человека',
+      hint: 'В консоли есть corp.commander (ваше личное дело со счётом) и corp.candidates — биржа труда. Найм спишет деньги по вашей формуле.',
+      example: 'hireCrewMember(corp.commander, corp.candidates[0])',
+      validate: (value, context) => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть объект командира';
+        if (!Array.isArray(value.crew)) return 'В результате нет массива crew';
+        const before = context.corp.commander?.crew?.length ?? 0;
+        if (value.crew.length <= before) return 'Ваша функция отказала в найме: проверьте, хватает ли кредитов';
+        if (typeof value.credits !== 'number') return 'В результате нет числового поля credits';
+        return true;
+      },
+      commit: (value, api, context) => {
+        const hired = value.crew[value.crew.length - 1];
+        const spent = (context.corp.commander?.credits ?? 0) - value.credits;
+        return api.hireCandidate(hired?.id, spent);
+      },
+    },
     tests: [
       {
         name: 'Кандидат нанят, деньги списаны',
@@ -356,6 +420,28 @@ export const QUESTS = [
       '\n' +
       '  return { name, modules, mass, energy };\n' +
       '}\n',
+    practice: {
+      title: 'Соберите корабль',
+      hint: 'corp.modules — то, что реально лежит у вас на складе. Соберите из них корабль: его характеристики станут характеристиками корпорации.',
+      example: 'assembleShip("Квест", corp.modules)',
+      validate: (value, context) => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть объект корабля';
+        if (typeof value.mass !== 'number' || typeof value.energy !== 'number') return 'В корабле нет числовых полей mass и energy';
+        if ((context.corp.modules?.length ?? 0) > 0 && value.mass === 0) return 'Масса нулевая — передайте модули со склада: corp.modules';
+        return true;
+      },
+      commit: (value, api) => {
+        // Модули храним массивом: следующему заданию нужен состав, а не счётчик
+        api.setRecord('ship', {
+          name: value.name ?? 'Без имени',
+          mass: value.mass,
+          energy: value.energy,
+          modules: Array.isArray(value.modules) ? value.modules : [],
+        });
+        const count = Array.isArray(value.modules) ? value.modules.length : 0;
+        return `Корабль «${value.name ?? 'Без имени'}» собран: ${count} модулей, ${value.mass} т, энергобаланс ${value.energy > 0 ? '+' : ''}${value.energy}`;
+      },
+    },
     tests: [
       {
         name: 'Масса и энергия посчитаны',
@@ -438,6 +524,24 @@ export const QUESTS = [
       '\n' +
       '  return { ready: problems.length === 0, problems };\n' +
       '}\n',
+    practice: {
+      title: 'Проведите диагностику',
+      hint: 'corp.ship — собранный вами корабль, corp.crew — нанятый экипаж. Отчёт вашей функции станет допуском к вылету.',
+      example: 'checkReadiness(corp.ship, corp.crew)',
+      validate: (value, context) => {
+        if (!context.corp.ship) return 'Сначала соберите корабль в предыдущем задании';
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть объект отчёта';
+        if (typeof value.ready !== 'boolean') return 'В отчёте нет логического поля ready';
+        if (!Array.isArray(value.problems)) return 'В отчёте нет массива problems';
+        return true;
+      },
+      commit: (value, api) => {
+        api.setRecord('report', { ready: value.ready, problems: value.problems });
+        return value.ready
+          ? 'Диспетчер выдал допуск к вылету'
+          : `Отчёт принят: замечаний — ${value.problems.length}`;
+      },
+    },
     tests: [
       {
         name: 'Корабль готов к вылету',

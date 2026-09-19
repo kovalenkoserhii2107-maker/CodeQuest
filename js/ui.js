@@ -8,20 +8,24 @@ import { Shipyard } from './shipyard.js';
 import { LaborExchange } from './crew.js';
 import {
   state, subscribe, isSolved, refundCredits, spendCredits,
-  addInventoryItem, addCrewMember, addLog, solvedCount, totalCount,
+  addCrewMember, addLog, solvedCount, totalCount, corpRecord,
 } from './state.js';
 import { runPlayerCode, errorPanel } from './ui/sim.js';
 import { escapeHtml, showValue } from './ui/html.js';
 
-const COMMANDER_NAME = 'Сергей Коваленко';
-const SHIPYARD_NAME = 'Орион';
-const SHIP_NAME = 'Квест';
-const WAREHOUSE_CAPACITY = 1000;
-
 const player = new PlayerState();
-const warehouse = new Warehouse(WAREHOUSE_CAPACITY);
 const shipyard = new Shipyard();
 const laborExchange = new LaborExchange();
+
+/*
+ * Имена и лимиты берутся из базы корпорации — это то, что игрок сам создал
+ * в консоли своими вызовами. Значения по умолчанию нужны только до практики.
+ */
+const commanderName = () => corpRecord('commander')?.name ?? 'Командир';
+const shipyardName = () => corpRecord('shipyard')?.name ?? 'Орион';
+const shipName = () => corpRecord('ship')?.name ?? 'Квест';
+const warehouseCapacity = () => corpRecord('warehouseCapacity') ?? 1000;
+const warehouse = () => new Warehouse(warehouseCapacity());
 
 const json = value => JSON.stringify(value);
 
@@ -40,7 +44,7 @@ export async function renderCommand() {
   const stats = document.getElementById('command-stats');
   if (!card || !stats) return;
 
-  const { value, error } = await runPlayerCode('commander', `return createCommander(${json(COMMANDER_NAME)});`);
+  const { value, error } = await runPlayerCode('commander', `return createCommander(${json(commanderName())});`);
 
   card.innerHTML = error
     ? errorPanel(escapeHtml(error))
@@ -66,7 +70,7 @@ export async function renderCommand() {
     </div>
     <p class="widget__value mono">${player.credits.toLocaleString()} <small>¢</small></p>
     <div class="widget__row"><span>Заданий решено</span><b class="mono">${solvedCount()} / ${totalCount()}</b></div>
-    <div class="widget__row"><span>Модулей на складе</span><b class="mono">${warehouse.items.length}</b></div>
+    <div class="widget__row"><span>Модулей на складе</span><b class="mono">${warehouse().items.length}</b></div>
     <div class="widget__row"><span>Экипаж</span><b class="mono">${crew.length}</b></div>`;
 }
 
@@ -80,7 +84,7 @@ export async function renderShipyard() {
   const catalog = shipyard.getCatalog();
   const { value, error } = await runPlayerCode(
     'shipyard',
-    `const yard = createShipyard(${json(SHIPYARD_NAME)}, ${json(catalog)});\n` +
+    `const yard = createShipyard(${json(shipyardName())}, ${json(catalog)});\n` +
     `return { name: yard.name, modules: yard.getCatalog() };`,
   );
 
@@ -128,7 +132,7 @@ async function buyModule(moduleId, button) {
 
   const { value: found, error } = await runPlayerCode(
     'shipyard',
-    `const yard = createShipyard(${json(SHIPYARD_NAME)}, ${json(catalog)});\n` +
+    `const yard = createShipyard(${json(shipyardName())}, ${json(catalog)});\n` +
     `return yard.findModule(${json(moduleId)});`,
   );
 
@@ -138,7 +142,7 @@ async function buyModule(moduleId, button) {
     return;
   }
 
-  if (warehouse.getUsedSpace() + found.weight > warehouse.capacity) {
+  if (warehouse().getUsedSpace() + found.weight > warehouse().capacity) {
     button.disabled = false;
     toast('На складе нет места');
     return;
@@ -151,7 +155,7 @@ async function buyModule(moduleId, button) {
   }
 
   const item = { ...found, uniqueId: `${found.id}-${Date.now()}` };
-  if (!warehouse.addItem(item)) {
+  if (!warehouse().addItem(item)) {
     refundCredits(found.price);
     button.disabled = false;
     toast('Склад отказал, кредиты возвращены');
@@ -169,10 +173,10 @@ export async function renderWarehouse() {
   const capacity = document.getElementById('warehouse-capacity');
   if (!host) return;
 
-  const items = warehouse.items;
+  const items = warehouse().items;
   const { value, error } = await runPlayerCode(
     'warehouse',
-    `const store = createWarehouse(${WAREHOUSE_CAPACITY});\n` +
+    `const store = createWarehouse(${warehouseCapacity()});\n` +
     `const accepted = ${json(items)}.filter(item => store.addItem(item));\n` +
     `return { used: store.usedSpace(), accepted: accepted.length, capacity: store.capacity };`,
   );
@@ -184,8 +188,8 @@ export async function renderWarehouse() {
   }
 
   const used = Number(value?.used) || 0;
-  const percent = Math.min(100, Math.round((used / WAREHOUSE_CAPACITY) * 100));
-  if (capacity) capacity.textContent = `${used} / ${WAREHOUSE_CAPACITY} т`;
+  const percent = Math.min(100, Math.round((used / warehouseCapacity()) * 100));
+  if (capacity) capacity.textContent = `${used} / ${warehouseCapacity()} т`;
 
   host.innerHTML = `
     <div class="panel__head">
@@ -276,7 +280,7 @@ async function hireCandidate(candidateId, button) {
   const candidate = laborExchange.getCandidates().find(item => item.id === candidateId);
   if (!candidate) return;
 
-  const commander = { name: COMMANDER_NAME, credits: state.credits, crew: player.crew.map(member => ({ id: member.id })) };
+  const commander = { name: commanderName(), credits: state.credits, crew: player.crew.map(member => ({ id: member.id })) };
   const { value, error } = await runPlayerCode(
     'hire',
     `return hireCrewMember(${json(commander)}, ${json({ ...candidate })});`,
@@ -315,10 +319,10 @@ export async function renderShip() {
   const modulesHost = document.getElementById('ship-modules');
   if (!summary || !modulesHost) return;
 
-  const modules = warehouse.items;
+  const modules = warehouse().items;
   const { value, error } = await runPlayerCode(
     'assemble',
-    `const ship = assembleShip(${json(SHIP_NAME)}, ${json(modules)});\n` +
+    `const ship = assembleShip(${json(shipName())}, ${json(modules)});\n` +
     `return { name: ship.name, mass: ship.mass, energy: ship.energy, count: ship.modules.length };`,
   );
 
@@ -337,6 +341,7 @@ export async function renderShip() {
     <p class="widget__value mono">${escapeHtml(showValue(value?.mass))} <small>т общая масса</small></p>
     <div class="widget__row"><span>Энергобаланс</span><b class="mono" style="color: ${energy < 0 ? 'var(--color-danger)' : 'var(--color-ok)'}">${energy > 0 ? '+' : ''}${energy}</b></div>
     <div class="widget__row"><span>Модулей в сборке</span><b class="mono">${escapeHtml(showValue(value?.count))}</b></div>
+    ${corpRecord('ship') ? `<p class="widget__note">В базе корпорации: «${escapeHtml(showValue(corpRecord('ship').name))}», ${escapeHtml(showValue(corpRecord('ship').mass))} т</p>` : ''}
     ${energy < 0 ? '<p class="widget__note">Потребление выше выработки — нужен реактор.</p>' : ''}`;
 
   modulesHost.innerHTML = `
@@ -362,12 +367,12 @@ export async function renderFlight() {
   const host = document.getElementById('flight-report');
   if (!host) return;
 
-  const modules = warehouse.items;
+  const modules = warehouse().items;
   const crew = player.crew.map(member => ({ role: member.role, name: member.name }));
 
   const assembled = await runPlayerCode(
     'assemble',
-    `const ship = assembleShip(${json(SHIP_NAME)}, ${json(modules)});\n` +
+    `const ship = assembleShip(${json(shipName())}, ${json(modules)});\n` +
     `return { modules: ship.modules, energy: ship.energy, mass: ship.mass };`,
   );
 
@@ -420,7 +425,8 @@ export function renderView(viewId) {
 
 /** Название корпорации в боковой панели появляется после первого задания. */
 export function corporationName() {
-  return isSolved('commander') ? `Командир ${COMMANDER_NAME}` : 'Корпорация не создана';
+  const commander = corpRecord('commander');
+  return commander ? `Командир ${commander.name}` : 'Корпорация не создана';
 }
 
 subscribe(() => {

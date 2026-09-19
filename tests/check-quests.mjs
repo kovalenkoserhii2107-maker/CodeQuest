@@ -5,7 +5,8 @@
  *  1. эталонное решение каждого задания проходит его тесты;
  *  2. заготовка кода тесты НЕ проходит;
  *  3. цепочка непрерывна: порядок 1…N без дыр и повторов;
- *  4. каждое задание открывает свой раздел, и этот раздел есть в интерфейсе.
+ *  4. каждое задание открывает свой раздел, и этот раздел есть в интерфейсе;
+ *  5. у каждого задания есть практика: команда для консоли и проверка результата.
  */
 import { readFileSync } from 'node:fs';
 import { QUESTS } from '../js/data/quests.js';
@@ -47,7 +48,7 @@ const ids = new Set(QUESTS.map(quest => quest.id));
 if (ids.size !== QUESTS.length) fail('Идентификаторы заданий повторяются');
 
 for (const quest of QUESTS) {
-  for (const field of ['story', 'brief', 'theory', 'fn', 'starter', 'solution', 'hints', 'tests', 'unlocks']) {
+  for (const field of ['story', 'brief', 'theory', 'fn', 'starter', 'solution', 'hints', 'tests', 'unlocks', 'practice']) {
     if (!quest[field] || (Array.isArray(quest[field]) && quest[field].length === 0)) {
       fail(`У задания ${quest.id} не заполнено поле ${field}`);
     }
@@ -72,6 +73,37 @@ for (const quest of QUESTS) {
   const item = html.match(new RegExp(`<li hidden data-view-item="${quest.unlocks.view}"`));
   if (!item) fail(`Пункт меню ${quest.unlocks.view} не скрыт по умолчанию`);
 }
+
+/* --- 5. Практическая часть ----------------------------------------------- */
+
+for (const quest of QUESTS) {
+  const practice = quest.practice;
+  if (!practice) continue;
+
+  for (const field of ['title', 'hint', 'example', 'validate', 'commit']) {
+    if (!practice[field]) fail(`У практики задания ${quest.id} нет поля ${field}`);
+  }
+
+  if (!practice.example.includes(`${quest.fn}(`)) {
+    fail(`Пример практики ${quest.id} не вызывает функцию ${quest.fn}`);
+  }
+
+  // Валидатор обязан отсеивать мусор, иначе практику можно «пройти» чем угодно
+  const context = { corp: { commander: { credits: 0, crew: [] }, modules: [] } };
+  const garbage = [null, undefined, 42, 'строка', {}];
+  const passedGarbage = garbage.filter(value => practice.validate(value, context) === true);
+  if (passedGarbage.length > 0) {
+    fail(`Валидатор практики ${quest.id} пропускает мусор: ${JSON.stringify(passedGarbage)}`);
+  }
+
+  // И обязан объяснять словами, что не так
+  const verdict = practice.validate(null, context);
+  if (typeof verdict !== 'string' || verdict.length < 10) {
+    fail(`Валидатор практики ${quest.id} не объясняет ошибку понятным текстом`);
+  }
+}
+
+console.log(`✓ практика описана у всех заданий (${QUESTS.length})`);
 
 console.log(failures === 0 ? '\nЦепочка: все проверки пройдены' : `\nЦепочка: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

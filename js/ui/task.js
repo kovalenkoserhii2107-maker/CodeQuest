@@ -2,7 +2,7 @@
  * Экран задачи: условие, теория, редактор кода и отчёт по тестам.
  */
 import { QUESTS } from '../data/quests.js';
-import { completeQuest, draftOf, isSolved, saveDraft } from '../state.js';
+import { completeQuest, draftOf, isSolved, isPracticed, saveDraft } from '../state.js';
 import { runSolution } from '../runner.js';
 import { escapeHtml } from './html.js';
 import { createEditor } from './editor.js';
@@ -64,6 +64,12 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
         Награда: +${quest.reward.credits} ¢ · открывает раздел «${escapeHtml(quest.unlocks.label)}»
       </div>
 
+      <div class="task__practice">
+        <p class="task__practice-label">Практика после тестов</p>
+        <p>${escapeHtml(quest.practice.hint)}</p>
+        <code class="console__example mono">${escapeHtml(quest.practice.example)}</code>
+      </div>
+
       <details class="task__theory" open>
         <summary>Что понадобится</summary>
         <ul>${quest.theory.map(line => `<li>${escapeHtml(line)}</li>`).join('')}</ul>
@@ -120,21 +126,30 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
     let banner = '';
     if (result.ok) {
-      const alreadySolved = isSolved(quest.id);
-      // Код передаём всегда: на нём работают приборы Мостика.
+      // Код передаём всегда: на нём работают разделы корпорации.
       const outcome = completeQuest(quest.id, { source: editor.getValue() });
+      const practiceDone = isPracticed(quest.id);
       const next = nextQuest(quest);
-      banner = `
-        <div class="report__success">
-          <p class="report__success-title">Все тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
-          <p class="report__success-text">${
-            outcome
-              ? `Открыт раздел «${escapeHtml(quest.unlocks.label)}» — он работает на вашем коде.`
-              : 'Задание уже было засчитано: награда не повторяется, но раздел пересчитан новым кодом.'
-          }</p>
-          ${next ? `<button class="btn btn--primary btn--sm" type="button" id="next-quest">Следующая задача: ${escapeHtml(next.title)}</button>` : ''}
-        </div>
-      `;
+
+      banner = practiceDone
+        ? `
+          <div class="report__success">
+            <p class="report__success-title">Тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
+            <p class="report__success-text">Задание уже закрыто практикой — раздел «${escapeHtml(quest.unlocks.label)}» работает на вашем коде.</p>
+            ${next ? `<button class="btn btn--primary btn--sm" type="button" id="next-quest">Следующее задание: ${escapeHtml(next.title)}</button>` : ''}
+          </div>`
+        : `
+          <div class="report__success">
+            <p class="report__success-title">Тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
+            <p class="report__success-text">
+              Осталась практическая часть: ${escapeHtml(quest.practice.title.toLowerCase())}.
+              Откройте консоль и выполните команду — объект попадёт в базу корпорации,
+              и раздел «${escapeHtml(quest.unlocks.label)}» откроется.
+            </p>
+            <code class="console__example mono">${escapeHtml(quest.practice.example)}</code>
+            <a class="btn btn--primary btn--sm" href="#/console">Перейти в консоль</a>
+          </div>`;
+
       if (outcome) onSolved(outcome);
     }
 
