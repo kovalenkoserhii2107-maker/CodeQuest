@@ -13,7 +13,7 @@
      * Проверяет в реальном браузере то, чего не видно в Node: запуск кода
      * игрока через Web Worker, прогрессию цепочки и мост «код → симулятор».
      */
-    import { QUESTS } from '../js/data/quests.js';
+    import { QUESTS, questById } from '../js/data/quests.js';
     import { runSolution, isFallbackMode } from '../js/runner.js';
     import { runPlayerCode } from '../js/ui/sim.js';
     import {
@@ -23,6 +23,11 @@
     } from '../js/state.js';
     import { runConsole } from '../js/runner.js';
     import { chartFromSpec } from '../js/ui/charts.js';
+    import {
+      resources, addResource, spendResource, TANK_CAPACITY, ORE_CAPACITY,
+    } from '../js/state.js';
+    import { RouteBook } from '../js/routes.js';
+    import { Market } from '../js/market.js';
 
     const problems = [];
     const lines = [];
@@ -145,11 +150,51 @@
     check(chartHtml.includes('bar-row') && chartHtml.includes('Церера'), 'описание графика превращается в разметку');
     check(chartFromSpec({ title: 'Просто число', value: 5 }) === '', 'панель без типа графика остаётся текстовой');
 
+    // --- Топливо и руда ---
+
+    resetProgress();
+    check(resources().fuel === 0 && resources().ore === 0, 'новая корпорация стартует без запасов');
+
+    check(addResource('fuel', 100) === 100, 'топливо заливается в бак');
+    check(resources().fuel === 100, 'запас топлива виден после заправки');
+    check(addResource('fuel', TANK_CAPACITY) === TANK_CAPACITY - 100, 'сверх ёмкости бака не принимается');
+    check(resources().fuel === TANK_CAPACITY, 'бак не переполняется');
+
+    check(spendResource('fuel', 50) === true, 'топливо списывается');
+    check(resources().fuel === TANK_CAPACITY - 50, 'остаток после списания верный');
+    check(spendResource('fuel', 10_000) === false, 'нельзя списать больше, чем в баке');
+    check(resources().fuel === TANK_CAPACITY - 50, 'неудачное списание ничего не меняет');
+
+    check(addResource('ore', -5) === 0, 'отрицательное пополнение отвергается');
+    check(addResource('нечто', 10) === 0, 'неизвестный ресурс не заводится на ходу');
+    check(addResource('ore', ORE_CAPACITY + 100) === ORE_CAPACITY, 'бункер руды тоже ограничен');
+
+    // --- Рейс и торговля на коде игрока ---
+
+    const expedition = questById('expedition');
+    const flight = await runSolution(expedition.solution, expedition);
+    check(flight.ok, 'решение экспедиции проходит тесты');
+
+    const trade = questById('trade');
+    const sale = await runSolution(trade.solution, trade);
+    check(sale.ok, 'решение торговли проходит тесты');
+
+    const offers = new Market().getOffers();
+    const deal = await runConsole(trade.solution, `sellOre(60, ${JSON.stringify(offers)})`, {});
+    check(deal.value?.revenue === 50400, 'распродажа 60 т даёт выручку по лучшим ценам');
+    check(deal.value?.deals?.length === 2, 'груз делится между двумя покупателями');
+
+    const routes = new RouteBook().getRoutes();
+    check(routes.length >= 3, 'в маршрутной книге есть направления');
+    check(routes.every(route => route.distance > 0 && route.richness > 0), 'у каждого маршрута есть путь и богатство жилы');
+    check(new RouteBook().getRoute('нет-такого') === null, 'несуществующий маршрут не выдумывается');
+
     resetProgress();
     check(
       Object.keys(state.solved).length === 0 && state.credits === 0 && !corpRecord('commander') && db.count('logs') === 0,
       'сброс возвращает игру в начало и очищает базу',
     );
+    check(resources().fuel === 0 && resources().ore === 0, 'сброс опустошает бак и бункер');
 
     document.getElementById('out').textContent = lines.join('\n');
     document.title = problems.length === 0

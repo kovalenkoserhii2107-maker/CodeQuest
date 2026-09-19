@@ -1795,3 +1795,58 @@
   .module-art { height: 120px; }
   .module-thumb { width: 32px; height: 32px; }
 }
+
+/* ======================================================================
+   Маршруты, экспедиция и рынок
+   ====================================================================== */
+
+.fuel-buy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.route__note {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+  margin-top: 2px;
+}
+
+.table tr.is-short td { opacity: 0.72; }
+.table .is-danger { color: var(--color-danger); }
+
+.route-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.route-card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  text-align: left;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.route-card:hover { border-color: var(--color-accent); }
+
+.route-card.is-active {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--surface-sunken));
+}
+
+.route-card__name { font-weight: 600; }
+
+.route-card__meta {
+  font-size: var(--fs-xs);
+  color: var(--color-muted);
+}

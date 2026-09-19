@@ -3,7 +3,6 @@
  * показывает то, что вернули его функции из решённых заданий.
  */
 import { PlayerState } from './player.js';
-import { Warehouse } from './warehouse.js';
 import { Shipyard } from './shipyard.js';
 import { LaborExchange } from './crew.js';
 import {
@@ -16,20 +15,12 @@ import { escapeHtml, showValue } from './ui/html.js';
 import { fillBar, balanceBar, gauge, barChart } from './ui/charts.js';
 import { shipSchematic } from './ui/shipview.js';
 import { moduleArt } from './data/module-art.js';
+import { commanderName, shipyardName, shipName, warehouseCapacity, warehouse } from './ui/corp.js';
+import { renderRoutes, renderExpedition, renderMarket } from './ui/mission.js';
 
 const player = new PlayerState();
 const shipyard = new Shipyard();
 const laborExchange = new LaborExchange();
-
-/*
- * Имена и лимиты берутся из базы корпорации — это то, что игрок сам создал
- * в консоли своими вызовами. Значения по умолчанию нужны только до практики.
- */
-const commanderName = () => corpRecord('commander')?.name ?? 'Командир';
-const shipyardName = () => corpRecord('shipyard')?.name ?? 'Орион';
-const shipName = () => corpRecord('ship')?.name ?? 'Квест';
-const warehouseCapacity = () => corpRecord('warehouseCapacity') ?? 1000;
-const warehouse = () => new Warehouse(warehouseCapacity());
 
 const json = value => JSON.stringify(value);
 
@@ -488,6 +479,9 @@ export function renderView(viewId) {
     crew: renderCrew,
     ship: renderShip,
     flight: renderFlight,
+    routes: renderRoutes,
+    expedition: renderExpedition,
+    market: renderMarket,
   };
   return renderers[viewId]?.();
 }

@@ -26,6 +26,7 @@ function emptyState() {
     log: [],
     inventory: [],  // купленные на верфи модули
     crew: [],       // нанятый на бирже экипаж
+    resources: { fuel: 0, ore: 0 },  // бак и рудный бункер, в тоннах
   };
 }
 
@@ -41,6 +42,7 @@ function readStorage() {
     if (!s.db) s.db = {};
     if (!s.panels) s.panels = [];
     if (!s.consoleHistory) s.consoleHistory = [];
+    if (!s.resources) s.resources = { fuel: 0, ore: 0 };
     return s;
   } catch {
     // Повреждённое или недоступное хранилище не должно ломать игру.
@@ -56,6 +58,9 @@ export const db = new Database(state.db, () => emit());
 /** Коллекция, в которой лежит запись определённого типа. */
 const RECORD_COLLECTIONS = {
   commander: 'commanders',
+  plan: 'plans',
+  expedition: 'expeditions',
+  deal: 'deals',
   shipyard: 'shipyards',
   warehouse: 'warehouses',
   warehouseCapacity: 'warehouses',
@@ -362,6 +367,52 @@ export function addInventoryItem(item) {
   if (!state.inventory) state.inventory = [];
   state.inventory.push(item);
   emit();
+}
+
+/* --- Ресурсы: топливо и руда --------------------------------------------- */
+
+/** Ёмкости хранилищ космопорта, в тоннах. */
+export const TANK_CAPACITY = 600;
+export const ORE_CAPACITY = 300;
+
+/** Вместимость грузового трюма корабля — сколько руды влезет за рейс. */
+export const CARGO_HOLD = 150;
+
+/** Цена тонны топлива на космопорте. */
+export const FUEL_PRICE = 40;
+
+const LIMITS = { fuel: TANK_CAPACITY, ore: ORE_CAPACITY };
+
+/** Текущие запасы. Возвращается копия: менять только через действия. */
+export function resources() {
+  return { ...state.resources };
+}
+
+/**
+ * Пополнить запас. Сверх ёмкости не принимаем и честно говорим, сколько влезло.
+ * @returns {number} сколько тонн реально добавлено
+ */
+export function addResource(kind, amount) {
+  const limit = LIMITS[kind];
+  if (!limit || !Number.isFinite(amount) || amount <= 0) return 0;
+
+  const free = limit - state.resources[kind];
+  const added = Math.min(free, amount);
+  if (added <= 0) return 0;
+
+  state.resources[kind] += added;
+  emit();
+  return added;
+}
+
+/** Списать запас. Если не хватает — не списываем ничего. */
+export function spendResource(kind, amount) {
+  if (!LIMITS[kind] || !Number.isFinite(amount) || amount <= 0) return false;
+  if (state.resources[kind] < amount) return false;
+
+  state.resources[kind] -= amount;
+  emit();
+  return true;
 }
 
 export function addCrewMember(crewMember) {

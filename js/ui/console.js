@@ -10,15 +10,19 @@ import { QUESTS } from '../data/quests.js';
 import {
   state, isSolved, isPracticed, currentQuest, solutionOf, markPracticed,
   setCorpRecord, pushConsoleHistory, spendCredits, addCrewMember, addLog,
-  db, applyDbOps, panels,
+  db, applyDbOps, panels, resources, addResource, spendResource, CARGO_HOLD,
 } from '../state.js';
 import { Shipyard } from '../shipyard.js';
 import { LaborExchange } from '../crew.js';
+import { RouteBook } from '../routes.js';
+import { Market } from '../market.js';
 import { runConsole } from '../runner.js';
 import { escapeHtml } from './html.js';
 
 const shipyard = new Shipyard();
 const laborExchange = new LaborExchange();
+const routeBook = new RouteBook();
+const market = new Market();
 
 let historyIndex = -1;
 
@@ -30,11 +34,39 @@ function playerSource() {
     .join('\n\n');
 }
 
+/**
+ * Корабль и план для экспедиции — ровно в том виде, в каком их ждёт
+ * runExpedition. План берётся последний утверждённый, а богатство жилы —
+ * у маршрута, к которому этот план подходит по расстоянию.
+ */
+function expeditionInput() {
+  const plan = db.last('plans');
+  if (!plan) return { ship: null, plan: null };
+
+  const route = routeBook.getRoutes().find(item => item.distance === plan.distance) ?? routeBook.getRoutes()[0];
+
+  return {
+    ship: {
+      drills: state.inventory.filter(item => item.type === 'drill').length,
+      fuel: resources().fuel,
+      cargo: CARGO_HOLD,
+    },
+    plan: { ...plan, richness: route?.richness ?? 3, name: route?.name ?? 'маршрут' },
+  };
+}
+
 /** Данные корпорации, доступные в команде как corp. */
 function corpData() {
   const hiredIds = state.crew.map(member => member.id);
+  const expedition = expeditionInput();
+
   return {
     corp: {
+      ore: resources().ore,
+      fuel: resources().fuel,
+      offers: market.getOffers(),
+      expeditionShip: expedition.ship,
+      expeditionPlan: expedition.plan,
       credits: state.credits,
       commander: db.last('commanders')
         ? { ...db.last('commanders'), credits: state.credits, crew: state.crew.map(member => ({ ...member })) }
@@ -78,6 +110,41 @@ const commitApi = {
 
     addCrewMember(laborExchange.hire(candidateId) ?? candidate);
     return `${candidate.name} принят в экипаж за ${spent.toLocaleString()} ¢`;
+  },
+
+  /**
+   * Итоги рейса: топливо списываем, руду принимаем в бункер.
+   * Суммы берём из результата функции игрока, но сверяем с реальностью —
+   * в баке не может убыть больше, чем там было.
+   */
+  deliverExpedition(report) {
+    const { fuel } = resources();
+    const burned = Math.max(0, fuel - (Number(report.fuelLeft) || 0));
+    const mined = Math.max(0, Number(report.ore) || 0);
+
+    if (burned > 0 && !spendResource('fuel', burned)) {
+      return 'Расход топлива не сошёлся с баком — рейс не засчитан';
+    }
+
+    const delivered = addResource('ore', mined);
+    addLog(`Рейс завершён: +${delivered} т руды за ${burned} т топлива`, 'success');
+
+    return delivered < mined
+      ? `Доставлено ${delivered} т руды: бункер полон, ${mined - delivered} т пришлось бросить`
+      : `Доставлено ${delivered} т руды, сожжено ${burned} т топлива`;
+  },
+
+  /** Итоги продажи: руду отдаём, выручку зачисляем на счёт. */
+  settleDeal(report) {
+    const sold = Math.max(0, Number(report.sold) || 0);
+    const revenue = Math.max(0, Number(report.revenue) || 0);
+
+    if (sold <= 0 || revenue <= 0) return 'Продажа не состоялась: ваша функция ничего не продала';
+    if (!spendResource('ore', sold)) return 'В бункере меньше руды, чем в плане продажи';
+
+    state.credits += revenue;
+    addLog(`Продано ${sold} т руды за ${revenue.toLocaleString()} ¢`, 'success');
+    return `Продано ${sold} т руды, на счёт зачислено ${revenue.toLocaleString()} ¢`;
   },
 };
 

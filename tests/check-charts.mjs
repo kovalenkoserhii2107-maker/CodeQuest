@@ -10,6 +10,7 @@ import {
 import { shipSchematic } from '../js/ui/shipview.js';
 import { mapMarkup } from '../js/ui/map.js';
 import { resetProgress } from '../js/state.js';
+import { QUESTS } from '../js/data/quests.js';
 
 let failures = 0;
 const check = (ok, message, extra = '') => {
@@ -123,10 +124,10 @@ check(!shipSchematic([]).includes('badge--'), 'без статуса значк�
 resetProgress();
 const map = mapMarkup();
 check(map.includes('<svg'), 'карта рисуется как SVG');
-check((map.match(/map__station/g) ?? []).length === 8, 'на карте по станции на задание');
+check((map.match(/map__station/g) ?? []).length === QUESTS.length, 'на карте по станции на задание');
 check((map.match(/map__station is-active/g) ?? []).length === 1, 'активная станция ровно одна');
 check(map.includes('map__pulse'), 'текущая станция пульсирует');
-check((map.match(/map__station is-locked/g) ?? []).length === 7, 'остальные станции закрыты');
+check((map.match(/map__station is-locked/g) ?? []).length === QUESTS.length - 1, 'остальные станции закрыты');
 check(map.includes('???'), 'названия будущих станций скрыты');
 check(!map.includes('map__route--done'), 'без пройденных заданий светящейся линии нет');
 check(map.includes('map__scroll'), 'карта живёт в прокручиваемой обёртке');

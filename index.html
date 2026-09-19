@@ -110,6 +110,24 @@
                 <span>Панели</span>
               </a>
             </li>
+            <li hidden data-view-item="routes">
+              <a class="nav__link" href="#/routes" data-route="routes">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l6-10 4 6 5-8"/><circle cx="3" cy="17" r="1.6"/><circle cx="18" cy="5" r="1.6"/></svg>
+                <span>Маршруты</span>
+              </a>
+            </li>
+            <li hidden data-view-item="expedition">
+              <a class="nav__link" href="#/expedition" data-route="expedition">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20l5-2 3-9 6-5-2 7-9 4z"/><circle cx="16" cy="7" r="1.4"/></svg>
+                <span>Экспедиция</span>
+              </a>
+            </li>
+            <li hidden data-view-item="market">
+              <a class="nav__link" href="#/market" data-route="market">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h16l-1.5 11H5.5z"/><path d="M8 8V6a4 4 0 018 0v2"/></svg>
+                <span>Рынок</span>
+              </a>
+            </li>
             <li hidden data-view-item="flight">
               <a class="nav__link" href="#/flight" data-route="flight">
                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M5 10l7-7 7 7"/><circle cx="12" cy="17" r="3"/></svg>
@@ -384,6 +402,47 @@
           </details>
 
           <div class="grid grid--widgets" id="panels-grid"></div>
+        </section>
+
+        <!-- ------------------------- Маршруты ------------------------- -->
+        <section class="view" id="view-routes" hidden aria-labelledby="routes-title">
+          <div class="section-head">
+            <div>
+              <h2 id="routes-title">Маршруты</h2>
+              <p>Расход топлива и время в пути считает ваша функция planFlight по массе корабля.</p>
+            </div>
+            <span class="panel__hint" id="routes-tank">—</span>
+          </div>
+
+          <div class="panel" id="tank-panel"></div>
+          <div class="panel" id="routes-list"></div>
+        </section>
+
+        <!-- ------------------------- Экспедиция ------------------------- -->
+        <section class="view" id="view-expedition" hidden aria-labelledby="expedition-title">
+          <div class="section-head">
+            <div>
+              <h2 id="expedition-title">Экспедиция</h2>
+              <p>Рейс проводит ваша функция runExpedition: час за часом, пока хватает времени и места в трюме.</p>
+            </div>
+          </div>
+
+          <div class="panel" id="expedition-launch"></div>
+          <div class="panel" id="expedition-report"></div>
+        </section>
+
+        <!-- ------------------------- Рынок ------------------------- -->
+        <section class="view" id="view-market" hidden aria-labelledby="market-title">
+          <div class="section-head">
+            <div>
+              <h2 id="market-title">Рынок руды</h2>
+              <p>Кому и сколько продать, решает ваша функция sellOre: цена выше — объём меньше.</p>
+            </div>
+            <span class="panel__hint" id="market-bunker">—</span>
+          </div>
+
+          <div class="panel" id="market-offers"></div>
+          <div class="panel" id="market-deal"></div>
         </section>
 
         <!-- ------------------------- Журнал ------------------------- -->
