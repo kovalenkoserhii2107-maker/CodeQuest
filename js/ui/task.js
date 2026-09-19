@@ -6,6 +6,7 @@ import { SECTORS, QUESTS } from '../data/quests.js';
 import { completeQuest, draftOf, isSolved, saveDraft } from '../state.js';
 import { runSolution } from '../runner.js';
 import { escapeHtml } from './html.js';
+import { createEditor } from './editor.js';
 
 function sectorName(sectorId) {
   return SECTORS.find(sector => sector.id === sectorId)?.name ?? '';
@@ -15,17 +16,6 @@ function sectorName(sectorId) {
 function nextQuest(current) {
   const index = QUESTS.findIndex(quest => quest.id === current.id);
   return QUESTS.slice(index + 1).find(quest => !isSolved(quest.id)) ?? null;
-}
-
-/** Табуляция в textarea вместо перехода по фокусу. */
-function enableTabIndent(textarea) {
-  textarea.addEventListener('keydown', event => {
-    if (event.key !== 'Tab') return;
-    event.preventDefault();
-    const { selectionStart, selectionEnd, value } = textarea;
-    textarea.value = `${value.slice(0, selectionStart)}  ${value.slice(selectionEnd)}`;
-    textarea.selectionStart = textarea.selectionEnd = selectionStart + 2;
-  });
 }
 
 /** Отчёт по одному тесту. */
@@ -91,8 +81,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
         <span class="panel__hint">Ctrl + Enter — запустить тесты</span>
       </div>
 
-      <label class="visually-hidden" for="code">Код решения</label>
-      <textarea id="code" class="code-editor mono" spellcheck="false" autocomplete="off"></textarea>
+      <div id="editor-host"></div>
 
       <div class="task__actions">
         <button class="btn btn--primary" type="button" id="run">Запустить тесты</button>
@@ -105,10 +94,11 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
     </div>
   `;
 
-  const textarea = root.querySelector('#code');
-  textarea.value = draftOf(quest.id) ?? quest.starter;
-  enableTabIndent(textarea);
-  textarea.addEventListener('input', () => saveDraft(quest.id, textarea.value));
+  const editor = createEditor(root.querySelector('#editor-host'), {
+    value: draftOf(quest.id) ?? quest.starter,
+    onInput: code => saveDraft(quest.id, code),
+    onRun: () => run(),
+  });
 
   const report = root.querySelector('#report');
   const hints = root.querySelector('#task-hints');
@@ -119,7 +109,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
   async function run() {
     showReport('<p class="report__pending">Запускаем тесты…</p>');
-    const result = await runSolution(textarea.value, quest);
+    const result = await runSolution(editor.getValue(), quest);
 
     if (result.error) {
       showReport(`<p class="report__error">${escapeHtml(result.error)}</p>`);
@@ -135,7 +125,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
     if (result.ok) {
       const alreadySolved = isSolved(quest.id);
       // Код передаём всегда: на нём работают приборы Мостика.
-      const outcome = completeQuest(quest.id, { source: textarea.value });
+      const outcome = completeQuest(quest.id, { source: editor.getValue() });
       const next = nextQuest(quest);
       banner = `
         <div class="report__success">
@@ -163,12 +153,6 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
   }
 
   root.querySelector('#run').addEventListener('click', run);
-  textarea.addEventListener('keydown', event => {
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      run();
-    }
-  });
 
   root.querySelector('#hint').addEventListener('click', () => {
     if (hintsShown >= quest.hints.length) return;
@@ -183,7 +167,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
   });
 
   root.querySelector('#reset-code').addEventListener('click', () => {
-    textarea.value = quest.starter;
+    editor.setValue(quest.starter);
     saveDraft(quest.id, quest.starter);
     showReport('');
   });
@@ -194,7 +178,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
     );
     if (!confirmed) return;
 
-    textarea.value = quest.solution;
+    editor.setValue(quest.solution);
     saveDraft(quest.id, quest.solution);
     const outcome = completeQuest(quest.id, { withSolution: true, source: quest.solution });
     if (outcome) onSolved(outcome);
