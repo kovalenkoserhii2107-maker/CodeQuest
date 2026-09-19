@@ -7,6 +7,7 @@
 import { QUESTS } from '../data/quests.js';
 import { isSolved, isPracticed, isQuestClosed, currentQuest, questChain } from '../state.js';
 import { escapeHtml } from './html.js';
+import { mapMarkup, bindMap } from './map.js';
 
 export function renderPath({ onOpenQuest }) {
   const host = document.getElementById('quest-chain');
@@ -16,6 +17,7 @@ export function renderPath({ onOpenQuest }) {
   const current = currentQuest();
 
   host.innerHTML = `
+    ${mapMarkup()}
     <ol class="chain">
       ${chain
         .map(quest => {
@@ -72,7 +74,9 @@ export function renderPath({ onOpenQuest }) {
     }
   `;
 
-  for (const button of host.querySelectorAll('[data-quest]')) {
+  bindMap(host, onOpenQuest);
+
+  for (const button of host.querySelectorAll('button[data-quest]')) {
     button.addEventListener('click', () => onOpenQuest(button.dataset.quest));
   }
 }

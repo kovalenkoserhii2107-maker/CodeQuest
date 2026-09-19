@@ -22,6 +22,7 @@
       db, applyDbOps, panels, addPanel, removePanel,
     } from '../js/state.js';
     import { runConsole } from '../js/runner.js';
+    import { chartFromSpec } from '../js/ui/charts.js';
 
     const problems = [];
     const lines = [];
@@ -127,6 +128,22 @@
 
     removePanel('ship');
     check(panels().length === 0, 'панель снимается с дашборда');
+
+    // --- Панель игрока умеет рисовать график ---
+
+    const chartRun = await runConsole(
+      '',
+      'dashboard.add("ore", db => ({ title: "Руда", type: "bar", items: [{ label: "Церера", value: 12 }] }))',
+      { dbStore: db.snapshot(), data: {}, panels: [] },
+    );
+    check(!chartRun.error, 'панель с графиком выполняется без ошибок');
+
+    const chartSpec = chartRun.ops.find(op => op.type === 'panel.add');
+    check(Boolean(chartSpec), 'график регистрируется как обычная панель');
+
+    const chartHtml = chartFromSpec({ type: 'bar', items: [{ label: 'Церера', value: 12 }] });
+    check(chartHtml.includes('bar-row') && chartHtml.includes('Церера'), 'описание графика превращается в разметку');
+    check(chartFromSpec({ title: 'Просто число', value: 5 }) === '', 'панель без типа графика остаётся текстовой');
 
     resetProgress();
     check(

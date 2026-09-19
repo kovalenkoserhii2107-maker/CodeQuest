@@ -13,6 +13,8 @@ import {
 import { runPlayerCode, errorPanel } from './ui/sim.js';
 import { renderPanelCards } from './ui/dbview.js';
 import { escapeHtml, showValue } from './ui/html.js';
+import { fillBar, balanceBar, gauge, barChart } from './ui/charts.js';
+import { shipSchematic } from './ui/shipview.js';
 
 const player = new PlayerState();
 const shipyard = new Shipyard();
@@ -67,14 +69,25 @@ export async function renderCommand() {
   renderPanelCards('command-panels');
 
   const crew = player.crew;
+  const store = warehouse();
+
+  // Экипаж по специальностям — сразу видно перекос в найме
+  const byRole = crew.reduce((acc, member) => {
+    const role = String(member.role ?? 'без роли');
+    acc[role] = (acc[role] ?? 0) + 1;
+    return acc;
+  }, {});
+
   stats.innerHTML = `
     <div class="panel__head">
       <h3 class="panel__title">Счёт корпорации</h3>
       <span class="panel__hint">реальное состояние</span>
     </div>
     <p class="widget__value mono">${player.credits.toLocaleString()} <small>¢</small></p>
-    <div class="widget__row"><span>Заданий решено</span><b class="mono">${solvedCount()} / ${totalCount()}</b></div>
-    <div class="widget__row"><span>Модулей на складе</span><b class="mono">${warehouse().items.length}</b></div>
+    ${fillBar({ value: solvedCount(), max: totalCount(), label: 'Заданий решено', unit: 'шт', tone: 'progress' })}
+    ${fillBar({ value: store.getUsedSpace(), max: warehouseCapacity(), label: 'Склад', unit: 'т' })}
+    ${crew.length ? barChart({ items: Object.entries(byRole), unit: 'чел' }) : ''}
+    <div class="widget__row"><span>Модулей на складе</span><b class="mono">${store.items.length}</b></div>
     <div class="widget__row"><span>Экипаж</span><b class="mono">${crew.length}</b></div>`;
 }
 
@@ -192,15 +205,22 @@ export async function renderWarehouse() {
   }
 
   const used = Number(value?.used) || 0;
-  const percent = Math.min(100, Math.round((used / warehouseCapacity()) * 100));
   if (capacity) capacity.textContent = `${used} / ${warehouseCapacity()} т`;
+
+  // Масса по типам модулей: видно, на что уходит место
+  const byType = items.reduce((acc, item) => {
+    const type = String(item.type ?? 'прочее');
+    acc[type] = (acc[type] ?? 0) + (Number(item.weight) || 0);
+    return acc;
+  }, {});
 
   host.innerHTML = `
     <div class="panel__head">
       <h3 class="panel__title">Занято ${used} т</h3>
       <span class="panel__hint">usedSpace() из вашего кода</span>
     </div>
-    <div class="progress"><div class="progress__bar${percent > 85 ? ' progress__bar--warn' : ''}" style="width: ${percent}%"></div></div>
+    ${fillBar({ value: used, max: warehouseCapacity(), label: 'Заполненность трюма', unit: 'т' })}
+    ${items.length ? barChart({ items: Object.entries(byType), unit: 'т' }) : ''}
     ${
       items.length === 0
         ? '<p class="empty-state">Склад пуст. Купите модуль на верфи.</p>'
@@ -321,6 +341,7 @@ async function hireCandidate(candidateId, button) {
 export async function renderShip() {
   const summary = document.getElementById('ship-summary');
   const modulesHost = document.getElementById('ship-modules');
+  const scheme = document.getElementById('ship-scheme');
   if (!summary || !modulesHost) return;
 
   const modules = warehouse().items;
@@ -333,20 +354,31 @@ export async function renderShip() {
   if (error) {
     summary.innerHTML = errorPanel(escapeHtml(error));
     modulesHost.innerHTML = '';
+    if (scheme) scheme.innerHTML = '';
     return;
   }
 
   const energy = Number(value?.energy) || 0;
+  const mass = Number(value?.mass) || 0;
+
+  // Выработка и потребление считаем отдельно: так видно, из чего сложился баланс
+  const produced = modules.reduce((sum, module) => sum + Math.max(0, Number(module.energy) || 0), 0);
+  const consumed = modules.reduce((sum, module) => sum + Math.min(0, Number(module.energy) || 0), 0);
+
   summary.innerHTML = `
     <div class="panel__head">
       <h3 class="panel__title">Корабль «${escapeHtml(showValue(value?.name))}»</h3>
       <span class="panel__hint">assembleShip</span>
     </div>
-    <p class="widget__value mono">${escapeHtml(showValue(value?.mass))} <small>т общая масса</small></p>
-    <div class="widget__row"><span>Энергобаланс</span><b class="mono" style="color: ${energy < 0 ? 'var(--color-danger)' : 'var(--color-ok)'}">${energy > 0 ? '+' : ''}${energy}</b></div>
+    ${gauge({ value: mass, max: warehouseCapacity(), label: 'Общая масса', unit: 'т' })}
+    ${balanceBar({ value: energy, max: Math.max(produced, Math.abs(consumed), 1), label: 'Энергобаланс' })}
+    <div class="widget__row"><span>Выработка</span><b class="mono is-ok">+${produced}</b></div>
+    <div class="widget__row"><span>Потребление</span><b class="mono">${consumed}</b></div>
     <div class="widget__row"><span>Модулей в сборке</span><b class="mono">${escapeHtml(showValue(value?.count))}</b></div>
     ${corpRecord('ship') ? `<p class="widget__note">В базе корпорации: «${escapeHtml(showValue(corpRecord('ship').name))}», ${escapeHtml(showValue(corpRecord('ship').mass))} т</p>` : ''}
     ${energy < 0 ? '<p class="widget__note">Потребление выше выработки — нужен реактор.</p>' : ''}`;
+
+  if (scheme) scheme.innerHTML = shipSchematic(modules, { name: showValue(value?.name) });
 
   modulesHost.innerHTML = `
     <div class="panel__head"><h3 class="panel__title">Состав</h3></div>
@@ -396,21 +428,44 @@ export async function renderFlight() {
   }
 
   const problems = Array.isArray(value?.problems) ? value.problems : [];
+  const shipModules = Array.isArray(assembled.value?.modules) ? assembled.value.modules : [];
+
+  // Систему считаем сбойной, если её упомянула хотя бы одна жалоба вашего кода
+  const failing = keywords => problems.some(problem =>
+    keywords.some(word => String(problem).toLowerCase().includes(word)));
+
+  const checks = [
+    { label: 'Двигатель', ok: !failing(['двигател', 'engine']) },
+    { label: 'Энергобаланс', ok: !failing(['энерг', 'energy', 'реактор']) },
+    { label: 'Экипаж', ok: !failing(['экипаж', 'пилот', 'капитан', 'crew']) },
+  ];
+
   host.innerHTML = `
     <div class="panel__head">
       <h3 class="panel__title">Отчёт диспетчера</h3>
       <span class="panel__hint">checkReadiness</span>
     </div>
-    <p class="widget__value">
-      <span class="badge ${value?.ready ? 'badge--ok' : 'badge--danger'}">${value?.ready ? 'готов к вылету' : 'вылет запрещён'}</span>
-    </p>
+
+    ${shipSchematic(shipModules, { name: shipName(), ready: Boolean(value?.ready) })}
+
+    <ul class="checklist">
+      ${checks
+        .map(check => `
+          <li class="checklist__item ${check.ok ? 'is-ok' : 'is-fail'}">
+            <span class="checklist__mark" aria-hidden="true">${check.ok ? '✓' : '✗'}</span>
+            <span>${escapeHtml(check.label)}</span>
+          </li>`)
+        .join('')}
+    </ul>
+
     ${
       problems.length
-        ? `<ul class="widget__list">${problems.map(problem => `<li>${escapeHtml(showValue(problem))}</li>`).join('')}</ul>`
+        ? `<ul class="widget__list widget__list--problems">${problems.map(problem => `<li>${escapeHtml(showValue(problem))}</li>`).join('')}</ul>`
         : '<p class="widget__note">Все проверки пройдены: двигатель на месте, энергии хватает, капитан в экипаже.</p>'
     }
+
+    ${balanceBar({ value: Number(assembled.value?.energy) || 0, max: 200, label: 'Энергобаланс' })}
     <div class="widget__row"><span>Масса</span><b class="mono">${escapeHtml(showValue(assembled.value?.mass))} т</b></div>
-    <div class="widget__row"><span>Энергобаланс</span><b class="mono">${escapeHtml(showValue(assembled.value?.energy))}</b></div>
     <div class="widget__row"><span>Экипаж</span><b class="mono">${crew.length} чел.</b></div>`;
 }
 

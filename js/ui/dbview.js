@@ -9,6 +9,7 @@ import { db, panels, removePanel, isSolved, solutionOf } from '../state.js';
 import { QUESTS } from '../data/quests.js';
 import { runConsole } from '../runner.js';
 import { escapeHtml, showValue } from './html.js';
+import { chartFromSpec, barChart } from './charts.js';
 
 let openCollection = null;
 
@@ -31,6 +32,9 @@ function recordsTable(name) {
   // Колонки собираем по всем записям: у разных записей могут быть разные поля
   const columns = [...new Set(records.flatMap(record => Object.keys(record)))].filter(key => key !== 'savedAt');
 
+  // Последняя запись подсвечивается: видно, что именно добавил ваш вызов
+  const lastId = records[records.length - 1]?.id;
+
   return `
     <div class="table-wrap">
       <table class="table">
@@ -38,7 +42,7 @@ function recordsTable(name) {
         <tbody>
           ${records
             .map(
-              record => `<tr>${columns
+              record => `<tr class="${record.id === lastId ? 'is-fresh' : ''}">${columns
                 .map(column => `<td class="${column === 'id' ? 'table__num' : ''}">${escapeHtml(showValue(record[column]))}</td>`)
                 .join('')}</tr>`,
             )
@@ -75,6 +79,11 @@ export function renderDatabase() {
         <h3 class="panel__title mono">${escapeHtml(openCollection)}</h3>
         <span class="panel__hint">${db.count(openCollection)} записей</span>
       </div>
+      ${
+        filled.length
+          ? barChart({ items: filled.map(item => ({ label: item.name, value: item.count })), unit: 'зап' })
+          : ''
+      }
       ${recordsTable(openCollection)}`
     : '<p class="empty-state">База пуста.</p>';
 
@@ -115,6 +124,11 @@ function panelCard(panel, outcome) {
   }
 
   const spec = outcome.spec ?? {};
+
+  // График рисуется по полю type: gauge, bar, spark, fill, balance.
+  // Незнакомый тип — не ошибка: панель просто останется текстовой.
+  const chart = spec && typeof spec === 'object' ? chartFromSpec(spec) : '';
+
   const rows = Array.isArray(spec.rows)
     ? spec.rows
         .map(row => `<div class="widget__row"><span>${escapeHtml(showValue(row[0]))}</span><b class="mono">${escapeHtml(showValue(row[1]))}</b></div>`)
@@ -134,7 +148,8 @@ function panelCard(panel, outcome) {
         <span class="badge badge--ok">ваша панель</span>
       </header>
       <div class="widget__body">
-        ${spec.value !== undefined ? `<p class="widget__value mono">${escapeHtml(showValue(spec.value))} ${spec.unit ? `<small>${escapeHtml(showValue(spec.unit))}</small>` : ''}</p>` : ''}
+        ${spec.value !== undefined && !chart ? `<p class="widget__value mono">${escapeHtml(showValue(spec.value))} ${spec.unit ? `<small>${escapeHtml(showValue(spec.unit))}</small>` : ''}</p>` : ''}
+        ${chart}
         ${rows}
         ${list}
         ${spec.note ? `<p class="widget__note">${escapeHtml(showValue(spec.note))}</p>` : ''}

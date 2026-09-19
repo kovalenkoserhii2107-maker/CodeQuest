@@ -5,6 +5,7 @@ import { QUESTS } from '../data/quests.js';
 import { completeQuest, draftOf, isSolved, isPracticed, saveDraft } from '../state.js';
 import { runSolution } from '../runner.js';
 import { escapeHtml } from './html.js';
+import { fillBar } from './charts.js';
 import { createEditor } from './editor.js';
 
 /** Следующее задание цепочки — чтобы было куда идти после победы. */
@@ -14,25 +15,43 @@ function nextQuest(current) {
     .find(quest => quest.order > current.order && !isSolved(quest.id)) ?? null;
 }
 
-/** Отчёт по одному тесту. */
-function testRow(result) {
-  const status = result.pass ? 'ok' : 'fail';
-  const detail = result.error
-    ? `<span class="test-row__detail">Ошибка: ${escapeHtml(result.error)}</span>`
-    : result.pass
-      ? ''
-      : `<span class="test-row__detail">ожидалось <b>${escapeHtml(result.expected)}</b>, получено <b>${escapeHtml(result.actual)}</b></span>`;
+/**
+ * Ход выполнения: один шаг — один тест.
+ *
+ * В шаге видно всё, что нужно для разбора: что ушло в функцию, что она
+ * вернула и чем это отличается от ожидаемого. Шаги проявляются по очереди,
+ * поэтому прогон читается как процесс, а не как готовая таблица.
+ */
+function traceStep(result, index) {
+  const state = result.pass ? 'ok' : 'fail';
+  const out = result.error ? result.error : result.actual;
 
   return `
-    <li class="test-row test-row--${status}">
-      <span class="test-row__mark" aria-hidden="true">${result.pass ? '✓' : '✗'}</span>
-      <span class="test-row__body">
-        <span class="test-row__name">${escapeHtml(result.name)}</span>
-        <span class="test-row__call mono">${escapeHtml(result.call)}</span>
-        ${detail}
-      </span>
-    </li>
-  `;
+    <li class="trace__step trace__step--${state}" style="animation-delay: ${index * 90}ms">
+      <span class="trace__index mono" aria-hidden="true">${result.pass ? '✓' : '✗'}</span>
+      <span class="trace__name">${escapeHtml(result.name)}</span>
+      <code class="trace__in mono" title="${escapeHtml(result.call)}">${escapeHtml(result.call)}</code>
+      <span class="trace__arrow" aria-hidden="true">→</span>
+      <code class="trace__out mono" title="${escapeHtml(out)}">${escapeHtml(out)}</code>
+      ${
+        result.pass
+          ? ''
+          : `<span class="trace__verdict">ждали <b>${escapeHtml(result.expected)}</b></span>`
+      }
+    </li>`;
+}
+
+/** Лента прогона целиком. */
+function traceStrip(results) {
+  if (results.length === 0) return '';
+
+  return `
+    <div class="trace">
+      <p class="trace__title mono">Ход выполнения</p>
+      <ol class="trace__steps">
+        ${results.map((result, index) => traceStep(result, index)).join('')}
+      </ol>
+    </div>`;
 }
 
 /**
@@ -155,8 +174,8 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
     showReport(`
       ${banner}
-      <p class="report__summary mono">Пройдено ${passed} из ${result.results.length}</p>
-      <ul class="test-list">${result.results.map(testRow).join('')}</ul>
+      ${fillBar({ value: passed, max: result.results.length, label: 'Пройдено тестов', unit: 'шт', tone: 'progress' })}
+      ${traceStrip(result.results)}
       ${logs}
     `);
 

@@ -491,7 +491,6 @@
 }
 
 .report__pending,
-.report__summary,
 .report__note {
   font-size: var(--fs-sm);
   color: var(--color-muted);
@@ -525,54 +524,6 @@
   margin: var(--space-1) 0 var(--space-3);
 }
 
-.test-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-
-.test-row {
-  display: flex;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-line-soft);
-  background-color: var(--surface-sunken);
-}
-
-.test-row--ok { border-color: rgba(74, 222, 155, 0.35); }
-.test-row--fail { border-color: rgba(255, 107, 107, 0.4); }
-
-.test-row__mark {
-  font-family: var(--font-mono);
-}
-
-.test-row--ok .test-row__mark { color: var(--color-ok); }
-.test-row--fail .test-row__mark { color: var(--color-danger); }
-
-.test-row__body {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.test-row__name {
-  font-size: var(--fs-sm);
-}
-
-.test-row__call,
-.test-row__detail {
-  font-size: var(--fs-xs);
-  color: var(--color-dim);
-  overflow-wrap: anywhere;
-}
-
-.test-row__detail b {
-  color: var(--color-text);
-  font-family: var(--font-mono);
-  font-weight: 500;
-}
 
 .report__console {
   margin-top: var(--space-4);
@@ -1149,4 +1100,652 @@
   .grid--db {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ======================================================================
+   Графика: шкалы, столбики, линии
+   ====================================================================== */
+
+.chart {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  min-width: 0;
+}
+
+.chart__caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+}
+
+.chart__caption--center {
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.chart__note {
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+}
+
+.chart .is-ok { color: var(--color-ok); }
+.chart .is-danger { color: var(--color-danger); }
+
+/* --- Полоса заполненности --- */
+
+.meter {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  border: 1px solid var(--color-line-soft);
+  overflow: hidden;
+}
+
+.meter__bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.meter__bar--ok { background: linear-gradient(90deg, var(--color-accent-deep), var(--color-ok)); }
+.meter__bar--warn { background: linear-gradient(90deg, var(--color-accent-deep), var(--color-warn)); }
+.meter__bar--danger { background: linear-gradient(90deg, var(--color-warn), var(--color-danger)); }
+
+/* --- Диверг-шкала --- */
+
+.balance {
+  position: relative;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  border: 1px solid var(--color-line-soft);
+  overflow: hidden;
+}
+
+.balance__zero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--color-line);
+}
+
+.balance__bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: var(--radius-pill);
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.balance__bar.is-positive { background: linear-gradient(90deg, var(--color-accent-deep), var(--color-ok)); }
+.balance__bar.is-negative { background: linear-gradient(270deg, var(--color-warn), var(--color-danger)); }
+
+/* --- Круговая шкала --- */
+
+.gauge {
+  width: 100%;
+  max-width: 180px;
+  margin: 0 auto;
+  display: block;
+}
+
+.gauge__track { stroke: var(--surface-sunken); }
+.gauge__value { transition: stroke-dashoffset 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.gauge__value--ok { stroke: var(--color-ok); }
+.gauge__value--warn { stroke: var(--color-warn); }
+.gauge__value--danger { stroke: var(--color-danger); }
+
+.gauge__text {
+  fill: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 18px;
+}
+
+/* --- Столбики --- */
+
+.chart--bars { gap: var(--space-2); }
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) minmax(0, 2.4fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  min-width: 0;
+}
+
+.bar-row__label {
+  color: var(--color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-row__track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.bar-row__bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--color-accent-deep), var(--color-accent));
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.bar-row__value { color: var(--color-text); }
+
+/* --- Линия --- */
+
+.spark {
+  width: 100%;
+  height: 72px;
+  display: block;
+}
+
+.spark__line {
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.spark__area { fill: color-mix(in srgb, var(--color-accent) 16%, transparent); }
+
+/* ======================================================================
+   Карта корпорации
+   ====================================================================== */
+
+.map {
+  position: relative;
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--color-violet) 14%, transparent), transparent 60%),
+    radial-gradient(ellipse at 90% 100%, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 55%),
+    var(--surface-sunken);
+  overflow: hidden;
+}
+
+.map__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.map__star { fill: var(--color-muted); }
+
+.map__route {
+  stroke: var(--color-line);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 10 8;
+}
+
+.map__route--done {
+  stroke: url(#map-route);
+  stroke-width: 4;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-accent) 60%, transparent));
+}
+
+.map__station { cursor: default; }
+.map__station:not(.is-locked) { cursor: pointer; }
+.map__station:focus { outline: none; }
+
+.map__halo {
+  fill: var(--surface-panel);
+  stroke: var(--color-line);
+  stroke-width: 2;
+  transition: stroke 0.25s ease, fill 0.25s ease;
+}
+
+.map__dot {
+  fill: var(--color-line);
+  transition: fill 0.25s ease, r 0.25s ease;
+}
+
+.map__index {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  fill: var(--color-void);
+  pointer-events: none;
+}
+
+.map__label {
+  font-size: 13px;
+  fill: var(--color-muted);
+  pointer-events: none;
+}
+
+.map__flag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--color-warn);
+  pointer-events: none;
+}
+
+.map__station.is-done .map__dot { fill: var(--color-ok); }
+.map__station.is-done .map__halo { stroke: var(--color-ok); }
+.map__station.is-done .map__label { fill: var(--color-text); }
+
+.map__station.is-active .map__dot { fill: var(--color-accent); r: 14; }
+.map__station.is-active .map__halo { stroke: var(--color-accent); }
+.map__station.is-active .map__label { fill: var(--color-accent); font-weight: 600; }
+
+.map__station.is-locked .map__index { fill: var(--color-dim); }
+.map__station.is-locked .map__halo { stroke: var(--color-line-soft); }
+.map__station.is-locked .map__dot { fill: var(--surface-chip); }
+
+.map__station:not(.is-locked):hover .map__halo,
+.map__station:not(.is-locked):focus-visible .map__halo {
+  stroke: var(--color-accent);
+  stroke-width: 3;
+}
+
+.map__pulse {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  opacity: 0;
+  animation: map-pulse 2.4s ease-out infinite;
+}
+
+@keyframes map-pulse {
+  0% { r: 14; opacity: 0.7; }
+  100% { r: 34; opacity: 0; }
+}
+
+.map__legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+}
+
+.map__key {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: var(--space-3);
+}
+
+.map__key:first-child { margin-left: 0; }
+.map__key.is-done { background: var(--color-ok); }
+.map__key.is-active { background: var(--color-accent); }
+.map__key.is-locked { background: var(--surface-chip); border: 1px solid var(--color-line); }
+
+@media (prefers-reduced-motion: reduce) {
+  .map__pulse { animation: none; }
+  .meter__bar, .balance__bar, .bar-row__bar, .gauge__value { transition: none; }
+}
+
+/*
+ * На узком экране карта не сжимается до нечитаемого: она сохраняет масштаб
+ * и прокручивается вбок — подписи станций не наезжают друг на друга.
+ */
+.map__scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-2) 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 720px) {
+  .map { padding: var(--space-2); }
+  .map__svg { min-width: 680px; }
+  .map__label { font-size: 15px; }
+  .map__flag { font-size: 13px; }
+  .map__index { font-size: 15px; }
+}
+
+/* ======================================================================
+   Схема корабля
+   ====================================================================== */
+
+.ship-scheme {
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 65%),
+    var(--surface-sunken);
+  min-width: 0;
+}
+
+.ship-scheme__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.ship-scheme__extra {
+  margin-top: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+}
+
+.ship {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.ship__hull {
+  fill: var(--surface-panel);
+  stroke: var(--color-line);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.ship__hull-inner {
+  fill: none;
+  stroke: var(--color-line-soft);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+}
+
+.ship__thrust {
+  fill: var(--color-accent);
+  opacity: 0.55;
+}
+
+.ship__slot-ring {
+  fill: none;
+  stroke: var(--color-line);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+  transition: stroke 0.3s ease;
+}
+
+.ship__slot-core {
+  fill: var(--surface-chip);
+  transition: fill 0.3s ease;
+}
+
+.ship__slot-label {
+  font-size: 13px;
+  fill: var(--color-muted);
+}
+
+.ship__slot-count,
+.ship__slot-miss {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  fill: var(--color-dim);
+}
+
+.ship__slot.is-filled .ship__slot-ring {
+  stroke: var(--color-accent);
+  stroke-dasharray: none;
+}
+
+.ship__slot.is-filled .ship__slot-core {
+  fill: var(--color-accent);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-accent) 70%, transparent));
+}
+
+.ship__slot.is-filled .ship__slot-label { fill: var(--color-text); }
+.ship__slot.is-empty .ship__slot-label { fill: var(--color-dim); }
+
+.ship__caption {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  fill: var(--color-dim);
+}
+
+@media (max-width: 720px) {
+  .ship__slot-label { font-size: 24px; }
+  .ship__caption { font-size: 22px; }
+  .ship__slot-count,
+  .ship__slot-miss { font-size: 22px; }
+}
+
+/* ======================================================================
+   Чек-лист предстартовой диагностики
+   ====================================================================== */
+
+.checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 var(--space-3);
+  list-style: none;
+  padding: 0;
+}
+
+.checklist__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-line);
+  background: var(--surface-chip);
+  font-size: var(--fs-sm);
+}
+
+.checklist__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--color-void);
+}
+
+.checklist__item.is-ok { border-color: color-mix(in srgb, var(--color-ok) 50%, var(--color-line)); }
+.checklist__item.is-ok .checklist__mark { background: var(--color-ok); }
+.checklist__item.is-fail { border-color: color-mix(in srgb, var(--color-danger) 50%, var(--color-line)); }
+.checklist__item.is-fail .checklist__mark { background: var(--color-danger); }
+
+.widget__list--problems li { color: var(--color-warn); }
+
+/* --- Шпаргалка по графикам --- */
+
+.chart-help { margin-bottom: var(--space-5); }
+
+.chart-help > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.chart-help__intro {
+  margin-top: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+}
+
+.chart-help__list {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-left: 0;
+  list-style: none;
+}
+
+.chart-help__list li {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+}
+
+.chart-help__list code,
+.chart-help__intro code {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+/* ======================================================================
+   Лента выполнения: что ушло в функцию и что вернулось
+   ====================================================================== */
+
+.trace {
+  margin: var(--space-4) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  min-width: 0;
+}
+
+.trace__title {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-dim);
+  margin-bottom: var(--space-2);
+}
+
+.trace__steps {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: none;
+}
+
+.trace__step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas:
+    "index name    name  name"
+    ".     in      arrow out"
+    ".     verdict verdict verdict";
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-line);
+  background: var(--surface-panel);
+  font-size: var(--fs-xs);
+  opacity: 0;
+  animation: trace-in 0.34s ease-out forwards;
+}
+
+.trace__index { grid-area: index; }
+.trace__name { grid-area: name; }
+.trace__in { grid-area: in; }
+.trace__arrow { grid-area: arrow; }
+.trace__out { grid-area: out; }
+.trace__verdict { grid-area: verdict; }
+
+.trace__name {
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+}
+
+.trace__step--ok { border-left-color: var(--color-ok); }
+.trace__step--fail { border-left-color: var(--color-danger); }
+
+.trace__index {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface-chip);
+  color: var(--color-void);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.trace__step--ok .trace__index { background: var(--color-ok); }
+.trace__step--fail .trace__index { background: var(--color-danger); }
+
+.trace__in,
+.trace__out {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  color: var(--code-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trace__arrow { color: var(--color-accent); }
+
+/* У провалившегося шага ничего не прячем: именно его и разбирают */
+.trace__verdict {
+  font-size: var(--fs-xs);
+  color: var(--color-warn);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.trace__step--fail .trace__in,
+.trace__step--fail .trace__out { white-space: normal; overflow-wrap: anywhere; }
+
+@keyframes trace-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 720px) {
+  .trace__step {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "index name"
+      ".     in"
+      ".     out"
+      ".     verdict";
+  }
+  .trace__arrow { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trace__step {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* --- Свежая запись в базе --- */
+
+.table tr.is-fresh {
+  animation: record-in 1.4s ease-out;
+}
+
+@keyframes record-in {
+  0% { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+  100% { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table tr.is-fresh { animation: none; }
 }
