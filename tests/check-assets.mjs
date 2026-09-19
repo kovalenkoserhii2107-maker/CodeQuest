@@ -81,8 +81,9 @@ check(brokenImports.length === 0, 'все импорты модулей разр
 /* --- 4. Точки входа ------------------------------------------------------ */
 
 const index = readFileSync(join(ROOT, 'index.html'), 'utf8');
-check(index.includes('js/main.js'), 'index.html подключает точку входа тренажёра');
-check(index.includes('js/ui.js'), 'index.html подключает модуль дашборда корпорации');
+check(index.includes('js/main.js'), 'index.html подключает точку входа');
+check(index.includes('js/shell.js'), 'index.html подключает общую шапку');
+check(readFileSync(join(ROOT, 'js/main.js'), 'utf8').includes("'./ui.js'"), 'точка входа подключает разделы корпорации');
 check(existsSync(join(ROOT, 'manifest.webmanifest')), 'манифест PWA на месте');
 
 console.log(failures === 0 ? '\nСборка: все проверки пройдены' : `\nСборка: проблем ${failures}`);

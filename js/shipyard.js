@@ -1,10 +1,10 @@
 export class Shipyard {
   constructor() {
     this.catalog = [
-      { id: 'mod-reactor-1', name: 'Реактор "Искра-М"', type: 'reactor', price: 25000, weight: 150 },
-      { id: 'mod-drill-1', name: 'Бур "Крот"', type: 'drill', price: 18000, weight: 80 },
-      { id: 'mod-engine-1', name: 'Плазменный маршевый', type: 'engine', price: 35000, weight: 200 },
-      { id: 'mod-shield-1', name: 'Генератор поля', type: 'shield', price: 22000, weight: 100 }
+      { id: 'mod-reactor-1', name: 'Реактор «Искра-М»', type: 'reactor', price: 25000, weight: 150, energy: 120 },
+      { id: 'mod-engine-1', name: 'Маршевый «Вектор»', type: 'engine', price: 30000, weight: 200, energy: -60 },
+      { id: 'mod-drill-1', name: 'Бур «Крот»', type: 'drill', price: 18000, weight: 80, energy: -40 },
+      { id: 'mod-shield-1', name: 'Генератор поля', type: 'shield', price: 22000, weight: 100, energy: -30 }
     ];
   }
 

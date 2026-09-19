@@ -1,21 +1,17 @@
 /**
  * Экран задачи: условие, теория, редактор кода и отчёт по тестам.
  */
-import { MODULE_BY_ID } from '../data/modules.js';
-import { SECTORS, QUESTS } from '../data/quests.js';
+import { QUESTS } from '../data/quests.js';
 import { completeQuest, draftOf, isSolved, saveDraft } from '../state.js';
 import { runSolution } from '../runner.js';
 import { escapeHtml } from './html.js';
 import { createEditor } from './editor.js';
 
-function sectorName(sectorId) {
-  return SECTORS.find(sector => sector.id === sectorId)?.name ?? '';
-}
-
-/** Следующая нерешённая задача — чтобы было куда идти после победы. */
+/** Следующее задание цепочки — чтобы было куда идти после победы. */
 function nextQuest(current) {
-  const index = QUESTS.findIndex(quest => quest.id === current.id);
-  return QUESTS.slice(index + 1).find(quest => !isSolved(quest.id)) ?? null;
+  return [...QUESTS]
+    .sort((a, b) => a.order - b.order)
+    .find(quest => quest.order > current.order && !isSolved(quest.id)) ?? null;
 }
 
 /** Отчёт по одному тесту. */
@@ -47,24 +43,25 @@ function testRow(result) {
 export function renderTask(quest, { onOpenQuest, onSolved }) {
   const root = document.getElementById('task-root');
   const solved = isSolved(quest.id);
-  const module = MODULE_BY_ID[quest.module];
+
   let hintsShown = 0;
 
   root.innerHTML = `
     <div class="panel task__intro">
       <div class="panel__head">
         <div>
-          <p class="task__crumbs mono">${escapeHtml(sectorName(quest.sector))} · ${escapeHtml(quest.topic)}</p>
+          <p class="task__crumbs mono">Задание ${quest.order} · ${escapeHtml(quest.topic)}</p>
           <h2 class="panel__title">${escapeHtml(quest.title)}</h2>
         </div>
         <span class="task__difficulty mono" title="Сложность ${quest.difficulty} из 5">${'★'.repeat(quest.difficulty)}${'☆'.repeat(5 - quest.difficulty)}</span>
         ${solved ? '<span class="badge badge--ok">решено</span>' : ''}
       </div>
 
+      <p class="task__story">${escapeHtml(quest.story)}</p>
       <p class="task__brief">${escapeHtml(quest.brief).replaceAll('\n', '<br>')}</p>
 
       <div class="task__reward mono">
-        Награда: +${quest.reward.credits} ¢ · +${quest.reward.xp} XP · улучшает модуль «${escapeHtml(module.name)}»
+        Награда: +${quest.reward.credits} ¢ · открывает раздел «${escapeHtml(quest.unlocks.label)}»
       </div>
 
       <details class="task__theory" open>
@@ -132,8 +129,8 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
           <p class="report__success-title">Все тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
           <p class="report__success-text">${
             outcome
-              ? `Модуль «${escapeHtml(module.name)}» улучшен, прибор на Мостике заработал на вашем коде.`
-              : 'Задача уже была засчитана раньше — награда не повторяется, но прибор на Мостике пересчитан вашим кодом.'
+              ? `Открыт раздел «${escapeHtml(quest.unlocks.label)}» — он работает на вашем коде.`
+              : 'Задание уже было засчитано: награда не повторяется, но раздел пересчитан новым кодом.'
           }</p>
           ${next ? `<button class="btn btn--primary btn--sm" type="button" id="next-quest">Следующая задача: ${escapeHtml(next.title)}</button>` : ''}
         </div>

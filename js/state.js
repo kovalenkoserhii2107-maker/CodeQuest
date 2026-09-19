@@ -2,10 +2,9 @@
  * Состояние игрока и его сохранение. Прогресс лежит в localStorage,
  * поэтому игра переживает перезагрузку и работает офлайн.
  */
-import { QUESTS, SECTORS, questById } from './data/quests.js';
-import { MODULES } from './data/modules.js';
+import { QUESTS, questById } from './data/quests.js';
 
-const STORAGE_KEY = 'codequest.progress.v1';
+const STORAGE_KEY = 'codequest.progress.v2';
 const XP_PER_LEVEL = 200;
 
 const listeners = new Set();
@@ -67,9 +66,35 @@ export function isSolved(questId) {
   return Boolean(state.solved[questId]);
 }
 
-/** Уровень модуля = число решённых задач его ветки. */
-export function moduleLevel(moduleId) {
-  return QUESTS.filter(quest => quest.module === moduleId && isSolved(quest.id)).length;
+/** Задания по порядку цепочки. */
+export function questChain() {
+  return [...QUESTS].sort((a, b) => a.order - b.order);
+}
+
+/** Текущее задание — первое нерешённое в цепочке. */
+export function currentQuest() {
+  return questChain().find(quest => !isSolved(quest.id)) ?? null;
+}
+
+/**
+ * Задание доступно, если оно уже решено или стало текущим.
+ * Дальше по цепочке заглянуть нельзя: сюжет открывается по одному шагу.
+ */
+export function isQuestAvailable(questId) {
+  if (isSolved(questId)) return true;
+  return currentQuest()?.id === questId;
+}
+
+/** Раздел интерфейса открыт, если решено задание, которое его включает. */
+export function isViewUnlocked(viewId) {
+  const quest = QUESTS.find(item => item.unlocks?.view === viewId);
+  if (!quest) return true;  // базовые разделы доступны всегда
+  return isSolved(quest.id);
+}
+
+/** Открытые разделы — для меню и маршрутизации. */
+export function unlockedViews() {
+  return QUESTS.filter(quest => isSolved(quest.id)).map(quest => quest.unlocks?.view).filter(Boolean);
 }
 
 /** Уровень пилота по накопленному опыту. */
@@ -86,28 +111,12 @@ export function xpToNextLevel() {
   return XP_PER_LEVEL - (state.xp % XP_PER_LEVEL);
 }
 
-/** Сектор открыт, если решены все задачи из его requires. */
-export function isSectorUnlocked(sector) {
-  return sector.requires.every(questId => isSolved(questId));
-}
-
-/** Сектор, где сейчас находится корабль: последний открытый по порядку карты. */
-export function currentSector() {
-  const unlocked = SECTORS.filter(sector => isSectorUnlocked(sector));
-  return unlocked[unlocked.length - 1] ?? SECTORS[0];
-}
-
 export function solvedCount() {
   return Object.keys(state.solved).length;
 }
 
 export function totalCount() {
   return QUESTS.length;
-}
-
-/** Суммарная «мощность» корабля — просто приятное число для шапки. */
-export function shipPower() {
-  return MODULES.reduce((sum, module) => sum + moduleLevel(module.id) * 10, 0);
 }
 
 /* --- Действия ----------------------------------------------------------- */
@@ -164,16 +173,17 @@ export function completeQuest(questId, { withSolution = false, source = null } =
 
   addLog(`Задача «${quest.title}» решена: +${credits} ¢, +${xp} XP`, 'success');
 
-  const unlockedSectors = SECTORS.filter(
-    sector => sector.requires.includes(questId) && isSectorUnlocked(sector),
-  );
-  unlockedSectors.forEach(sector => addLog(`Открыт сектор «${sector.name}»`, 'unlock'));
+  const unlockedView = quest.unlocks ?? null;
+  if (unlockedView) addLog(`Открыт раздел «${unlockedView.label}»`, 'unlock');
+
+  const next = currentQuest();
+  if (next) addLog(`Следующее задание: «${next.title}»`, 'info');
 
   const levelUp = playerLevel() > levelBefore;
   if (levelUp) addLog(`Повышение: уровень пилота ${playerLevel()}`, 'unlock');
 
   emit();
-  return { credits, xp, levelUp, unlockedSectors };
+  return { credits, xp, levelUp, unlockedView, next: currentQuest() };
 }
 
 /** Полный сброс прогресса. */

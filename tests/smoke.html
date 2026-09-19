@@ -10,15 +10,14 @@
 
   <script type="module">
     /**
-     * Проверяет в реальном браузере то, что нельзя проверить в Node:
-     * запуск решений через Web Worker и правила прогресса из state.js.
-     * Результат пишется в document.title, чтобы его было видно в --dump-dom.
+     * Проверяет в реальном браузере то, чего не видно в Node: запуск кода
+     * игрока через Web Worker, прогрессию цепочки и мост «код → симулятор».
      */
-    import { QUESTS, SECTORS } from '../js/data/quests.js';
-    import { runSolution, evaluateWidgets, isFallbackMode } from '../js/runner.js';
-    import { WIDGETS } from '../js/data/dashboard.js';
+    import { QUESTS } from '../js/data/quests.js';
+    import { runSolution, isFallbackMode } from '../js/runner.js';
+    import { runPlayerCode } from '../js/ui/sim.js';
     import {
-      completeQuest, isSectorUnlocked, moduleLevel, resetProgress, state, playerLevel,
+      completeQuest, currentQuest, isQuestAvailable, isViewUnlocked, resetProgress, state,
     } from '../js/state.js';
 
     const problems = [];
@@ -30,60 +29,43 @@
 
     resetProgress();
 
-    // 1. Каждое эталонное решение проходит тесты через воркер.
+    // 1. Каждое эталонное решение проходит тесты через воркер
     for (const quest of QUESTS) {
       const report = await runSolution(quest.solution, quest);
       check(report.ok, `решение ${quest.id} (${report.results.length} тестов)`);
     }
 
-    // 2. Неверное решение честно падает, а не засчитывается.
-    const broken = await runSolution('function fuelPercent() { return 0; }', QUESTS[0]);
-    check(!broken.ok, 'неверное решение не проходит тесты');
+    // 2. Неверное решение не проходит, зависшее — прерывается по таймауту
+    const broken = await runSolution('function createCommander() { return 1; }', QUESTS[0]);
+    check(!broken.ok, 'неверное решение не засчитывается');
 
-    // 3. Бесконечный цикл прерывается по таймауту (только при живом воркере).
     if (!isFallbackMode()) {
-      const hang = await runSolution('function fuelPercent() { while (true) {} }', QUESTS[0]);
+      const hang = await runSolution('function createCommander() { return new Promise(() => {}); }', QUESTS[0]);
       check(Boolean(hang.error), 'зависшее решение останавливается по таймауту');
-    } else {
-      lines.push('— воркер недоступен, проверка таймаута пропущена');
     }
 
-    // 4. Прогресс: сектор открывается только после нужных задач.
-    const belt = SECTORS.find(sector => sector.id === 'belt');
-    check(!isSectorUnlocked(belt), 'сектор «Пояс астероидов» закрыт на старте');
-    completeQuest('fuel-percent');
-    completeQuest('reactor-status');
-    check(isSectorUnlocked(belt), 'сектор открывается после двух задач');
-    check(moduleLevel('reactor') === 2, 'уровень реактора вырос до 2');
+    // 3. Прогрессия: доступно только текущее задание
+    check(currentQuest().id === QUESTS[0].id, 'первым доступно первое задание цепочки');
+    check(isQuestAvailable(QUESTS[0].id), 'текущее задание доступно');
+    check(!isQuestAvailable(QUESTS[1].id), 'следующее задание закрыто');
+    check(!isViewUnlocked(QUESTS[0].unlocks.view), 'раздел закрыт до решения');
 
-    // 5. Награда за подсмотренное решение — половинная, повтор не начисляется.
-    const creditsBefore = state.credits;
-    completeQuest('total-mass', { withSolution: true });
-    const half = Math.round(QUESTS.find(q => q.id === 'total-mass').reward.credits / 2);
-    check(state.credits - creditsBefore === half, 'за подсказанное решение начислена половина');
-    const creditsAfter = state.credits;
-    completeQuest('total-mass');
-    check(state.credits === creditsAfter, 'повторное решение не начисляет награду');
-    check(playerLevel() >= 1, 'уровень пилота считается');
+    const outcome = completeQuest(QUESTS[0].id, { source: QUESTS[0].solution });
+    check(outcome.unlockedView.view === QUESTS[0].unlocks.view, 'решение открывает свой раздел');
+    check(isViewUnlocked(QUESTS[0].unlocks.view), 'раздел стал доступен');
+    check(isQuestAvailable(QUESTS[1].id), 'следующее задание открылось');
+    check(!isQuestAvailable(QUESTS[2].id), 'задание через одно всё ещё закрыто');
+    check(state.credits === QUESTS[0].reward.credits, 'награда начислена');
 
-    // 6. Приборы Мостика считаются в воркере на коде игрока.
-    const jobs = WIDGETS.slice(0, 4).map(widget => {
-      const quest = QUESTS.find(q => q.id === widget.questId);
-      return { id: widget.id, fn: quest.fn, expr: widget.expr, source: quest.solution };
-    });
-    const widgetResults = await evaluateWidgets(jobs);
-    check(widgetResults.length === jobs.length, 'приборы Мостика вернули ответ на каждый запрос');
-    check(widgetResults.every(item => !item.error), 'приборы посчитались без ошибок');
-    check(widgetResults.find(item => item.id === 'fuel')?.value === 80, 'датчик топлива показывает 80 %');
+    // 4. Мост «код игрока → симулятор»
+    const card = await runPlayerCode('commander', 'return createCommander("Тест");');
+    check(card.value?.name === 'Тест' && !card.error, 'раздел получает данные из кода игрока');
 
-    // 7. Сломанный код прибора не роняет Мостик, а помечается ошибкой.
-    const brokenWidget = await evaluateWidgets([
-      { id: 'fuel', fn: 'fuelPercent', expr: 'return fuelPercent(1, 2);', source: 'function fuelPercent() { throw new Error("сбой"); }' },
-    ]);
-    check(Boolean(brokenWidget[0].error), 'прибор со сломанным кодом отмечается ошибкой');
+    const locked = await runPlayerCode('shipyard', 'return createShipyard("X", []);');
+    check(Boolean(locked.error), 'нерешённое задание не отдаёт данные разделу');
 
     resetProgress();
-    check(Object.keys(state.solved).length === 0, 'сброс прогресса очищает решённые задачи');
+    check(Object.keys(state.solved).length === 0 && state.credits === 0, 'сброс возвращает игру в начало');
 
     document.getElementById('out').textContent = lines.join('\n');
     document.title = problems.length === 0
