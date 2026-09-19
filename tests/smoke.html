@@ -15,7 +15,8 @@
      * Результат пишется в document.title, чтобы его было видно в --dump-dom.
      */
     import { QUESTS, SECTORS } from '../js/data/quests.js';
-    import { runSolution, isFallbackMode } from '../js/runner.js';
+    import { runSolution, evaluateWidgets, isFallbackMode } from '../js/runner.js';
+    import { WIDGETS } from '../js/data/dashboard.js';
     import {
       completeQuest, isSectorUnlocked, moduleLevel, resetProgress, state, playerLevel,
     } from '../js/state.js';
@@ -64,6 +65,22 @@
     completeQuest('total-mass');
     check(state.credits === creditsAfter, 'повторное решение не начисляет награду');
     check(playerLevel() >= 1, 'уровень пилота считается');
+
+    // 6. Приборы Мостика считаются в воркере на коде игрока.
+    const jobs = WIDGETS.slice(0, 4).map(widget => {
+      const quest = QUESTS.find(q => q.id === widget.questId);
+      return { id: widget.id, fn: quest.fn, expr: widget.expr, source: quest.solution };
+    });
+    const widgetResults = await evaluateWidgets(jobs);
+    check(widgetResults.length === jobs.length, 'приборы Мостика вернули ответ на каждый запрос');
+    check(widgetResults.every(item => !item.error), 'приборы посчитались без ошибок');
+    check(widgetResults.find(item => item.id === 'fuel')?.value === 80, 'датчик топлива показывает 80 %');
+
+    // 7. Сломанный код прибора не роняет Мостик, а помечается ошибкой.
+    const brokenWidget = await evaluateWidgets([
+      { id: 'fuel', fn: 'fuelPercent', expr: 'return fuelPercent(1, 2);', source: 'function fuelPercent() { throw new Error("сбой"); }' },
+    ]);
+    check(Boolean(brokenWidget[0].error), 'прибор со сломанным кодом отмечается ошибкой');
 
     resetProgress();
     check(Object.keys(state.solved).length === 0, 'сброс прогресса очищает решённые задачи');

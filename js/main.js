@@ -14,13 +14,16 @@ import {
   resetProgress,
 } from './state.js';
 import { renderMap, selectSector } from './ui/map.js';
+import { renderBridge } from './ui/bridge.js';
 import { renderShip } from './ui/ship.js';
 import { renderTask } from './ui/task.js';
 import { renderLog } from './ui/log.js';
 import { isFallbackMode } from './runner.js';
+import { refreshNotificationDot } from './shell.js';
 
 const VIEW_TITLES = {
   map: 'Карта секторов',
+  bridge: 'Мостик',
   ship: 'Корабль «Квест»',
   task: 'Задача',
   log: 'Бортовой журнал',
@@ -53,6 +56,7 @@ function renderHud() {
   el('hud-credits').textContent = `${state.credits} ¢`;
   el('hud-solved').textContent = `${solvedCount()} / ${totalCount()}`;
   el('ship-power').textContent = String(shipPower());
+  refreshNotificationDot();
 }
 
 /** Всплывающее сообщение о награде. */
@@ -84,6 +88,11 @@ function render() {
 
   if (name === 'map') {
     renderMap({ onOpenQuest: openQuest });
+    return;
+  }
+
+  if (name === 'bridge') {
+    renderBridge({ onOpenQuest: openQuest });
     return;
   }
 

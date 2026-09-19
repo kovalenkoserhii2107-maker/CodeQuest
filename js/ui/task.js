@@ -5,12 +5,7 @@ import { MODULE_BY_ID } from '../data/modules.js';
 import { SECTORS, QUESTS } from '../data/quests.js';
 import { completeQuest, draftOf, isSolved, saveDraft } from '../state.js';
 import { runSolution } from '../runner.js';
-
-const escapeHtml = value =>
-  String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+import { escapeHtml } from './html.js';
 
 function sectorName(sectorId) {
   return SECTORS.find(sector => sector.id === sectorId)?.name ?? '';
@@ -139,15 +134,16 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
     let banner = '';
     if (result.ok) {
       const alreadySolved = isSolved(quest.id);
-      const outcome = alreadySolved ? null : completeQuest(quest.id);
+      // Код передаём всегда: на нём работают приборы Мостика.
+      const outcome = completeQuest(quest.id, { source: textarea.value });
       const next = nextQuest(quest);
       banner = `
         <div class="report__success">
           <p class="report__success-title">Все тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
           <p class="report__success-text">${
             outcome
-              ? `Модуль «${escapeHtml(module.name)}» улучшен.`
-              : 'Задача уже была засчитана раньше — награда не повторяется.'
+              ? `Модуль «${escapeHtml(module.name)}» улучшен, прибор на Мостике заработал на вашем коде.`
+              : 'Задача уже была засчитана раньше — награда не повторяется, но прибор на Мостике пересчитан вашим кодом.'
           }</p>
           ${next ? `<button class="btn btn--primary btn--sm" type="button" id="next-quest">Следующая задача: ${escapeHtml(next.title)}</button>` : ''}
         </div>
@@ -200,7 +196,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
     textarea.value = quest.solution;
     saveDraft(quest.id, quest.solution);
-    const outcome = completeQuest(quest.id, { withSolution: true });
+    const outcome = completeQuest(quest.id, { withSolution: true, source: quest.solution });
     if (outcome) onSolved(outcome);
     showReport(
       `<p class="report__note">Решение подставлено в редактор. Разберите его построчно и запустите тесты — ` +

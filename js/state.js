@@ -16,8 +16,9 @@ function emptyState() {
     version: 1,
     credits: 0,
     xp: 0,
-    solved: {},   // questId -> { at, withSolution }
-    drafts: {},   // questId -> исходный код игрока
+    solved: {},     // questId -> { at, withSolution }
+    solutions: {},  // questId -> код, прошедший тесты: на нём работает Мостик
+    drafts: {},     // questId -> исходный код игрока
     log: [],
   };
 }
@@ -122,12 +123,29 @@ export function draftOf(questId) {
 }
 
 /**
+ * Код, которым решена задача. Для прогресса, сохранённого до появления
+ * Мостика, откатываемся на черновик — он почти всегда и есть рабочий код.
+ */
+export function solutionOf(questId) {
+  return state.solutions[questId] ?? state.drafts[questId] ?? null;
+}
+
+/**
  * Засчитать решённую задачу. Награда за подсмотренное решение — половинная,
  * уровень модуля растёт в любом случае: главное, что материал пройден.
  */
-export function completeQuest(questId, { withSolution = false } = {}) {
+export function completeQuest(questId, { withSolution = false, source = null } = {}) {
   const quest = questById(questId);
-  if (!quest || isSolved(questId)) return null;
+  if (!quest) return null;
+
+  if (isSolved(questId)) {
+    // Награда не повторяется, но более свежий рабочий код приборам пригодится.
+    if (source) {
+      state.solutions[questId] = source;
+      emit();
+    }
+    return null;
+  }
 
   const factor = withSolution ? 0.5 : 1;
   const credits = Math.round(quest.reward.credits * factor);
@@ -135,6 +153,7 @@ export function completeQuest(questId, { withSolution = false } = {}) {
   const levelBefore = playerLevel();
 
   state.solved[questId] = { at: new Date().toISOString(), withSolution };
+  if (source) state.solutions[questId] = source;
   state.credits += credits;
   state.xp += xp;
 

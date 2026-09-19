@@ -57,6 +57,11 @@ table {
   width: 100%;
 }
 
+/* Атрибут hidden должен побеждать любые display из компонентов */
+[hidden] {
+  display: none !important;
+}
+
 :focus-visible {
   outline: 2px solid var(--color-accent, #4de3ff);
   outline-offset: 3px;

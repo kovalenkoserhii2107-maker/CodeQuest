@@ -54,6 +54,46 @@ function describeCall(fnName, test) {
   return `${fnName}(${args})`;
 }
 
+/** Выполняет код игрока и достаёт из него объявление с нужным именем. */
+function buildTarget(source, fnName, consoleShim) {
+  const factory = new Function(
+    'console',
+    `"use strict";\n${source}\n;return typeof ${fnName} !== "undefined" ? ${fnName} : undefined;`,
+  );
+  return factory(consoleShim);
+}
+
+/** Пустая заглушка console: для виджетов вывод игрока не нужен. */
+const silentConsole = { log() {}, info() {}, warn() {}, error() {} };
+
+/**
+ * Запускает выражение на коде игрока — так работают приборы Мостика.
+ * Возвращает либо значение, либо текст ошибки, но никогда не бросает.
+ *
+ * @param {string} source код игрока
+ * @param {string} fnName имя функции или класса, которое ждёт выражение
+ * @param {string} expr тело функции; внутри доступно объявление fnName
+ */
+export async function runPlayerCode(source, fnName, expr) {
+  let target;
+  try {
+    target = buildTarget(source, fnName, silentConsole);
+  } catch (error) {
+    return { value: null, error: `Код не запустился: ${error.message}` };
+  }
+
+  if (target === undefined) {
+    return { value: null, error: `В коде нет объявления с именем ${fnName}` };
+  }
+
+  try {
+    const run = new Function(fnName, `"use strict";\n${expr}`);
+    return { value: await run(target), error: null };
+  } catch (error) {
+    return { value: null, error: `${error.name}: ${error.message}` };
+  }
+}
+
 /**
  * Запускает решение против набора тестов задачи.
  *
@@ -72,11 +112,7 @@ export async function runQuestTests(source, quest) {
 
   let target;
   try {
-    const factory = new Function(
-      'console',
-      `"use strict";\n${source}\n;return typeof ${quest.fn} !== "undefined" ? ${quest.fn} : undefined;`,
-    );
-    target = factory(consoleShim);
+    target = buildTarget(source, quest.fn, consoleShim);
   } catch (error) {
     return { ok: false, results: [], logs, error: `Код не запустился: ${error.message}` };
   }
