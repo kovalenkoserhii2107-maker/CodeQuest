@@ -59,6 +59,61 @@
 
   --shadow-panel: 0 18px 40px -24px rgba(0, 0, 0, 0.9);
   --shadow-glow: 0 0 24px -6px rgba(77, 227, 255, 0.55);
+
+  /* Поверхности вынесены в отдельные роли: их подменяет светлая тема */
+  --surface-deep: rgba(5, 7, 15, 0.8);
+  --surface-sunken: rgba(10, 15, 29, 0.85);
+  --surface-panel: rgba(16, 23, 41, 0.88);
+  --surface-raised: rgba(22, 32, 58, 0.9);
+  --surface-chip: rgba(35, 48, 79, 0.75);
+  --code-bg: #070b16;
+  --code-text: #dbe7ff;
+}
+
+/* --- Светлая тема ------------------------------------------------------- */
+
+:root[data-theme="light"] {
+  --color-void: #eef2f9;
+  --color-deep: #ffffff;
+  --color-panel: #ffffff;
+  --color-panel-soft: #f2f5fb;
+  --color-line: #ccd6e8;
+  --color-line-soft: #e2e8f4;
+
+  --color-text: #0f1728;
+  --color-muted: #47536d;
+  --color-dim: #6b7791;
+
+  --color-accent: #0f8fb8;
+  --color-accent-deep: #0b6d8e;
+  --color-violet: #7546dc;
+  --color-plasma: #cc2f74;
+  --color-ok: #17875a;
+  --color-warn: #96660a;
+  --color-danger: #c53434;
+
+  --surface-deep: rgba(255, 255, 255, 0.92);
+  --surface-sunken: rgba(243, 246, 252, 0.94);
+  --surface-panel: rgba(255, 255, 255, 0.96);
+  --surface-raised: rgba(248, 250, 255, 0.96);
+  --surface-chip: rgba(225, 233, 246, 0.92);
+  --code-bg: #f7f9fe;
+  --code-text: #16203a;
+
+  --shadow-panel: 0 14px 30px -22px rgba(18, 32, 63, 0.45);
+  --shadow-glow: 0 0 18px -8px rgba(15, 143, 184, 0.55);
+}
+
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(15, 143, 184, 0.14), transparent 45%),
+    radial-gradient(circle at 88% 4%, rgba(117, 70, 220, 0.12), transparent 42%),
+    radial-gradient(circle at 60% 100%, rgba(204, 47, 116, 0.08), transparent 55%);
+}
+
+/* Звёздное поле в светлой теме не нужно */
+:root[data-theme="light"] body::before {
+  display: none;
 }
 
 /* --- Общая основа ------------------------------------------------------- */
@@ -172,7 +227,7 @@ h1, h2, h3, h4 {
   flex-direction: column;
   gap: var(--space-5);
   padding: var(--space-5) var(--space-4);
-  background: linear-gradient(180deg, rgba(16, 23, 41, 0.95), rgba(5, 7, 15, 0.95));
+  background: linear-gradient(180deg, var(--surface-panel), var(--surface-deep));
   border-right: 1px solid var(--color-line);
   backdrop-filter: blur(6px);
 }
@@ -276,7 +331,7 @@ h1, h2, h3, h4 {
   padding: var(--space-3);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background-color: rgba(22, 32, 58, 0.6);
+  background-color: var(--surface-raised);
   font-size: var(--fs-xs);
   color: var(--color-muted);
 }
@@ -300,7 +355,7 @@ h1, h2, h3, h4 {
   min-height: var(--header-height);
   padding: 0 var(--space-6);
   border-bottom: 1px solid var(--color-line);
-  background-color: rgba(10, 15, 29, 0.82);
+  background-color: var(--surface-sunken);
   backdrop-filter: blur(10px);
 }
 
@@ -328,7 +383,7 @@ h1, h2, h3, h4 {
   padding: var(--space-2) var(--space-4) var(--space-2) 38px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-line);
-  background-color: rgba(16, 23, 41, 0.9);
+  background-color: var(--surface-panel);
   color: var(--color-text);
   font-size: var(--fs-sm);
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -368,7 +423,7 @@ h1, h2, h3, h4 {
   place-items: center;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-line);
-  background-color: rgba(16, 23, 41, 0.8);
+  background-color: var(--surface-panel);
   color: var(--color-muted);
   transition: color 0.2s, border-color 0.2s;
 }
@@ -396,7 +451,7 @@ h1, h2, h3, h4 {
   padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-pill);
-  background-color: rgba(16, 23, 41, 0.8);
+  background-color: var(--surface-panel);
 }
 
 .user-chip__avatar {
@@ -497,7 +552,7 @@ h1, h2, h3, h4 {
   padding: var(--space-4);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background-color: rgba(5, 7, 15, 0.55);
+  background-color: var(--surface-deep);
 }
 
 .hero__stat dt {
@@ -551,7 +606,7 @@ h1, h2, h3, h4 {
   margin-top: auto;
   padding: var(--space-5) var(--space-6);
   border-top: 1px solid var(--color-line);
-  background-color: rgba(10, 15, 29, 0.7);
+  background-color: var(--surface-sunken);
   display: flex;
   flex-wrap: wrap;
   align-items: center;

@@ -2,7 +2,7 @@
  * Обёртка над воркером: следит за таймаутом и умеет работать в запасном
  * режиме (без воркера), если страницу открыли не через сервер.
  */
-import { runQuestTests } from './runner-core.js';
+import { runQuestTests, runPlayerCode } from './runner-core.js';
 
 const TIMEOUT_MS = 3000;
 
@@ -79,6 +79,60 @@ export function runSolution(source, quest) {
 
     active.addEventListener('message', onMessage);
     active.addEventListener('error', onError);
-    active.postMessage({ id, source, quest: { fn: quest.fn, tests: quest.tests } });
+    active.postMessage({ id, kind: 'tests', source, quest: { fn: quest.fn, tests: quest.tests } });
+  });
+}
+
+/**
+ * Считает показания приборов Мостика кодом игрока.
+ * Одним сообщением уходит весь список — так дешевле, чем по заданию на вызов.
+ *
+ * @param {Array<{id: string, source: string, fn: string, expr: string}>} jobs
+ * @returns {Promise<Array<{id: string, value: unknown, error: string|null}>>}
+ */
+export function evaluateWidgets(jobs) {
+  if (jobs.length === 0) return Promise.resolve([]);
+
+  const active = typeof Worker === 'undefined' ? null : ensureWorker();
+
+  if (!active) {
+    return Promise.all(
+      jobs.map(job => runPlayerCode(job.source, job.fn, job.expr).then(outcome => ({ id: job.id, ...outcome }))),
+    );
+  }
+
+  const id = nextId++;
+  return new Promise(resolve => {
+    const timer = setTimeout(() => {
+      cleanup();
+      active.terminate();
+      worker = null;
+      resolve(jobs.map(job => ({ id: job.id, value: null, error: 'Прибор не ответил: код выполняется слишком долго' })));
+    }, TIMEOUT_MS);
+
+    function onMessage(event) {
+      if (event.data.id !== id) return;
+      cleanup();
+      resolve(event.data.results ?? []);
+    }
+
+    function onError() {
+      cleanup();
+      workerBroken = true;
+      worker = null;
+      Promise.all(
+        jobs.map(job => runPlayerCode(job.source, job.fn, job.expr).then(outcome => ({ id: job.id, ...outcome }))),
+      ).then(resolve);
+    }
+
+    function cleanup() {
+      clearTimeout(timer);
+      active.removeEventListener('message', onMessage);
+      active.removeEventListener('error', onError);
+    }
+
+    active.addEventListener('message', onMessage);
+    active.addEventListener('error', onError);
+    active.postMessage({ id, kind: 'widgets', jobs });
   });
 }

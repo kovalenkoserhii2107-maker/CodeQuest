@@ -4,11 +4,13 @@
  * Проверяет, что:
  *  1. эталонное решение каждой задачи проходит все её тесты;
  *  2. заготовка кода тесты НЕ проходит (иначе задача решается сама собой);
- *  3. связи секторов и задач согласованы между собой.
+ *  3. связи секторов и задач согласованы между собой;
+ *  4. каждый прибор Мостика считается на эталонном решении своей задачи.
  */
 import { QUESTS, SECTORS, ROUTES } from '../js/data/quests.js';
 import { MODULE_BY_ID, MODULES } from '../js/data/modules.js';
-import { runQuestTests } from '../js/runner-core.js';
+import { runQuestTests, runPlayerCode } from '../js/runner-core.js';
+import { WIDGETS } from '../js/data/dashboard.js';
 
 let failures = 0;
 const fail = message => {
@@ -60,6 +62,40 @@ for (const module of MODULES) {
   const count = QUESTS.filter(q => q.module === module.id).length;
   if (count !== module.maxLevel) {
     fail(`У модуля ${module.id} maxLevel=${module.maxLevel}, а задач ${count} — уровни не сойдутся`);
+  }
+}
+
+/* --- 4. Приборы Мостика ------------------------------------------------- */
+for (const widget of WIDGETS) {
+  const quest = QUESTS.find(item => item.id === widget.questId);
+  if (!quest) {
+    fail(`Прибор «${widget.title}» ссылается на несуществующую задачу ${widget.questId}`);
+    continue;
+  }
+
+  const { value, error } = await runPlayerCode(quest.solution, quest.fn, widget.expr);
+  if (error) {
+    fail(`Прибор «${widget.title}» не считается на эталонном решении: ${error}`);
+  } else if (value === undefined) {
+    fail(`Прибор «${widget.title}» получил undefined — проверьте выражение`);
+  } else {
+    try {
+      const html = widget.render(value);
+      if (typeof html !== 'string' || html.trim() === '') {
+        fail(`Прибор «${widget.title}» ничего не отрисовал`);
+      } else {
+        console.log(`✓ прибор ${widget.id}: ${JSON.stringify(value).slice(0, 60)}`);
+      }
+    } catch (renderError) {
+      fail(`Прибор «${widget.title}» упал при отрисовке: ${renderError.message}`);
+    }
+  }
+}
+
+const widgetQuests = new Set(WIDGETS.map(widget => widget.questId));
+for (const quest of QUESTS) {
+  if (!widgetQuests.has(quest.id)) {
+    fail(`Для задачи ${quest.id} нет прибора на Мостике — результат некуда показать`);
   }
 }
 

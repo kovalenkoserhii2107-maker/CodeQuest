@@ -1,8 +1,11 @@
 /**
  * Service worker: держит оболочку игры в кэше, чтобы тренажёр открывался
- * без сети. Стратегия — «сначала кэш, сеть про запас».
+ * без сети.
+ *
+ * Стратегия — «сначала сеть, кэш про запас»: так обновления страниц и кода
+ * видны сразу после деплоя, а офлайн по-прежнему работает из кэша.
  */
-const CACHE = 'codequest-v1';
+const CACHE = 'codequest-v2';
 
 const SHELL = [
   './',
@@ -53,18 +56,20 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET' || new URL(request.url).origin !== location.origin) return;
 
   event.respondWith(
-    caches.match(request).then(cached => {
-      const network = fetch(request)
-        .then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then(cache => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached ?? caches.match('game.html'));
-
-      return cached ?? network;
-    }),
+    fetch(request)
+      .then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        // Офлайн и страницы нет в кэше — отдаём оболочку тренажёра.
+        if (request.mode === 'navigate') return caches.match('game.html');
+        return Response.error();
+      }),
   );
 });
