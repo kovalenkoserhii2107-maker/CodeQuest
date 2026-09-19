@@ -5,6 +5,7 @@
  * чего кораблю не хватает, ещё до предстартовой диагностики.
  */
 import { escapeHtml } from './html.js';
+import { moduleArt } from '../data/module-art.js';
 
 /**
  * Слоты чертежа. Координаты — в системе viewBox 540×250:
@@ -22,27 +23,45 @@ const SLOTS = [
  * @param {Array<{type?: string, name?: string}>} modules модули на борту
  * @param {{name?: string, ready?: boolean|null}} options подпись и статус
  */
+// Чертёж рисуется в нескольких разделах сразу, поэтому id обрезки должны
+// различаться: одинаковые id в одном документе перебивают друг друга.
+let schematicCount = 0;
+
 export function shipSchematic(modules = [], { name = 'Корабль', ready = null } = {}) {
   const list = Array.isArray(modules) ? modules : [];
+  const uid = `ship${schematicCount += 1}`;
 
-  // Считаем модули по типам: слот может быть занят несколькими одинаковыми
+  // Считаем модули по типам: слот может быть занят несколькими одинаковыми.
+  // Заодно запоминаем первый модуль типа — его картинка ляжет в слот.
   const byType = new Map();
   for (const module of list) {
     const type = String(module?.type ?? 'прочее');
-    byType.set(type, (byType.get(type) ?? 0) + 1);
+    const seen = byType.get(type);
+    if (seen) seen.count += 1;
+    else byType.set(type, { count: 1, module });
   }
 
   const extra = [...byType.entries()].filter(([type]) => !SLOTS.some(slot => slot.type === type));
 
   const slots = SLOTS.map(slot => {
-    const count = byType.get(slot.type) ?? 0;
+    const found = byType.get(slot.type);
+    const count = found?.count ?? 0;
     const filled = count > 0;
+    const clip = `${uid}-${slot.type}`;
+
     return `
       <g class="ship__slot ${filled ? 'is-filled' : 'is-empty'}" transform="translate(${slot.x} ${slot.y})">
-        <circle class="ship__slot-ring" r="26"/>
-        <circle class="ship__slot-core" r="14"/>
-        ${count > 1 ? `<text class="ship__slot-count" x="20" y="-16" text-anchor="middle">×${count}</text>` : ''}
-        <text class="ship__slot-label" y="46" text-anchor="middle">${escapeHtml(slot.label)}</text>
+        ${filled ? `<clipPath id="${clip}"><circle r="31"/></clipPath>` : ''}
+        <circle class="ship__slot-ring" r="${filled ? 33 : 26}"/>
+        ${
+          filled
+            ? `<image class="ship__slot-art" href="${escapeHtml(moduleArt(found.module))}"
+                      x="-31" y="-31" width="62" height="62"
+                      preserveAspectRatio="xMidYMid slice" clip-path="url(#${clip})"/>`
+            : '<circle class="ship__slot-core" r="14"/>'
+        }
+        ${count > 1 ? `<text class="ship__slot-count" x="26" y="-22" text-anchor="middle">×${count}</text>` : ''}
+        <text class="ship__slot-label" y="${filled ? 52 : 46}" text-anchor="middle">${escapeHtml(slot.label)}</text>
         ${filled ? '' : '<text class="ship__slot-miss" y="5" text-anchor="middle">?</text>'}
       </g>`;
   }).join('');
@@ -66,7 +85,7 @@ export function shipSchematic(modules = [], { name = 'Корабль', ready = n
       </svg>
       ${
         extra.length
-          ? `<p class="ship-scheme__extra mono">Вне схемы: ${escapeHtml(extra.map(([type, count]) => `${type} ×${count}`).join(', '))}</p>`
+          ? `<p class="ship-scheme__extra mono">Вне схемы: ${escapeHtml(extra.map(([type, found]) => `${type} ×${found.count}`).join(', '))}</p>`
           : ''
       }
     </div>`;

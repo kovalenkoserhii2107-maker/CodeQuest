@@ -5,7 +5,7 @@
  * Стратегия — «сначала сеть, кэш про запас»: так обновления страниц и кода
  * видны сразу после деплоя, а офлайн по-прежнему работает из кэша.
  */
-const CACHE = 'codequest-v6';
+const CACHE = 'codequest-v7';
 
 const SHELL = [
   './',
@@ -29,6 +29,12 @@ const SHELL = [
   'js/runner-worker.js',
   'js/data/quests.js',
   'js/data/js-api.js',
+  'js/data/module-art.js',
+  'assets/modules/mod-reactor-1.jpg',
+  'assets/modules/mod-engine-1.jpg',
+  'assets/modules/mod-drill-1.jpg',
+  'assets/modules/mod-shield-1.jpg',
+  'assets/modules/default.jpg',
   'js/ui/path.js',
   'js/ui/console.js',
   'js/ui/dbview.js',

@@ -15,6 +15,7 @@ import { renderPanelCards } from './ui/dbview.js';
 import { escapeHtml, showValue } from './ui/html.js';
 import { fillBar, balanceBar, gauge, barChart } from './ui/charts.js';
 import { shipSchematic } from './ui/shipview.js';
+import { moduleArt } from './data/module-art.js';
 
 const player = new PlayerState();
 const shipyard = new Shipyard();
@@ -118,6 +119,7 @@ export async function renderShipyard() {
     .map(
       module => `
         <article class="widget">
+          <img class="module-art" src="${escapeHtml(moduleArt(module))}" alt="" loading="lazy" width="512" height="512">
           <header class="widget__head">
             <div>
               <h3 class="widget__title">${escapeHtml(showValue(module.name))}</h3>
@@ -231,7 +233,12 @@ export async function renderWarehouse() {
                  ${items
                    .map(item => `
                      <tr>
-                       <td><span class="table__ship-name">${escapeHtml(showValue(item.name))}</span></td>
+                       <td>
+                         <span class="table__module">
+                           <img class="module-thumb" src="${escapeHtml(moduleArt(item))}" alt="" loading="lazy" width="512" height="512">
+                           <span class="table__ship-name">${escapeHtml(showValue(item.name))}</span>
+                         </span>
+                       </td>
                        <td>${escapeHtml(showValue(item.type))}</td>
                        <td class="table__num">${escapeHtml(showValue(item.weight))} т</td>
                        <td class="table__num">${item.energy > 0 ? '+' : ''}${escapeHtml(showValue(item.energy))}</td>
@@ -389,7 +396,10 @@ export async function renderShip() {
             .map(
               module => `
                 <div class="widget__row">
-                  <span>${escapeHtml(showValue(module.name))}</span>
+                  <span class="table__module">
+                    <img class="module-thumb" src="${escapeHtml(moduleArt(module))}" alt="" loading="lazy" width="512" height="512">
+                    ${escapeHtml(showValue(module.name))}
+                  </span>
                   <b class="mono">${escapeHtml(showValue(module.weight))} т · ${module.energy > 0 ? '+' : ''}${escapeHtml(showValue(module.energy))}</b>
                 </div>`,
             )

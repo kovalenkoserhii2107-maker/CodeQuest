@@ -8,6 +8,8 @@
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
+import { ALL_ART, moduleArt, DEFAULT_ART } from '../js/data/module-art.js';
+import { Shipyard } from '../js/shipyard.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'tests', 'tools', 'assets']);
@@ -40,7 +42,7 @@ const icons = ['assets/icon-192.png', 'assets/icon-512.png'].filter(p => existsS
 /* --- 1. Офлайн-кэш ------------------------------------------------------- */
 
 const sw = readFileSync(join(ROOT, 'sw.js'), 'utf8');
-const cached = new Set([...sw.matchAll(/'([^']+\.(?:js|css|html|webmanifest|png))'/g)].map(m => m[1]));
+const cached = new Set([...sw.matchAll(/'([^']+\.(?:js|css|html|webmanifest|png|jpg))'/g)].map(m => m[1]));
 
 const notCached = [...assets, ...icons].filter(p => !cached.has(p));
 check(notCached.length === 0, 'все файлы попадают в офлайн-кэш', notCached.join(', '));
@@ -78,7 +80,27 @@ for (const file of assets.filter(p => p.endsWith('.js'))) {
 }
 check(brokenImports.length === 0, 'все импорты модулей разрешаются', brokenImports.join(', '));
 
-/* --- 4. Точки входа ------------------------------------------------------ */
+/* --- 4. Картинки модулей ------------------------------------------------- */
+
+const missingArt = ALL_ART.filter(path => !existsSync(join(ROOT, path)));
+check(missingArt.length === 0, 'все картинки модулей лежат на диске', missingArt.join(', '));
+
+const artNotCached = ALL_ART.filter(path => !cached.has(path));
+check(artNotCached.length === 0, 'картинки модулей попадают в офлайн-кэш', artNotCached.join(', '));
+
+// Каталог верфи — то, что игрок видит в первую очередь: запасная картинка
+// там означает, что модуль добавили, а про изображение забыли.
+const withoutOwnArt = new Shipyard().getCatalog().filter(module => moduleArt(module) === DEFAULT_ART);
+check(withoutOwnArt.length === 0, 'у каждого модуля каталога своя картинка', withoutOwnArt.map(m => m.id).join(', '));
+
+check(moduleArt({ id: 'нет-такого' }) === DEFAULT_ART, 'незнакомый модуль получает запасную картинку');
+check(moduleArt(null) === DEFAULT_ART, 'отсутствие модуля не роняет подбор картинки');
+
+// Картинки тяжелее полумегабайта незаметно раздувают офлайн-кэш
+const heavy = ALL_ART.filter(path => statSync(join(ROOT, path)).size > 200 * 1024);
+check(heavy.length === 0, 'картинки модулей остаются лёгкими (до 200 КБ)', heavy.join(', '));
+
+/* --- 5. Точки входа ------------------------------------------------------ */
 
 const index = readFileSync(join(ROOT, 'index.html'), 'utf8');
 check(index.includes('js/main.js'), 'index.html подключает точку входа');
