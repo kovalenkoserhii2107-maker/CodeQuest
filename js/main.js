@@ -12,6 +12,7 @@ import {
   solvedCount,
   totalCount,
   resetProgress,
+  isSolved,
 } from './state.js';
 import { renderMap, selectSector } from './ui/map.js';
 import { renderBridge } from './ui/bridge.js';
@@ -27,6 +28,7 @@ const VIEW_TITLES = {
   ship: 'Корабль «Квест»',
   task: 'Задача',
   log: 'Бортовой журнал',
+  dashboard: 'Центр управления',
 };
 
 const el = id => document.getElementById(id);
@@ -85,6 +87,12 @@ function render() {
   const { name, param } = parseRoute();
   showView(name);
   renderHud();
+
+  // Разблокировка меню Центра управления
+  const dashboardNav = el('nav-dashboard-item');
+  if (dashboardNav) {
+    dashboardNav.hidden = !isSolved('create-base');
+  }
 
   if (name === 'map') {
     renderMap({ onOpenQuest: openQuest });
