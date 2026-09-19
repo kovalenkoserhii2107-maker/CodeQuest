@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>smoke: ожидание…</title>
+</head>
+<body>
+  <h1>Браузерный смоук-тест CodeQuest</h1>
+  <pre id="out">Запуск…</pre>
+
+  <script type="module">
+    /**
+     * Проверяет в реальном браузере то, что нельзя проверить в Node:
+     * запуск решений через Web Worker и правила прогресса из state.js.
+     * Результат пишется в document.title, чтобы его было видно в --dump-dom.
+     */
+    import { QUESTS, SECTORS } from '../js/data/quests.js';
+    import { runSolution, isFallbackMode } from '../js/runner.js';
+    import {
+      completeQuest, isSectorUnlocked, moduleLevel, resetProgress, state, playerLevel,
+    } from '../js/state.js';
+
+    const problems = [];
+    const lines = [];
+    const check = (ok, message) => {
+      lines.push(`${ok ? '✓' : '✖'} ${message}`);
+      if (!ok) problems.push(message);
+    };
+
+    resetProgress();
+
+    // 1. Каждое эталонное решение проходит тесты через воркер.
+    for (const quest of QUESTS) {
+      const report = await runSolution(quest.solution, quest);
+      check(report.ok, `решение ${quest.id} (${report.results.length} тестов)`);
+    }
+
+    // 2. Неверное решение честно падает, а не засчитывается.
+    const broken = await runSolution('function fuelPercent() { return 0; }', QUESTS[0]);
+    check(!broken.ok, 'неверное решение не проходит тесты');
+
+    // 3. Бесконечный цикл прерывается по таймауту (только при живом воркере).
+    if (!isFallbackMode()) {
+      const hang = await runSolution('function fuelPercent() { while (true) {} }', QUESTS[0]);
+      check(Boolean(hang.error), 'зависшее решение останавливается по таймауту');
+    } else {
+      lines.push('— воркер недоступен, проверка таймаута пропущена');
+    }
+
+    // 4. Прогресс: сектор открывается только после нужных задач.
+    const belt = SECTORS.find(sector => sector.id === 'belt');
+    check(!isSectorUnlocked(belt), 'сектор «Пояс астероидов» закрыт на старте');
+    completeQuest('fuel-percent');
+    completeQuest('reactor-status');
+    check(isSectorUnlocked(belt), 'сектор открывается после двух задач');
+    check(moduleLevel('reactor') === 2, 'уровень реактора вырос до 2');
+
+    // 5. Награда за подсмотренное решение — половинная, повтор не начисляется.
+    const creditsBefore = state.credits;
+    completeQuest('total-mass', { withSolution: true });
+    const half = Math.round(QUESTS.find(q => q.id === 'total-mass').reward.credits / 2);
+    check(state.credits - creditsBefore === half, 'за подсказанное решение начислена половина');
+    const creditsAfter = state.credits;
+    completeQuest('total-mass');
+    check(state.credits === creditsAfter, 'повторное решение не начисляет награду');
+    check(playerLevel() >= 1, 'уровень пилота считается');
+
+    resetProgress();
+    check(Object.keys(state.solved).length === 0, 'сброс прогресса очищает решённые задачи');
+
+    document.getElementById('out').textContent = lines.join('\n');
+    document.title = problems.length === 0
+      ? `smoke: OK (${lines.length} проверок)`
+      : `smoke: ПРОБЛЕМ ${problems.length} — ${problems.join('; ')}`;
+  </script>
+</body>
+</html>

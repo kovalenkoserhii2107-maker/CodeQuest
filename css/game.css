@@ -1,0 +1,654 @@
+/* ==========================================================================
+   CodeQuest Orbital — стили игрового тренажёра
+   ========================================================================== */
+
+/* --- Шапка: показатели пилота ------------------------------------------- */
+
+.hud {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.hud__item {
+  display: grid;
+  gap: 2px;
+  min-width: 96px;
+}
+
+.hud__label {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-dim);
+}
+
+.hud__value {
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+}
+
+.hud__progress {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+}
+
+/* --- Предупреждение о запуске без сервера -------------------------------- */
+
+.banner {
+  margin: var(--space-4) var(--space-6) 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 196, 77, 0.4);
+  background-color: rgba(255, 196, 77, 0.08);
+  color: var(--color-warn);
+  font-size: var(--fs-sm);
+}
+
+.banner code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(5, 7, 15, 0.6);
+  color: var(--color-text);
+}
+
+/* --- Карта секторов ------------------------------------------------------ */
+
+.map-panel {
+  padding: var(--space-3);
+}
+
+/* Карте нужно больше места, чем боковому списку задач */
+.grid--map {
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .grid--map {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.starmap {
+  width: 100%;
+  height: auto;
+  min-height: 320px;
+}
+
+.starmap__route {
+  stroke: var(--color-line);
+  stroke-width: 2;
+  stroke-dasharray: 6 8;
+}
+
+.starmap__route--open {
+  stroke: rgba(77, 227, 255, 0.55);
+  stroke-dasharray: none;
+}
+
+.starmap__node {
+  cursor: pointer;
+}
+
+.starmap__node.is-locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.starmap__disc {
+  fill: var(--color-panel-soft);
+  stroke: var(--color-line);
+  stroke-width: 2;
+  transition: fill 0.2s, stroke 0.2s;
+}
+
+.starmap__ring {
+  fill: none;
+  stroke: var(--color-line-soft);
+  stroke-width: 1;
+}
+
+.starmap__node.is-unlocked .starmap__disc {
+  stroke: var(--color-accent-deep);
+}
+
+.starmap__node.is-done .starmap__disc {
+  fill: rgba(74, 222, 155, 0.18);
+  stroke: var(--color-ok);
+}
+
+.starmap__node.is-selected .starmap__ring {
+  stroke: var(--color-accent);
+  stroke-dasharray: 4 6;
+}
+
+.starmap__node:hover .starmap__disc {
+  fill: rgba(77, 227, 255, 0.16);
+}
+
+.starmap__icon {
+  font-size: 24px;
+  fill: var(--color-accent);
+}
+
+.starmap__label {
+  font-size: 19px;
+  font-weight: 600;
+  fill: var(--color-text);
+}
+
+.starmap__progress {
+  font-size: 15px;
+  font-family: var(--font-mono);
+  fill: var(--color-dim);
+}
+
+.sector-brief {
+  color: var(--color-muted);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--space-4);
+}
+
+/* --- Список задач -------------------------------------------------------- */
+
+.quest-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.quest-item__button {
+  width: 100%;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background-color: rgba(10, 15, 29, 0.7);
+  transition: border-color 0.2s, background-color 0.2s, transform 0.15s;
+}
+
+.quest-item__button:hover:not(:disabled) {
+  border-color: var(--color-accent-deep);
+  background-color: rgba(77, 227, 255, 0.07);
+  transform: translateY(-1px);
+}
+
+.quest-item__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.quest-item.is-done .quest-item__button {
+  border-color: rgba(74, 222, 155, 0.45);
+}
+
+.quest-item__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.quest-item__title {
+  font-weight: 600;
+}
+
+.quest-item__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--color-muted);
+}
+
+.quest-item__reward {
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+}
+
+/* --- Корабль ------------------------------------------------------------- */
+
+.ship-stage {
+  display: grid;
+  place-items: center;
+  padding: var(--space-3);
+}
+
+.ship {
+  width: 100%;
+  height: auto;
+}
+
+.ship-hull {
+  fill: url(#hull-gradient);
+  stroke: var(--color-line);
+  stroke-width: 2;
+}
+
+.ship-hull--top {
+  fill: rgba(35, 48, 79, 0.75);
+}
+
+.ship-shield {
+  fill: none;
+  stroke: rgba(97, 112, 143, 0.35);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 9;
+}
+
+.ship-part {
+  fill: rgba(22, 32, 58, 0.95);
+  stroke: var(--color-dim);
+  stroke-width: 2;
+}
+
+.ship-line {
+  fill: none;
+  stroke: var(--color-dim);
+  stroke-width: 2;
+}
+
+.ship-accent {
+  fill: var(--color-dim);
+}
+
+.ship-flame {
+  fill: rgba(97, 112, 143, 0.4);
+}
+
+.ship-glow {
+  fill: url(#module-glow);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+/* Уровень 0 — модуль тусклый, дальше он оживает */
+.ship-module.is-level-1 .ship-part,
+.ship-module.is-level-2 .ship-part,
+.ship-module.is-level-3 .ship-part {
+  stroke: var(--color-accent-deep);
+  fill: rgba(27, 139, 181, 0.22);
+}
+
+.ship-module.is-level-1 .ship-glow { opacity: 0.45; }
+.ship-module.is-level-2 .ship-glow { opacity: 0.75; }
+.ship-module.is-level-3 .ship-glow { opacity: 1; }
+
+.ship-module.is-level-1 .ship-accent,
+.ship-module.is-level-2 .ship-accent,
+.ship-module.is-level-3 .ship-accent {
+  fill: var(--color-accent);
+}
+
+.ship-module.is-level-1 .ship-line,
+.ship-module.is-level-2 .ship-line,
+.ship-module.is-level-3 .ship-line {
+  stroke: var(--color-accent);
+}
+
+.ship-module.is-level-1 .ship-flame { fill: rgba(77, 227, 255, 0.5); }
+.ship-module.is-level-2 .ship-flame { fill: rgba(77, 227, 255, 0.8); }
+
+.ship-module.is-level-1 .ship-shield,
+.ship-module.is-level-2 .ship-shield {
+  stroke: rgba(77, 227, 255, 0.55);
+}
+
+.ship-module.is-maxed .ship-part {
+  stroke: var(--color-ok);
+  fill: rgba(74, 222, 155, 0.16);
+}
+
+.ship-module.is-maxed .ship-shield {
+  stroke: rgba(74, 222, 155, 0.6);
+}
+
+/* --- Список модулей ------------------------------------------------------ */
+
+.module-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.module-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background-color: rgba(10, 15, 29, 0.6);
+}
+
+.module-item.is-maxed {
+  border-color: rgba(74, 222, 155, 0.45);
+}
+
+.module-item__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.module-item__icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background-color: rgba(35, 48, 79, 0.8);
+  color: var(--color-accent);
+  font-size: var(--fs-sm);
+}
+
+.module-item__name {
+  display: block;
+  font-weight: 600;
+}
+
+.module-item__theme {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+}
+
+.module-item__level {
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+}
+
+.module-item__bonus {
+  font-size: var(--fs-xs);
+  color: var(--color-muted);
+}
+
+.module-item__quests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.module-quest {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-line);
+  font-size: var(--fs-xs);
+  color: var(--color-muted);
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.module-quest:hover {
+  border-color: var(--color-accent-deep);
+  color: var(--color-accent);
+}
+
+.module-quest.is-done {
+  border-color: rgba(74, 222, 155, 0.45);
+  color: var(--color-ok);
+}
+
+/* --- Экран задачи -------------------------------------------------------- */
+
+.task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.task__crumbs {
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.task__brief {
+  color: var(--color-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+}
+
+.task__reward {
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background-color: rgba(77, 227, 255, 0.08);
+  color: var(--color-accent);
+  font-size: var(--fs-xs);
+}
+
+.task__theory {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-line-soft);
+  padding-top: var(--space-3);
+}
+
+.task__theory summary {
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.task__theory ul {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--fs-sm);
+}
+
+.task__hint {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-left: 2px solid var(--color-warn);
+  background-color: rgba(255, 196, 77, 0.08);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+}
+
+.code-editor {
+  width: 100%;
+  min-height: 300px;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-line);
+  background-color: #070b16;
+  color: #dbe7ff;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.code-editor:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(77, 227, 255, 0.15);
+}
+
+.task__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.task__report {
+  margin-top: var(--space-4);
+}
+
+.report__pending,
+.report__summary,
+.report__note {
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+}
+
+.report__error {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--color-danger);
+  background-color: rgba(255, 107, 107, 0.1);
+  color: var(--color-danger);
+  font-size: var(--fs-sm);
+}
+
+.report__success {
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(74, 222, 155, 0.45);
+  background-color: rgba(74, 222, 155, 0.1);
+}
+
+.report__success-title {
+  font-weight: 600;
+  color: var(--color-ok);
+}
+
+.report__success-text {
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+  margin: var(--space-1) 0 var(--space-3);
+}
+
+.test-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.test-row {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line-soft);
+  background-color: rgba(10, 15, 29, 0.6);
+}
+
+.test-row--ok { border-color: rgba(74, 222, 155, 0.35); }
+.test-row--fail { border-color: rgba(255, 107, 107, 0.4); }
+
+.test-row__mark {
+  font-family: var(--font-mono);
+}
+
+.test-row--ok .test-row__mark { color: var(--color-ok); }
+.test-row--fail .test-row__mark { color: var(--color-danger); }
+
+.test-row__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.test-row__name {
+  font-size: var(--fs-sm);
+}
+
+.test-row__call,
+.test-row__detail {
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+  overflow-wrap: anywhere;
+}
+
+.test-row__detail b {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.report__console {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background-color: rgba(5, 7, 15, 0.8);
+  border: 1px solid var(--color-line-soft);
+}
+
+.report__console-title {
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+  margin-bottom: var(--space-2);
+}
+
+.report__console pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-muted);
+  white-space: pre-wrap;
+}
+
+/* --- Прочее -------------------------------------------------------------- */
+
+.empty-state {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-dim);
+  font-size: var(--fs-sm);
+}
+
+.toast {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 50;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(74, 222, 155, 0.5);
+  background-color: rgba(10, 15, 29, 0.95);
+  color: var(--color-ok);
+  font-size: var(--fs-sm);
+  box-shadow: var(--shadow-panel);
+  animation: toast-in 0.25s ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Адаптивность -------------------------------------------------------- */
+
+@media (max-width: 1200px) {
+  .task {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 960px) {
+  .hud {
+    gap: var(--space-4);
+  }
+
+  .hud__item {
+    min-width: 72px;
+  }
+
+  .banner {
+    margin: var(--space-3) var(--space-4) 0;
+  }
+}
+
+.task__difficulty {
+  font-size: var(--fs-sm);
+  color: var(--color-warn);
+  letter-spacing: 0.1em;
+}

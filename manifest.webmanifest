@@ -1,0 +1,17 @@
+{
+  "name": "CodeQuest Orbital — тренажёр JavaScript",
+  "short_name": "CodeQuest",
+  "description": "Игровой тренажёр JavaScript: решайте практические задачи и улучшайте космический корабль.",
+  "lang": "ru",
+  "start_url": "game.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05070f",
+  "theme_color": "#05070f",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
