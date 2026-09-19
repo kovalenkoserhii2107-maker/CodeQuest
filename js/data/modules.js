@@ -4,6 +4,14 @@
  */
 export const MODULES = [
   {
+    id: 'base',
+    name: 'Космопорт',
+    icon: '⌂',
+    maxLevel: 2,
+    theme: 'Объекты, создание и мутация',
+    bonus: level => `Репутация +${level * 50}`,
+  },
+  {
     id: 'reactor',
     name: 'Реактор',
     icon: '⚛',
