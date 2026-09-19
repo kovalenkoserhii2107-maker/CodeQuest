@@ -98,6 +98,18 @@
                 <span>Корабль</span>
               </a>
             </li>
+            <li hidden data-view-item="database">
+              <a class="nav__link" href="#/database" data-route="database">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+                <span>База данных</span>
+              </a>
+            </li>
+            <li hidden data-view-item="panels">
+              <a class="nav__link" href="#/panels" data-route="panels">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <span>Панели</span>
+              </a>
+            </li>
             <li hidden data-view-item="flight">
               <a class="nav__link" href="#/flight" data-route="flight">
                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M5 10l7-7 7 7"/><circle cx="12" cy="17" r="3"/></svg>
@@ -234,6 +246,8 @@
             <div class="panel" id="commander-card"></div>
             <div class="panel" id="command-stats"></div>
           </div>
+
+          <div class="grid grid--widgets" id="command-panels"></div>
         </section>
 
         <!-- ------------------------- Верфь ------------------------- -->
@@ -303,6 +317,34 @@
             </div>
           </div>
           <div class="panel" id="flight-report"></div>
+        </section>
+
+        <!-- ------------------------- База данных ------------------------- -->
+        <section class="view" id="view-database" hidden aria-labelledby="database-title">
+          <div class="section-head">
+            <div>
+              <h2 id="database-title">Бортовая база данных</h2>
+              <p>Всё, что ваш код положил в базу. Записи добавляются из консоли: <code class="mono">db.insert("logs", { … })</code></p>
+            </div>
+          </div>
+          <div class="grid grid--db">
+            <div class="panel">
+              <div class="panel__head"><h3 class="panel__title">Коллекции</h3></div>
+              <div id="db-collections" class="db-collections"></div>
+            </div>
+            <div class="panel" id="db-content"></div>
+          </div>
+        </section>
+
+        <!-- ------------------------- Панели ------------------------- -->
+        <section class="view" id="view-panels" hidden aria-labelledby="panels-title">
+          <div class="section-head">
+            <div>
+              <h2 id="panels-title">Ваши панели</h2>
+              <p>Каждая панель — функция, которую вы написали. Она запускается заново при каждой отрисовке.</p>
+            </div>
+          </div>
+          <div class="grid grid--widgets" id="panels-grid"></div>
         </section>
 
         <!-- ------------------------- Журнал ------------------------- -->

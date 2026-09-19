@@ -24,8 +24,8 @@ self.addEventListener('message', async event => {
     }
 
     if (kind === 'console') {
-      const { source, input, context } = event.data;
-      const result = await runConsoleInput(source, input, context ?? {});
+      const { source, input, payload } = event.data;
+      const result = await runConsoleInput(source, input, payload ?? {});
       self.postMessage({ id, result });
       return;
     }

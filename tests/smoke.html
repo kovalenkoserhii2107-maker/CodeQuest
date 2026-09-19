@@ -19,6 +19,7 @@
     import {
       completeQuest, currentQuest, isQuestAvailable, isViewUnlocked, resetProgress, state,
       isPracticed, isQuestClosed, markPracticed, setCorpRecord, corpRecord,
+      db, applyDbOps, panels, addPanel, removePanel,
     } from '../js/state.js';
     import { runConsole } from '../js/runner.js';
 
@@ -88,10 +89,49 @@
     const locked = await runPlayerCode('shipyard', 'return createShipyard("X", []);');
     check(Boolean(locked.error), 'нерешённое задание не отдаёт данные разделу');
 
+    // 6. Бортовая база данных: запись, чтение и операции из воркера
+    const saved = db.insert('logs', { text: 'проверка' });
+    check(saved.id === 1 && db.count('logs') === 1, 'запись попадает в базу и получает id');
+    check(db.last('logs').text === 'проверка', 'последняя запись читается');
+    check(db.find('logs', record => record.text === 'проверка') !== null, 'поиск по условию работает');
+
+    const opsRun = await runConsole(
+      'function makeLog(text) { return { text }; }',
+      'db.insert("logs", makeLog("из консоли"))',
+      { dbStore: db.snapshot(), data: {}, panels: [] },
+    );
+    check(!opsRun.error && opsRun.ops.length === 1, 'команда консоли возвращает операцию записи');
+    check(db.count('logs') === 1, 'до применения операций настоящая база не меняется');
+
+    applyDbOps(opsRun.ops);
+    check(db.count('logs') === 2 && db.last('logs').text === 'из консоли', 'операции применяются к настоящей базе');
+
+    const badOps = applyDbOps([{ type: 'insert', name: 'logs', record: 42 }]);
+    check(badOps.errors.length === 1, 'база отвергает не-объект и объясняет причину');
+
+    // 7. Панели игрока
+    const panelRun = await runConsole(
+      'function shipPanel(db) { return { title: "Корабль", value: db.count("ships") }; }',
+      'dashboard.add("ship", shipPanel)',
+      { dbStore: db.snapshot(), data: {}, panels: [] },
+    );
+    check(panelRun.value?.title === 'Корабль', 'dashboard.add возвращает описание панели');
+    check(panelRun.ops.some(op => op.type === 'panel.add' && op.source.includes('shipPanel')),
+      'исходник панели сохраняется для повторного запуска');
+
+    applyDbOps(panelRun.ops);
+    check(panels().length === 1, 'панель зарегистрирована');
+
+    const rerun = await runConsole('', `(${panels()[0].source})(db)`, { dbStore: db.snapshot(), data: {}, panels: [] });
+    check(rerun.value?.title === 'Корабль', 'сохранённая панель запускается заново');
+
+    removePanel('ship');
+    check(panels().length === 0, 'панель снимается с дашборда');
+
     resetProgress();
     check(
-      Object.keys(state.solved).length === 0 && state.credits === 0 && !corpRecord('commander'),
-      'сброс возвращает игру в начало и очищает базу корпорации',
+      Object.keys(state.solved).length === 0 && state.credits === 0 && !corpRecord('commander') && db.count('logs') === 0,
+      'сброс возвращает игру в начало и очищает базу',
     );
 
     document.getElementById('out').textContent = lines.join('\n');

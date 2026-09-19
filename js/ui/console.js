@@ -10,6 +10,7 @@ import { QUESTS } from '../data/quests.js';
 import {
   state, isSolved, isPracticed, currentQuest, solutionOf, markPracticed,
   setCorpRecord, pushConsoleHistory, spendCredits, addCrewMember, addLog,
+  db, applyDbOps, panels,
 } from '../state.js';
 import { Shipyard } from '../shipyard.js';
 import { LaborExchange } from '../crew.js';
@@ -30,23 +31,28 @@ function playerSource() {
 }
 
 /** Данные корпорации, доступные в команде как corp. */
-function corpContext() {
+function corpData() {
   const hiredIds = state.crew.map(member => member.id);
   return {
     corp: {
       credits: state.credits,
-      commander: state.corp.commander
-        ? { ...state.corp.commander, credits: state.credits, crew: state.crew.map(member => ({ ...member })) }
+      commander: db.last('commanders')
+        ? { ...db.last('commanders'), credits: state.credits, crew: state.crew.map(member => ({ ...member })) }
         : null,
       catalog: shipyard.getCatalog(),
       modules: state.inventory.map(item => ({ ...item })),
       crew: state.crew.map(member => ({ ...member })),
       candidates: laborExchange.getCandidates().filter(candidate => !hiredIds.includes(candidate.id)).map(c => ({ ...c })),
-      warehouseCapacity: state.corp.warehouseCapacity,
-      ship: state.corp.ship,
-      report: state.corp.report,
+      warehouseCapacity: db.last('warehouses')?.capacity ?? null,
+      ship: db.last('ships'),
+      report: db.last('reports'),
     },
   };
+}
+
+/** Всё, что уходит в воркер: данные, снимок базы и список панелей. */
+function consolePayload() {
+  return { data: corpData(), dbStore: db.snapshot(), panels: panels() };
 }
 
 /** Что можно вызвать прямо сейчас — короткая справка сбоку. */
@@ -84,7 +90,7 @@ function tryPractice(input, value) {
   if (!quest || !isSolved(quest.id) || isPracticed(quest.id)) return null;
   if (!input.includes(quest.fn)) return null;
 
-  const context = corpContext();
+  const context = corpData();
   const verdict = quest.practice.validate(value, context);
   if (verdict !== true) return { ok: false, message: verdict };
 
@@ -108,6 +114,10 @@ function entryHtml(entry) {
     ? `<p class="console__note">${escapeHtml(entry.note)}</p>`
     : '';
 
+  const dbNote = entry.db
+    ? `<p class="console__db">${escapeHtml(entry.db)}</p>`
+    : '';
+
   const warn = entry.warn
     ? `<p class="console__warn">${escapeHtml(entry.warn)}</p>`
     : '';
@@ -117,6 +127,7 @@ function entryHtml(entry) {
       <p class="console__command mono"><span class="console__prompt">›</span> ${escapeHtml(entry.input)}</p>
       ${output}
       ${logs}
+      ${dbNote}
       ${note}
       ${warn}
     </div>`;
@@ -173,6 +184,10 @@ function renderSide() {
       }
       <p class="console__ref-title">Данные корпорации</p>
       <p class="console__ref-list mono">corp.credits · corp.commander · corp.catalog · corp.modules · corp.crew · corp.candidates · corp.ship</p>
+      <p class="console__ref-title">Бортовая база</p>
+      <p class="console__ref-list mono">db.insert(коллекция, запись) · db.all(коллекция) · db.last(коллекция) · db.find(коллекция, условие) · db.count(коллекция)</p>
+      <p class="console__ref-title">Свои панели</p>
+      <p class="console__ref-list mono">dashboard.add(имя, функция) · dashboard.remove(имя)</p>
     </div>`;
 
   document.getElementById('console-fill')?.addEventListener('click', () => fillInput(quest.practice.example));
@@ -193,8 +208,10 @@ function fillInput(text) {
 
 async function execute(input) {
   const source = playerSource();
-  const context = corpContext();
-  const result = await runConsole(source, input, context);
+  const result = await runConsole(source, input, consolePayload());
+
+  // Операции над базой применяем к настоящему хранилищу
+  const dbReport = applyDbOps(result.ops ?? []);
 
   const entry = {
     input,
@@ -203,6 +220,14 @@ async function execute(input) {
     error: result.error,
     at: new Date().toISOString(),
   };
+
+  const changes = [];
+  if (dbReport.inserted) changes.push(`записей добавлено: ${dbReport.inserted}`);
+  if (dbReport.updated) changes.push(`изменено: ${dbReport.updated}`);
+  if (dbReport.removed) changes.push(`удалено: ${dbReport.removed}`);
+  if (dbReport.panels) changes.push('панель обновлена');
+  if (changes.length) entry.db = `База данных: ${changes.join(', ')}`;
+  if (dbReport.errors.length) entry.warn = `База отказала: ${dbReport.errors.join('; ')}`;
 
   if (!result.error) {
     const practice = tryPractice(input, result.value);

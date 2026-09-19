@@ -1093,3 +1093,60 @@
   color: var(--color-accent);
   margin-bottom: var(--space-2);
 }
+
+/* --- Бортовая база данных ------------------------------------------------- */
+
+.db-collections {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.db-collection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.db-collection:hover {
+  border-color: var(--color-accent-deep);
+}
+
+.db-collection.is-active {
+  border-color: var(--color-accent);
+  background-color: rgba(77, 227, 255, 0.1);
+}
+
+.db-collection__name {
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+}
+
+.db-collection__count {
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+}
+
+.console__db {
+  margin-top: var(--space-2);
+  padding-left: var(--space-4);
+  font-size: var(--fs-xs);
+  color: var(--color-accent);
+}
+
+/* Список коллекций узкий, таблице записей нужно место */
+.grid--db {
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .grid--db {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

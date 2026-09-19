@@ -141,12 +141,12 @@ export function evaluateWidgets(jobs) {
  * Выполнить команду из консоли корпорации.
  * @param {string} source все решения игрока
  * @param {string} input что он набрал
- * @param {object} context данные корпорации, доступные в команде
+ * @param {object} payload данные корпорации, снимок базы и список панелей
  */
-export function runConsole(source, input, context = {}) {
+export function runConsole(source, input, payload = {}) {
   const active = typeof Worker === 'undefined' ? null : ensureWorker();
 
-  if (!active) return runConsoleInput(source, input, context);
+  if (!active) return runConsoleInput(source, input, payload);
 
   const id = nextId++;
   return new Promise(resolve => {
@@ -154,20 +154,20 @@ export function runConsole(source, input, context = {}) {
       cleanup();
       active.terminate();
       worker = null;
-      resolve({ value: undefined, logs: [], error: 'Команда выполняется дольше 3 секунд и была прервана' });
+      resolve({ value: undefined, logs: [], ops: [], error: 'Команда выполняется дольше 3 секунд и была прервана' });
     }, TIMEOUT_MS);
 
     function onMessage(event) {
       if (event.data.id !== id) return;
       cleanup();
-      resolve(event.data.result ?? { value: undefined, logs: [], error: 'Консоль не ответила' });
+      resolve(event.data.result ?? { value: undefined, logs: [], ops: [], error: 'Консоль не ответила' });
     }
 
     function onError() {
       cleanup();
       workerBroken = true;
       worker = null;
-      runConsoleInput(source, input, context).then(resolve);
+      runConsoleInput(source, input, payload).then(resolve);
     }
 
     function cleanup() {
@@ -178,6 +178,6 @@ export function runConsole(source, input, context = {}) {
 
     active.addEventListener('message', onMessage);
     active.addEventListener('error', onError);
-    active.postMessage({ id, kind: 'console', source, input, context });
+    active.postMessage({ id, kind: 'console', source, input, payload });
   });
 }

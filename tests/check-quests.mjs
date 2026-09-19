@@ -84,8 +84,9 @@ for (const quest of QUESTS) {
     if (!practice[field]) fail(`У практики задания ${quest.id} нет поля ${field}`);
   }
 
-  if (!practice.example.includes(`${quest.fn}(`)) {
-    fail(`Пример практики ${quest.id} не вызывает функцию ${quest.fn}`);
+  // Функцию либо вызывают, либо передают по ссылке (как панель в dashboard.add)
+  if (!new RegExp(`\\b${quest.fn}\\b`).test(practice.example)) {
+    fail(`Пример практики ${quest.id} не использует функцию ${quest.fn}`);
   }
 
   // Валидатор обязан отсеивать мусор, иначе практику можно «пройти» чем угодно

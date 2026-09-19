@@ -3,6 +3,7 @@
  * поэтому игра переживает перезагрузку и работает офлайн.
  */
 import { QUESTS, questById } from './data/quests.js';
+import { Database } from './db.js';
 
 const STORAGE_KEY = 'codequest.progress.v2';
 const XP_PER_LEVEL = 200;
@@ -17,13 +18,8 @@ function emptyState() {
     xp: 0,
     solved: {},     // questId -> { at, withSolution }: тесты пройдены
     practiced: {},  // questId -> { at }: функция введена в строй через консоль
-    corp: {         // база корпорации: то, что игрок создал своими вызовами
-      commander: null,
-      shipyard: null,
-      warehouseCapacity: null,
-      ship: null,
-      report: null,
-    },
+    db: {},         // бортовая база данных: коллекции записей игрока
+    panels: [],     // панели дашборда, написанные игроком
     consoleHistory: [],
     solutions: {},  // questId -> код, прошедший тесты: на нём работает Мостик
     drafts: {},     // questId -> исходный код игрока
@@ -42,7 +38,8 @@ function readStorage() {
     if (!s.inventory) s.inventory = [];
     if (!s.crew) s.crew = [];
     if (!s.practiced) s.practiced = {};
-    if (!s.corp) s.corp = emptyState().corp;
+    if (!s.db) s.db = {};
+    if (!s.panels) s.panels = [];
     if (!s.consoleHistory) s.consoleHistory = [];
     return s;
   } catch {
@@ -52,6 +49,19 @@ function readStorage() {
 }
 
 export const state = readStorage();
+
+/** Бортовая база данных: единственное место, где живут записи корпорации. */
+export const db = new Database(state.db, () => emit());
+
+/** Коллекция, в которой лежит запись определённого типа. */
+const RECORD_COLLECTIONS = {
+  commander: 'commanders',
+  shipyard: 'shipyards',
+  warehouse: 'warehouses',
+  warehouseCapacity: 'warehouses',
+  ship: 'ships',
+  report: 'reports',
+};
 
 function persist() {
   try {
@@ -234,12 +244,79 @@ export function markPracticed(questId, { note = '' } = {}) {
 
 /** Записать объект, созданный игроком, в базу корпорации. */
 export function setCorpRecord(key, value) {
-  state.corp[key] = value;
-  emit();
+  const collection = RECORD_COLLECTIONS[key] ?? 'logs';
+  const record = key === 'warehouseCapacity' ? { capacity: value } : value;
+  db.insert(collection, typeof record === 'object' && record !== null ? record : { value: record });
 }
 
+/** Последняя запись нужного типа — то, чем сейчас живёт корпорация. */
 export function corpRecord(key) {
-  return state.corp?.[key] ?? null;
+  const collection = RECORD_COLLECTIONS[key];
+  if (!collection) return null;
+
+  const record = db.last(collection);
+  if (!record) return null;
+  return key === 'warehouseCapacity' ? record.capacity ?? null : record;
+}
+
+/**
+ * Применить операции, которые код игрока выполнил над копией базы в воркере.
+ * Возвращает короткий отчёт — его показывает консоль.
+ */
+export function applyDbOps(ops = []) {
+  const report = { inserted: 0, updated: 0, removed: 0, panels: 0, errors: [] };
+
+  for (const op of ops) {
+    try {
+      if (op.type === 'insert') {
+        db.insert(op.name, op.record);
+        report.inserted += 1;
+      } else if (op.type === 'update') {
+        if (db.update(op.name, op.id, op.patch)) report.updated += 1;
+      } else if (op.type === 'remove') {
+        if (db.remove(op.name, op.id)) report.removed += 1;
+      } else if (op.type === 'panel.add') {
+        addPanel(op);
+        report.panels += 1;
+      } else if (op.type === 'panel.remove') {
+        removePanel(op.name);
+        report.panels += 1;
+      }
+    } catch (error) {
+      report.errors.push(error.message);
+    }
+  }
+
+  if (report.inserted || report.updated || report.removed || report.panels) emit();
+  return report;
+}
+
+/* --- Панели дашборда, написанные игроком --------------------------------- */
+
+export function panels() {
+  return state.panels.map(panel => ({ ...panel }));
+}
+
+export function addPanel({ name, source, title }) {
+  const existing = state.panels.findIndex(panel => panel.name === name);
+  const panel = { name, source, title: title ?? name, at: new Date().toISOString() };
+
+  if (existing === -1) state.panels.push(panel);
+  else state.panels[existing] = panel;
+
+  addLog(`Панель «${panel.title}» ${existing === -1 ? 'добавлена на' : 'обновлена на'} дашборде`, 'success');
+  emit();
+  return panel;
+}
+
+export function removePanel(name) {
+  const index = state.panels.findIndex(panel => panel.name === name);
+  if (index === -1) return false;
+
+  const [removed] = state.panels.splice(index, 1);
+  addLog(`Панель «${removed.title}» снята с дашборда`, 'info');
+  emit();
+  return true;
 }
 
 /** История команд консоли — она переживает перезагрузку. */
@@ -251,7 +328,13 @@ export function pushConsoleHistory(entry) {
 
 /** Полный сброс прогресса. */
 export function resetProgress() {
-  Object.assign(state, emptyState());
+  const fresh = emptyState();
+
+  // Хранилище базы чистим на месте: экземпляр Database держит ссылку на него,
+  // и подмена объекта оставила бы базу работать со старыми записями.
+  for (const name of Object.keys(state.db)) delete state.db[name];
+
+  Object.assign(state, { ...fresh, db: state.db });
   addLog('Прогресс сброшен, полёт начинается заново', 'info');
   emit();
 }
@@ -284,5 +367,12 @@ export function addInventoryItem(item) {
 export function addCrewMember(crewMember) {
   if (!state.crew) state.crew = [];
   state.crew.push(crewMember);
+  // Экипаж — такие же записи базы: их можно читать из своего кода
+  db.insert('crew', {
+    memberId: crewMember.id,
+    name: crewMember.name,
+    role: crewMember.role,
+    salary: crewMember.salary,
+  });
   emit();
 }

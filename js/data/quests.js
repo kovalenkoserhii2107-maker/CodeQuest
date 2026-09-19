@@ -568,6 +568,169 @@ export const QUESTS = [
       },
     ],
   },
+
+  /* ---------------------------------------------------------------- 7 -- */
+  {
+    id: 'stats',
+    order: 7,
+    title: 'Сводка по базе',
+    topic: 'Массивы записей: reduce, сравнение',
+    difficulty: 4,
+    reward: { credits: 26000, xp: 140 },
+    unlocks: { view: 'database', label: 'База данных' },
+    story:
+      'Бортовая база копит записи: командиров, верфи, корабли, отчёты. Совет ' +
+      'требует сводку — и считать её должна ваша функция, а не бухгалтер.',
+    brief:
+      'Напишите функцию collectionStats(records), которая по массиву записей возвращает объект:\n' +
+      '• count — сколько записей;\n' +
+      '• totalMass — сумма поля mass у всех записей (для пустого массива 0);\n' +
+      '• heaviest — имя (поле name) записи с наибольшей mass, или null, если записей нет.',
+    theory: [
+      'Сумма по полю: records.reduce((sum, record) => sum + record.mass, 0).',
+      'Самую тяжёлую запись можно найти обычным циклом, запоминая лучшую.',
+      'Для пустого массива честный ответ — count 0, totalMass 0 и heaviest null.',
+    ],
+    fn: 'collectionStats',
+    starter:
+      'function collectionStats(records) {\n' +
+      '  // посчитайте количество, сумму масс и самую тяжёлую запись\n' +
+      '}\n',
+    hints: [
+      'const totalMass = records.reduce((sum, record) => sum + (record.mass ?? 0), 0);',
+      'Самую тяжёлую ищите циклом: if (!best || record.mass > best.mass) best = record;',
+    ],
+    solution:
+      'function collectionStats(records) {\n' +
+      '  const totalMass = records.reduce((sum, record) => sum + (record.mass ?? 0), 0);\n' +
+      '\n' +
+      '  let best = null;\n' +
+      '  for (const record of records) {\n' +
+      '    if (!best || (record.mass ?? 0) > (best.mass ?? 0)) best = record;\n' +
+      '  }\n' +
+      '\n' +
+      '  return { count: records.length, totalMass, heaviest: best ? best.name : null };\n' +
+      '}\n',
+    practice: {
+      title: 'Сохраните сводку в базу',
+      hint: 'Прочитайте коллекцию из базы своей командой и положите результат обратно: db.all читает, db.insert записывает.',
+      example: 'db.insert("reports", collectionStats(db.all("ships")))',
+      validate: value => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть сохранённую запись';
+        if (typeof value.count !== 'number') return 'В записи нет числового поля count — сохраните результат collectionStats';
+        if (typeof value.id !== 'number') return 'Запись не попала в базу: оберните результат в db.insert("reports", …)';
+        return true;
+      },
+      commit: value => `Сводка сохранена в коллекцию reports: ${value.count} записей, ${value.totalMass ?? 0} т`,
+    },
+    tests: [
+      {
+        name: 'Три записи',
+        args: [[{ name: 'Квест', mass: 350 }, { name: 'Титан', mass: 500 }, { name: 'Зонд', mass: 40 }]],
+        expected: { count: 3, totalMass: 890, heaviest: 'Титан' },
+      },
+      { name: 'Пустая коллекция', args: [[]], expected: { count: 0, totalMass: 0, heaviest: null } },
+      {
+        name: 'Одна запись',
+        args: [[{ name: 'Квест', mass: 350 }]],
+        expected: { count: 1, totalMass: 350, heaviest: 'Квест' },
+      },
+      {
+        name: 'Первая из равных по массе',
+        args: [[{ name: 'А', mass: 100 }, { name: 'Б', mass: 100 }]],
+        expected: { count: 2, totalMass: 200, heaviest: 'А' },
+      },
+    ],
+  },
+
+  /* ---------------------------------------------------------------- 8 -- */
+  {
+    id: 'panel',
+    order: 8,
+    title: 'Своя панель на дашборде',
+    topic: 'Функция как виджет, работа с базой',
+    difficulty: 4,
+    reward: { credits: 30000, xp: 160 },
+    unlocks: { view: 'panels', label: 'Панели' },
+    story:
+      'Командный центр показывает то, что нужно диспетчеру. А вам нужна своя ' +
+      'панель — и её вы напишете сами: функция читает базу и возвращает то, ' +
+      'что показать.',
+    brief:
+      'Напишите функцию shipPanel(db), которая возвращает описание панели:\n' +
+      '• title — строка "Корабль";\n' +
+      '• если в коллекции ships есть записи — value равно массе последней записи, ' +
+      'unit — строка "т", note — строка вида "Энергобаланс 60";\n' +
+      '• если кораблей нет — value равно строке "не собран", а unit и note не нужны.\n' +
+      'Последнюю запись даёт db.last("ships").',
+    theory: [
+      'Панель — обычный объект: { title, value, unit, note }. Игра сама его нарисует.',
+      'db.last("ships") вернёт последнюю запись коллекции или null.',
+      'Строку удобно собрать шаблоном: `Энергобаланс ${ship.energy}`.',
+    ],
+    fn: 'shipPanel',
+    starter:
+      'function shipPanel(db) {\n' +
+      '  const ship = db.last("ships");\n' +
+      '  // верните описание панели\n' +
+      '}\n',
+    hints: [
+      'Если корабля нет: return { title: "Корабль", value: "не собран" };',
+      'Иначе: return { title: "Корабль", value: ship.mass, unit: "т", note: `Энергобаланс ${ship.energy}` };',
+    ],
+    solution:
+      'function shipPanel(db) {\n' +
+      '  const ship = db.last("ships");\n' +
+      '  if (!ship) {\n' +
+      '    return { title: "Корабль", value: "не собран" };\n' +
+      '  }\n' +
+      '\n' +
+      '  return {\n' +
+      '    title: "Корабль",\n' +
+      '    value: ship.mass,\n' +
+      '    unit: "т",\n' +
+      '    note: `Энергобаланс ${ship.energy}`,\n' +
+      '  };\n' +
+      '}\n',
+    practice: {
+      title: 'Повесьте панель на дашборд',
+      hint: 'Зарегистрируйте свою функцию: игра сохранит её и будет запускать при каждой отрисовке Командного центра.',
+      example: 'dashboard.add("ship", shipPanel)',
+      validate: value => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть описание панели';
+        if (typeof value.title !== 'string') return 'У панели нет строкового поля title';
+        if (value.value === undefined) return 'У панели нет поля value';
+        return true;
+      },
+      commit: value => `Панель «${value.title}» повешена на дашборд`,
+    },
+    tests: [
+      {
+        name: 'Корабль есть',
+        expr:
+          'const db = { last: () => ({ name: "Квест", mass: 350, energy: 60 }) };\n' +
+          'return shipPanel(db);',
+        expected: { title: 'Корабль', value: 350, unit: 'т', note: 'Энергобаланс 60' },
+      },
+      {
+        name: 'Кораблей нет',
+        expr: 'const db = { last: () => null };\nreturn shipPanel(db).value;',
+        expected: 'не собран',
+      },
+      {
+        name: 'Заголовок всегда на месте',
+        expr: 'const db = { last: () => null };\nreturn shipPanel(db).title;',
+        expected: 'Корабль',
+      },
+      {
+        name: 'Отрицательный энергобаланс попадает в подпись',
+        expr:
+          'const db = { last: () => ({ name: "Тест", mass: 10, energy: -40 }) };\n' +
+          'return shipPanel(db).note;',
+        expected: 'Энергобаланс -40',
+      },
+    ],
+  },
 ];
 
 /** Задание по идентификатору. */
