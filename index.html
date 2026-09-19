@@ -191,8 +191,8 @@
               <dd>146</dd>
             </div>
             <div class="hero__stat">
-              <dt>Доход за цикл</dt>
-              <dd>2.41 M ¢</dd>
+              <dt>Бюджет корпорации</dt>
+              <dd id="player-budget">0 ¢</dd>
             </div>
           </dl>
         </section>
@@ -539,7 +539,7 @@
           <section class="panel" id="resources" aria-labelledby="resources-title">
             <div class="panel__head">
               <h2 class="panel__title" id="resources-title">Склады станции</h2>
-              <span class="panel__hint">Ангар B</span>
+              <span class="panel__hint" id="warehouse-capacity">Занято: 0 / 0 т</span>
             </div>
 
             <div class="resource-list">
@@ -643,5 +643,6 @@
     </div>
   </div>
   <script type="module" src="js/shell.js"></script>
+  <script type="module" src="js/ui.js"></script>
 </body>
 </html>
