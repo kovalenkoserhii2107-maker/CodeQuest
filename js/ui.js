@@ -2,15 +2,13 @@ import { PlayerState } from './player.js';
 import { Warehouse } from './warehouse.js';
 import { Shipyard } from './shipyard.js';
 import { LaborExchange } from './crew.js';
+import { subscribe } from './state.js'; // Подписка на глобальное состояние
 
-// Инициализация глобальных сущностей
-const player = new PlayerState(100000);
+// Инициализация классов-оберток
+const player = new PlayerState();
 const warehouse = new Warehouse(1000);
 const shipyard = new Shipyard();
 const laborExchange = new LaborExchange();
-
-// Демонстрация: добавим немного груза для наглядности
-warehouse.addItem({ id: 'he3', name: 'Гелий-3', weight: 400 });
 
 // Вспомогательная функция для всплывающих уведомлений
 function toast(text) {
@@ -64,9 +62,8 @@ export function renderShipyard() {
         const item = shipyard.getModule(module.id);
         warehouse.addItem(item);
         toast(`Куплен: ${module.name}`);
-        updateDashboard();
       } else {
-        toast("Недостаточно кредитов!");
+        toast("Недостаточно кредитов! Решайте задачи в тренажере.");
       }
     });
 
@@ -101,9 +98,11 @@ export function renderCrew() {
     });
   }
 
-  // Отрисовка биржи
+  // Отрисовка биржи. Мы отфильтровываем кандидатов, которые уже наняты!
   exchangeContainer.innerHTML = '';
-  const candidates = laborExchange.getCandidates();
+  const hiredIds = player.crew.map(c => c.id);
+  const candidates = laborExchange.getCandidates().filter(c => !hiredIds.includes(c.id));
+
   if (candidates.length === 0) {
     exchangeContainer.innerHTML = '<p class="panel__empty" style="color: var(--text-2); padding: 10px;">Кандидатов пока нет.</p>';
   } else {
@@ -127,13 +126,12 @@ export function renderCrew() {
       const hireBtn = article.querySelector('button');
       hireBtn.addEventListener('click', () => {
         if (player.spendCredits(c.hireCost)) {
-          const hiredCrew = laborExchange.hire(c.id);
+          // Получаем полный объект кандидата
+          const hiredCrew = laborExchange.getCandidates().find(cand => cand.id === c.id);
           player.addCrewMember(hiredCrew);
           toast(`Нанят: ${c.name}`);
-          updateDashboard();
-          renderCrew(); // Перерисовываем списки
         } else {
-          toast("Недостаточно кредитов!");
+          toast("Недостаточно кредитов! Решайте задачи в тренажере.");
         }
       });
       exchangeContainer.appendChild(article);
@@ -143,7 +141,15 @@ export function renderCrew() {
 
 // Запуск при загрузке документа
 document.addEventListener('DOMContentLoaded', () => {
+  // Первичный рендер
   updateDashboard();
   renderShipyard();
   renderCrew();
+
+  // Подписка на глобальное состояние: когда меняются кредиты или инвентарь/экипаж,
+  // мы автоматически перерисовываем нужные части интерфейса.
+  subscribe(() => {
+    updateDashboard();
+    renderCrew();
+  });
 });

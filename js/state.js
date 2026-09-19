@@ -20,6 +20,8 @@ function emptyState() {
     solutions: {},  // questId -> код, прошедший тесты: на нём работает Мостик
     drafts: {},     // questId -> исходный код игрока
     log: [],
+    inventory: [],  // купленные на верфи модули
+    crew: [],       // нанятый на бирже экипаж
   };
 }
 
@@ -28,7 +30,10 @@ function readStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw);
-    return { ...emptyState(), ...parsed };
+    const s = { ...emptyState(), ...parsed };
+    if (!s.inventory) s.inventory = [];
+    if (!s.crew) s.crew = [];
+    return s;
   } catch {
     // Повреждённое или недоступное хранилище не должно ломать игру.
     return emptyState();
@@ -175,5 +180,28 @@ export function completeQuest(questId, { withSolution = false, source = null } =
 export function resetProgress() {
   Object.assign(state, emptyState());
   addLog('Прогресс сброшен, полёт начинается заново', 'info');
+  emit();
+}
+
+/* --- Действия экономики (Верфь и Экипаж) -------------------------------- */
+
+export function spendCredits(amount) {
+  if (amount > 0 && state.credits >= amount) {
+    state.credits -= amount;
+    emit();
+    return true;
+  }
+  return false;
+}
+
+export function addInventoryItem(item) {
+  if (!state.inventory) state.inventory = [];
+  state.inventory.push(item);
+  emit();
+}
+
+export function addCrewMember(crewMember) {
+  if (!state.crew) state.crew = [];
+  state.crew.push(crewMember);
   emit();
 }

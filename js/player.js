@@ -1,32 +1,22 @@
+import { state, spendCredits, addCrewMember } from './state.js';
+
 export class PlayerState {
-  constructor(initialCredits = 100000) {
-    this._credits = initialCredits;
-    this._crew = [];
-  }
+  // Конструктор больше не принимает initialCredits, так как мы берем кредиты из state.js
+  constructor() {}
 
   get credits() {
-    return this._credits;
-  }
-
-  addCredits(amount) {
-    if (amount > 0) {
-      this._credits += amount;
-    }
-  }
-
-  spendCredits(amount) {
-    if (amount > 0 && this._credits >= amount) {
-      this._credits -= amount;
-      return true;
-    }
-    return false;
+    return state.credits || 0;
   }
 
   get crew() {
-    return this._crew;
+    return state.crew || [];
+  }
+
+  spendCredits(amount) {
+    return spendCredits(amount);
   }
 
   addCrewMember(crewMember) {
-    this._crew.push(crewMember);
+    addCrewMember(crewMember);
   }
 }

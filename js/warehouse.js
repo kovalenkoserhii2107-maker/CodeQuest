@@ -1,31 +1,23 @@
+import { state, addInventoryItem } from './state.js';
+
 export class Warehouse {
   constructor(capacity = 1000) {
-    this._capacity = capacity;
-    this._inventory = [];
+    this.capacity = capacity;
   }
 
-  get capacity() {
-    return this._capacity;
+  get items() {
+    return state.inventory || [];
   }
 
   getUsedSpace() {
-    return this._inventory.reduce((total, item) => total + (item.weight || 0), 0);
+    return this.items.reduce((sum, item) => sum + (item.weight || 0), 0);
   }
 
   addItem(item) {
-    const itemWeight = item.weight || 0;
-    if (this.getUsedSpace() + itemWeight <= this._capacity) {
-      this._inventory.push(item);
+    if (this.getUsedSpace() + item.weight <= this.capacity) {
+      addInventoryItem(item);
       return true;
     }
     return false;
-  }
-
-  removeItem(itemId) {
-    const index = this._inventory.findIndex(item => item.id === itemId);
-    if (index !== -1) {
-      return this._inventory.splice(index, 1)[0];
-    }
-    return null;
   }
 }
