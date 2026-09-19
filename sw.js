@@ -9,7 +9,7 @@ const CACHE = 'codequest-v2';
 
 const SHELL = [
   './',
-  'game.html',
+  'index.html',
   'index.html',
   'missions.html',
   'manifest.webmanifest',
@@ -80,7 +80,7 @@ self.addEventListener('fetch', event => {
         const cached = await caches.match(request);
         if (cached) return cached;
         // Офлайн и страницы нет в кэше — отдаём оболочку тренажёра.
-        if (request.mode === 'navigate') return caches.match('game.html');
+        if (request.mode === 'navigate') return caches.match('index.html');
         return Response.error();
       }),
   );

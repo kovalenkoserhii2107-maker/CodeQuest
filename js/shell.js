@@ -144,8 +144,8 @@ function renderAccount() {
       <div><span>Опыт</span><b class="mono">${state.xp} XP</b></div>
     </div>
     <nav class="popover__links">
-      <a href="game.html#/bridge">Мостик корабля</a>
-      <a href="game.html#/map">Карта секторов</a>
+      <a href="index.html#/bridge">Мостик корабля</a>
+      <a href="index.html#/map">Карта секторов</a>
       <a href="index.html">Центр управления</a>
       <a href="missions.html">Реестр миссий</a>
     </nav>

@@ -3,7 +3,7 @@
   "short_name": "CodeQuest",
   "description": "Игровой тренажёр JavaScript: решайте практические задачи и улучшайте космический корабль.",
   "lang": "ru",
-  "start_url": "game.html",
+  "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
