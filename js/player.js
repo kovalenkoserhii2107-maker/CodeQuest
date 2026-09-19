@@ -1,6 +1,7 @@
 export class PlayerState {
   constructor(initialCredits = 100000) {
     this._credits = initialCredits;
+    this._crew = [];
   }
 
   get credits() {
@@ -19,5 +20,13 @@ export class PlayerState {
       return true;
     }
     return false;
+  }
+
+  get crew() {
+    return this._crew;
+  }
+
+  addCrewMember(crewMember) {
+    this._crew.push(crewMember);
   }
 }

@@ -587,49 +587,41 @@
           </section>
         </div>
 
-        <!-- ------------- Экипаж ------------- -->
-        <section id="crew" aria-labelledby="crew-title">
+        <!-- ------------- Верфь ------------- -->
+        <section id="shipyard" aria-labelledby="shipyard-title" style="margin-top: 40px">
           <div class="section-head">
             <div>
-              <h2 id="crew-title">Командный состав</h2>
-              <p>Смена «Альфа» · следующая ротация через 18 часов</p>
+              <h2 id="shipyard-title">Верфь корпорации</h2>
+              <p>Доступные модули для покупки. Обновление каталога каждые 24 часа.</p>
             </div>
-            <button class="btn btn--ghost btn--sm" type="button">Список экипажа</button>
           </div>
-
-          <div class="grid grid--crew">
-            <article class="crew-card">
-              <span class="crew-card__avatar" aria-hidden="true">АК</span>
-              <h3 class="crew-card__name">Анна Кравец</h3>
-              <p class="crew-card__role">Капитан · CQ-1047</p>
-              <p class="crew-card__stats"><span>Рейсов 214</span><span>Рейтинг 4.9</span></p>
-            </article>
-            <article class="crew-card">
-              <span class="crew-card__avatar" aria-hidden="true">МД</span>
-              <h3 class="crew-card__name">Марк Дерун</h3>
-              <p class="crew-card__role">Навигатор</p>
-              <p class="crew-card__stats"><span>Рейсов 168</span><span>Рейтинг 4.7</span></p>
-            </article>
-            <article class="crew-card">
-              <span class="crew-card__avatar" aria-hidden="true">ЛР</span>
-              <h3 class="crew-card__name">Лия Рид</h3>
-              <p class="crew-card__role">Инженер реактора</p>
-              <p class="crew-card__stats"><span>Рейсов 97</span><span>Рейтинг 4.8</span></p>
-            </article>
-            <article class="crew-card">
-              <span class="crew-card__avatar" aria-hidden="true">ИТ</span>
-              <h3 class="crew-card__name">Игорь Тимко</h3>
-              <p class="crew-card__role">Связист</p>
-              <p class="crew-card__stats"><span>Рейсов 143</span><span>Рейтинг 4.6</span></p>
-            </article>
-            <article class="crew-card">
-              <span class="crew-card__avatar" aria-hidden="true">ОВ</span>
-              <h3 class="crew-card__name">Ольга Верес</h3>
-              <p class="crew-card__role">Врач станции</p>
-              <p class="crew-card__stats"><span>Смен 320</span><span>Рейтинг 5.0</span></p>
-            </article>
+          <div class="grid grid--metrics" id="shipyard-catalog">
+            <!-- Каталог рендерится через JS -->
           </div>
         </section>
+
+        <!-- ------------- Экипаж и Биржа труда ------------- -->
+        <div class="grid grid--split" style="margin-top: 40px">
+          <section class="panel" id="crew" aria-labelledby="crew-title">
+            <div class="panel__head">
+              <h2 class="panel__title" id="crew-title">Командный состав</h2>
+              <span class="panel__hint">Свободный экипаж</span>
+            </div>
+            <div class="grid grid--crew" id="hired-crew">
+              <!-- Экипаж рендерится через JS -->
+            </div>
+          </section>
+
+          <section class="panel" id="labor-exchange" aria-labelledby="exchange-title">
+            <div class="panel__head">
+              <h2 class="panel__title" id="exchange-title">Биржа труда</h2>
+              <span class="panel__hint">Доступные кандидаты</span>
+            </div>
+            <div class="grid grid--crew" id="exchange-candidates">
+               <!-- Кандидаты рендерятся через JS -->
+            </div>
+          </section>
+        </div>
       </main>
 
       <footer class="footer">
