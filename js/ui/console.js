@@ -16,6 +16,7 @@ import { Shipyard } from '../shipyard.js';
 import { LaborExchange } from '../crew.js';
 import { RouteBook } from '../routes.js';
 import { Market } from '../market.js';
+import { ThreatLog } from '../enemy.js';
 import { runConsole } from '../runner.js';
 import { escapeHtml } from './html.js';
 
@@ -23,6 +24,7 @@ const shipyard = new Shipyard();
 const laborExchange = new LaborExchange();
 const routeBook = new RouteBook();
 const market = new Market();
+const threatLog = new ThreatLog();
 
 let historyIndex = -1;
 
@@ -55,6 +57,23 @@ function expeditionInput() {
   };
 }
 
+/**
+ * Боевой корабль для консоли: атаку и щит берём из последней сводки,
+ * которую игрок сам положил в базу своей combatStats.
+ */
+function battleShipInput() {
+  const ship = db.last('ships');
+  if (!ship) return null;
+
+  const arsenal = db.last('arsenals');
+  return {
+    name: ship.name,
+    attack: Number(arsenal?.attack) || 0,
+    shield: Number(arsenal?.shield) || 0,
+    hull: Math.max(40, Math.round((Number(ship.mass) || 0) / 2)),
+  };
+}
+
 /** Данные корпорации, доступные в команде как corp. */
 function corpData() {
   const hiredIds = state.crew.map(member => member.id);
@@ -62,6 +81,9 @@ function corpData() {
 
   return {
     corp: {
+      battleShip: battleShipInput(),
+      threats: threatLog.getThreats(),
+      targets: threatLog.getTargets(),
       ore: resources().ore,
       fuel: resources().fuel,
       offers: market.getOffers(),
@@ -132,6 +154,22 @@ const commitApi = {
     return delivered < mined
       ? `Доставлено ${delivered} т руды: бункер полон, ${mined - delivered} т пришлось бросить`
       : `Доставлено ${delivered} т руды, сожжено ${burned} т топлива`;
+  },
+
+  /**
+   * Премия за первый бой. По отчёту нельзя понять, кого именно одолели —
+   * там только исход и остатки корпусов, — поэтому консоль платит
+   * фиксированную ставку за перехват. Премии за конкретных противников
+   * начисляет раздел «Бой»: там игра сама знает, кого вы перехватили.
+   */
+  claimBounty(report) {
+    if (report.winner !== 'ship') return 'Премия не выплачена: победы нет';
+
+    const bounty = threatLog.getThreats()[0]?.bounty ?? 0;
+    state.credits += bounty;
+    addLog(`Первый перехват: премия ${bounty.toLocaleString()} ¢`, 'success');
+
+    return `Противник выведен из строя за ${report.rounds} раундов, премия ${bounty.toLocaleString()} ¢`;
   },
 
   /** Итоги продажи: руду отдаём, выручку зачисляем на счёт. */

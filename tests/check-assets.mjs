@@ -8,7 +8,7 @@
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
-import { ALL_ART, moduleArt, DEFAULT_ART } from '../js/data/module-art.js';
+import { ALL_ART, moduleArt, DEFAULT_ART, PENDING_ART } from '../js/data/module-art.js';
 import { Shipyard } from '../js/shipyard.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -90,8 +90,20 @@ check(artNotCached.length === 0, 'картинки модулей попадаю
 
 // Каталог верфи — то, что игрок видит в первую очередь: запасная картинка
 // там означает, что модуль добавили, а про изображение забыли.
-const withoutOwnArt = new Shipyard().getCatalog().filter(module => moduleArt(module) === DEFAULT_ART);
-check(withoutOwnArt.length === 0, 'у каждого модуля каталога своя картинка', withoutOwnArt.map(m => m.id).join(', '));
+const withoutOwnArt = new Shipyard().getCatalog()
+  .filter(module => moduleArt(module) === DEFAULT_ART && !PENDING_ART.has(module.id));
+check(withoutOwnArt.length === 0, 'модуль каталога либо со своей картинкой, либо в списке ожидающих', withoutOwnArt.map(m => m.id).join(', '));
+
+// Список не должен разрастаться молча и не должен помнить исчезнувшие модули
+const catalogIds = new Set(new Shipyard().getCatalog().map(module => module.id));
+const stalePending = [...PENDING_ART].filter(id => !catalogIds.has(id));
+check(stalePending.length === 0, 'в списке ожидающих картинку нет исчезнувших модулей', stalePending.join(', '));
+
+// И наоборот: модуль, которому картинка уже нашлась, из списка пора убрать
+const catalogById = new Map(new Shipyard().getCatalog().map(module => [module.id, module]));
+const falsePending = [...PENDING_ART]
+  .filter(id => catalogById.has(id) && moduleArt(catalogById.get(id)) !== DEFAULT_ART);
+check(falsePending.length === 0, 'в списке ожидающих нет модулей с найденной картинкой', falsePending.join(', '));
 
 check(moduleArt({ id: 'нет-такого' }) === DEFAULT_ART, 'незнакомый модуль получает запасную картинку');
 check(moduleArt(null) === DEFAULT_ART, 'отсутствие модуля не роняет подбор картинки');

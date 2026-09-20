@@ -20,6 +20,9 @@ export const KNOWN_COLLECTIONS = [
   { name: 'plans', title: 'Полётные планы' },
   { name: 'expeditions', title: 'Экспедиции' },
   { name: 'deals', title: 'Сделки' },
+  { name: 'arsenals', title: 'Боевые сводки' },
+  { name: 'strikes', title: 'Залпы' },
+  { name: 'battles', title: 'Бои' },
   { name: 'logs', title: 'Журнал' },
 ];
 

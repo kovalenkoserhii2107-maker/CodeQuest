@@ -17,6 +17,7 @@ import { shipSchematic } from './ui/shipview.js';
 import { moduleArt } from './data/module-art.js';
 import { commanderName, shipyardName, shipName, warehouseCapacity, warehouse } from './ui/corp.js';
 import { renderRoutes, renderExpedition, renderMarket } from './ui/mission.js';
+import { renderArsenal, renderRange, renderBattle } from './ui/combat.js';
 
 const player = new PlayerState();
 const shipyard = new Shipyard();
@@ -482,6 +483,9 @@ export function renderView(viewId) {
     routes: renderRoutes,
     expedition: renderExpedition,
     market: renderMarket,
+    arsenal: renderArsenal,
+    range: renderRange,
+    battle: renderBattle,
   };
   return renderers[viewId]?.();
 }

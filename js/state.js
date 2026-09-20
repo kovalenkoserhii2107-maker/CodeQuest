@@ -61,6 +61,8 @@ const RECORD_COLLECTIONS = {
   plan: 'plans',
   expedition: 'expeditions',
   deal: 'deals',
+  arsenal: 'arsenals',
+  battle: 'battles',
   shipyard: 'shipyards',
   warehouse: 'warehouses',
   warehouseCapacity: 'warehouses',

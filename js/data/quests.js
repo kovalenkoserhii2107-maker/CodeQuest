@@ -1045,6 +1045,334 @@ export const QUESTS = [
       },
     ],
   },
+  /* --------------------------------------------------------------- 12 -- */
+  {
+    id: 'arsenal',
+    order: 12,
+    title: 'Боевая сводка',
+    topic: 'filter, map и агрегация по типу',
+    difficulty: 3,
+    reward: { credits: 34000, xp: 200 },
+    unlocks: { view: 'arsenal', label: 'Арсенал' },
+    story:
+      'В поясе стало людно: рейдеры бьют по одиночным рудовозам. Совет ' +
+      'разрешил корпорациям вооружаться, и верфь выкатила орудия и тяжёлые ' +
+      'щиты. Первым делом штабу нужна сводка: чем корабль вообще может драться.',
+    brief:
+      'Напишите функцию combatStats(modules), которая возвращает боевую сводку:\n' +
+      '• attack — сумма поля attack у модулей с type "weapon";\n' +
+      '• shield — сумма поля shield у модулей с type "shield";\n' +
+      '• weapons — массив названий (name) установленных орудий, в том же порядке.\n' +
+      'Мирные модули — двигатели, реакторы, буры — в сводку не попадают.\n' +
+      'Для пустого списка верните нули и пустой массив.',
+    theory: [
+      'filter отбирает по условию: modules.filter(m => m.type === "weapon").',
+      'map превращает объекты в другое: weapons.map(m => m.name).',
+      'reduce складывает: weapons.reduce((sum, m) => sum + m.attack, 0).',
+      'Цепочку можно писать подряд: отфильтровали, потом сложили.',
+    ],
+    fn: 'combatStats',
+    starter:
+      'function combatStats(modules) {\n' +
+      '  // отберите орудия и щиты, посчитайте сумму\n' +
+      '}\n',
+    hints: [
+      'const weapons = modules.filter(module => module.type === "weapon");',
+      'const shields = modules.filter(module => module.type === "shield");',
+      'Суммы считайте через reduce, названия — через map.',
+    ],
+    solution:
+      'function combatStats(modules) {\n' +
+      '  const weapons = modules.filter(module => module.type === "weapon");\n' +
+      '  const shields = modules.filter(module => module.type === "shield");\n' +
+      '\n' +
+      '  return {\n' +
+      '    attack: weapons.reduce((sum, module) => sum + module.attack, 0),\n' +
+      '    shield: shields.reduce((sum, module) => sum + module.shield, 0),\n' +
+      '    weapons: weapons.map(module => module.name),\n' +
+      '  };\n' +
+      '}\n',
+    practice: {
+      title: 'Сдайте сводку в штаб',
+      hint:
+        'Модули со склада лежат в corp.modules. Посчитайте по ним сводку и ' +
+        'положите её в базу — штаб читает оттуда.',
+      example: 'db.insert("arsenals", combatStats(corp.modules))',
+      validate: value => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть сохранённую боевую сводку';
+        if (typeof value.attack !== 'number' || typeof value.shield !== 'number') {
+          return 'В сводке нет числовых полей attack и shield — передайте результат combatStats';
+        }
+        if (!Array.isArray(value.weapons)) return 'В сводке нет массива weapons с названиями орудий';
+        if (typeof value.id !== 'number') return 'Сводка не попала в базу: оберните результат в db.insert("arsenals", …)';
+        return true;
+      },
+      commit: value =>
+        value.weapons.length === 0
+          ? `Сводка принята: орудий нет, щит ${value.shield}. Верфь ждёт вас`
+          : `Сводка принята: атака ${value.attack}, щит ${value.shield}, орудий ${value.weapons.length}`,
+    },
+    tests: [
+      {
+        name: 'Орудие и щит',
+        args: [[
+          { name: 'Лазер «Игла»', type: 'weapon', attack: 40 },
+          { name: 'Генератор поля', type: 'shield', shield: 25 },
+        ]],
+        expected: { attack: 40, shield: 25, weapons: ['Лазер «Игла»'] },
+      },
+      {
+        name: 'Мирные модули не в счёт',
+        args: [[
+          { name: 'Бур «Крот»', type: 'drill' },
+          { name: 'Реактор', type: 'reactor' },
+        ]],
+        expected: { attack: 0, shield: 0, weapons: [] },
+      },
+      {
+        name: 'Два орудия складываются',
+        args: [[
+          { name: 'Лазер', type: 'weapon', attack: 40 },
+          { name: 'Рельсотрон', type: 'weapon', attack: 95 },
+        ]],
+        expected: { attack: 135, shield: 0, weapons: ['Лазер', 'Рельсотрон'] },
+      },
+      { name: 'Пустой список', args: [[]], expected: { attack: 0, shield: 0, weapons: [] } },
+      {
+        name: 'Щиты тоже суммируются',
+        expr:
+          'return combatStats([\n' +
+          '  { name: "Поле", type: "shield", shield: 25 },\n' +
+          '  { name: "Бастион", type: "shield", shield: 60 },\n' +
+          ']).shield;',
+        expected: 85,
+      },
+    ],
+  },
+
+  /* --------------------------------------------------------------- 13 -- */
+  {
+    id: 'strike',
+    order: 13,
+    title: 'Обмен ударами',
+    topic: 'Ограничение значений, Math.max',
+    difficulty: 3,
+    reward: { credits: 36000, xp: 210 },
+    unlocks: { view: 'range', label: 'Полигон' },
+    story:
+      'Орудия на месте, но стрелять пока некуда. На полигоне у космопорта ' +
+      'стоят списанные корпуса — на них и проверим, что ваш расчёт урона ' +
+      'работает до того, как в вас начнут стрелять в ответ.',
+    brief:
+      'Напишите функцию strike(attacker, defender), которая считает один выстрел.\n' +
+      'attacker: { attack } — сила залпа.\n' +
+      'defender: { shield, hull } — щит и прочность корпуса.\n\n' +
+      'Щит гасит урон: проходит attack − shield. Но полностью закрыться нельзя — ' +
+      'сквозь любой щит просачивается минимум 1 единица.\n' +
+      'Корпус в минус не уходит: меньше нуля прочность не бывает.\n\n' +
+      'Верните { damage, hull }, где damage — прошедший урон, hull — прочность после выстрела.',
+    theory: [
+      'Math.max(1, x) вернёт x, а если он меньше единицы — то 1.',
+      'Math.max(0, x) тем же приёмом не даёт значению уйти в минус.',
+      'Сначала считайте урон, потом вычитайте его из корпуса — по шагам.',
+    ],
+    fn: 'strike',
+    starter:
+      'function strike(attacker, defender) {\n' +
+      '  // посчитайте прошедший урон и остаток корпуса\n' +
+      '}\n',
+    hints: [
+      'const damage = Math.max(1, attacker.attack - defender.shield);',
+      'const hull = Math.max(0, defender.hull - damage);',
+      'Верните оба числа: return { damage, hull };',
+    ],
+    solution:
+      'function strike(attacker, defender) {\n' +
+      '  const damage = Math.max(1, attacker.attack - defender.shield);\n' +
+      '  const hull = Math.max(0, defender.hull - damage);\n' +
+      '\n' +
+      '  return { damage, hull };\n' +
+      '}\n',
+    practice: {
+      title: 'Проверьте орудия на полигоне',
+      hint:
+        'Ваш корабль с его боевой сводкой лежит в corp.battleShip, мишени — ' +
+        'в corp.targets. Выстрелите по первой и запишите результат.',
+      example: 'db.insert("strikes", strike(corp.battleShip, corp.targets[0]))',
+      validate: (value, context) => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть сохранённый результат выстрела';
+        if (typeof value.damage !== 'number' || typeof value.hull !== 'number') {
+          return 'В результате нет числовых полей damage и hull — передайте результат strike';
+        }
+        if (value.damage < 1) return 'Сквозь щит всегда проходит минимум 1 единица урона';
+        if ((context?.corp?.battleShip?.attack ?? 0) === 0) {
+          return 'На корабле нет орудий: купите лазер или рельсотрон на верфи';
+        }
+        if (typeof value.id !== 'number') return 'Выстрел не попал в базу: оберните результат в db.insert("strikes", …)';
+        return true;
+      },
+      commit: value => `Залп зачтён: ${value.damage} урона, в корпусе мишени осталось ${value.hull}`,
+    },
+    tests: [
+      { name: 'Щит гасит часть', args: [{ attack: 40 }, { shield: 15, hull: 100 }], expected: { damage: 25, hull: 75 } },
+      { name: 'Щита нет', args: [{ attack: 40 }, { shield: 0, hull: 100 }], expected: { damage: 40, hull: 60 } },
+      {
+        name: 'Сквозь мощный щит проходит единица',
+        args: [{ attack: 10 }, { shield: 90, hull: 100 }],
+        expected: { damage: 1, hull: 99 },
+      },
+      {
+        name: 'Корпус не уходит в минус',
+        args: [{ attack: 200 }, { shield: 0, hull: 30 }],
+        expected: { damage: 200, hull: 0 },
+      },
+      {
+        name: 'Ровно добитый корпус',
+        expr: 'return strike({ attack: 50 }, { shield: 0, hull: 50 }).hull;',
+        expected: 0,
+      },
+    ],
+  },
+
+  /* --------------------------------------------------------------- 14 -- */
+  {
+    id: 'battle',
+    order: 14,
+    title: 'Боевой вылет',
+    topic: 'Цикл while и состояние боя',
+    difficulty: 5,
+    reward: { credits: 45000, xp: 260 },
+    unlocks: { view: 'battle', label: 'Бой' },
+    story:
+      'Полигон пройден. В поясе замечен чужой корабль, и уклониться уже не ' +
+      'выйдет. Бой идёт раундами, пока кто-то не выйдет из строя — этот ' +
+      'обмен ударами вам и предстоит написать.',
+    brief:
+      'Напишите функцию runBattle(ship, enemy), которая проводит бой до конца.\n' +
+      'Обе стороны: { name, attack, shield, hull }.\n\n' +
+      'Раунд идёт так: сначала стреляет ваш корабль, потом — противник, ' +
+      'но только если он ещё жив (его корпус больше нуля).\n' +
+      'Урон считается как в прошлом задании: сквозь щит проходит минимум 1, ' +
+      'корпус не уходит ниже нуля.\n\n' +
+      'Бой идёт, пока оба живы, но не дольше 20 раундов.\n' +
+      'Верните { winner, rounds, shipHull, enemyHull }, где winner — строка ' +
+      '"ship", если противник выведен из строя, "enemy", если ваш корабль, ' +
+      'и "draw", если через 20 раундов оба ещё держатся.',
+    theory: [
+      'while (условие) { … } крутится, пока условие истинно — число раундов заранее неизвестно.',
+      'Счётчик раундов ведите сами: rounds += 1 в начале каждого круга.',
+      'Ограничение на 20 раундов обязательно: без него бой двух неубиваемых кораблей зависнет.',
+      'Прочность удобно держать в отдельных переменных, а не менять чужие объекты.',
+    ],
+    fn: 'runBattle',
+    starter:
+      'function runBattle(ship, enemy) {\n' +
+      '  let shipHull = ship.hull;\n' +
+      '  let enemyHull = enemy.hull;\n' +
+      '  let rounds = 0;\n' +
+      '\n' +
+      '  // проведите бой раунд за раундом\n' +
+      '}\n',
+    hints: [
+      'Условие цикла: while (shipHull > 0 && enemyHull > 0 && rounds < 20)',
+      'Урон по противнику: const hit = Math.max(1, ship.attack - enemy.shield);',
+      'Ответный огонь только если enemyHull > 0 — иначе стреляет выбывший.',
+      'Победителя определяйте после цикла: если enemyHull === 0 — "ship".',
+    ],
+    solution:
+      'function runBattle(ship, enemy) {\n' +
+      '  let shipHull = ship.hull;\n' +
+      '  let enemyHull = enemy.hull;\n' +
+      '  let rounds = 0;\n' +
+      '\n' +
+      '  while (shipHull > 0 && enemyHull > 0 && rounds < 20) {\n' +
+      '    rounds += 1;\n' +
+      '\n' +
+      '    const hit = Math.max(1, ship.attack - enemy.shield);\n' +
+      '    enemyHull = Math.max(0, enemyHull - hit);\n' +
+      '\n' +
+      '    if (enemyHull > 0) {\n' +
+      '      const back = Math.max(1, enemy.attack - ship.shield);\n' +
+      '      shipHull = Math.max(0, shipHull - back);\n' +
+      '    }\n' +
+      '  }\n' +
+      '\n' +
+      '  let winner = "draw";\n' +
+      '  if (enemyHull === 0) winner = "ship";\n' +
+      '  else if (shipHull === 0) winner = "enemy";\n' +
+      '\n' +
+      '  return { winner, rounds, shipHull, enemyHull };\n' +
+      '}\n',
+    practice: {
+      title: 'Примите бой',
+      hint:
+        'Ваш корабль — corp.battleShip, противники — corp.threats. Проведите ' +
+        'бой и запишите отчёт: за победу штаб выплатит премию.',
+      example: 'db.insert("battles", runBattle(corp.battleShip, corp.threats[0]))',
+      validate: (value, context) => {
+        if (!value || typeof value !== 'object') return 'Команда должна вернуть сохранённый отчёт о бое';
+        if (typeof value.winner !== 'string') return 'В отчёте нет строкового поля winner — передайте результат runBattle';
+        if (typeof value.rounds !== 'number') return 'В отчёте нет числа раундов';
+        if ((context?.corp?.battleShip?.attack ?? 0) === 0) {
+          return 'На корабле нет орудий: без них бой не выиграть — загляните на верфь';
+        }
+        if (value.winner !== 'ship') {
+          return value.winner === 'enemy'
+            ? 'Корабль выведен из строя. Усильте вооружение или щит и повторите бой'
+            : 'Двадцать раундов без результата: нужен корабль помощнее';
+        }
+        if (typeof value.id !== 'number') return 'Отчёт не попал в базу: оберните результат в db.insert("battles", …)';
+        return true;
+      },
+      commit: (value, api) => api.claimBounty(value),
+    },
+    tests: [
+      {
+        // Дрон бьёт на 18 при щите 25 — но единица всё равно проходит
+        name: 'Лёгкая победа: щит держит, но не насухо',
+        args: [
+          { name: 'Квест', attack: 40, shield: 25, hull: 200 },
+          { name: 'Дрон', attack: 18, shield: 5, hull: 60 },
+        ],
+        expected: { winner: 'ship', rounds: 2, shipHull: 199, enemyHull: 0 },
+      },
+      {
+        name: 'Корабль без орудий проигрывает',
+        args: [
+          { name: 'Рудовоз', attack: 0, shield: 0, hull: 50 },
+          { name: 'Рейдер', attack: 45, shield: 20, hull: 140 },
+        ],
+        expected: { winner: 'enemy', rounds: 2, shipHull: 0, enemyHull: 138 },
+      },
+      {
+        name: 'Ничья по лимиту раундов',
+        expr:
+          'return runBattle(\n' +
+          '  { name: "А", attack: 10, shield: 100, hull: 500 },\n' +
+          '  { name: "Б", attack: 10, shield: 100, hull: 500 },\n' +
+          ').winner;',
+        expected: 'draw',
+      },
+      {
+        name: 'Ничья длится ровно двадцать раундов',
+        expr:
+          'return runBattle(\n' +
+          '  { name: "А", attack: 10, shield: 100, hull: 500 },\n' +
+          '  { name: "Б", attack: 10, shield: 100, hull: 500 },\n' +
+          ').rounds;',
+        expected: 20,
+      },
+      {
+        name: 'Выбывший не отвечает',
+        expr:
+          'return runBattle(\n' +
+          '  { name: "А", attack: 100, shield: 0, hull: 50 },\n' +
+          '  { name: "Б", attack: 999, shield: 0, hull: 60 },\n' +
+          ').shipHull;',
+        expected: 50,
+      },
+    ],
+  },
 ];
 
 /** Задание по идентификатору. */
