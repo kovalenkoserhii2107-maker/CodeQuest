@@ -1850,3 +1850,50 @@
   font-size: var(--fs-xs);
   color: var(--color-muted);
 }
+
+/* ======================================================================
+   Поединок: две стороны друг напротив друга
+   ====================================================================== */
+
+.duel {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.duel__side {
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  min-width: 0;
+}
+
+.duel__role {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-dim);
+}
+
+.duel__name {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.duel__vs {
+  font-size: var(--fs-lg);
+  color: var(--color-plasma);
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .duel {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .duel__side { width: 100%; }
+}

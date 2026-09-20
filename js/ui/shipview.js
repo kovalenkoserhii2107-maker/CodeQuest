@@ -9,13 +9,14 @@ import { moduleArt } from '../data/module-art.js';
 
 /**
  * Слоты чертежа. Координаты — в системе viewBox 540×250:
- * три слота стоят на корпусе, щит вынесен над ним.
+ * ходовые модули стоят на корпусе, боевые вынесены над ним.
  */
-const SLOTS = [
-  { type: 'engine', label: 'Двигатель', x: 150, y: 150 },
-  { type: 'reactor', label: 'Реактор', x: 262, y: 150 },
-  { type: 'drill', label: 'Бур', x: 378, y: 150 },
-  { type: 'shield', label: 'Щит', x: 262, y: 44 },
+export const SLOTS = [
+  { type: 'engine', label: 'Двигатель', x: 132, y: 150 },
+  { type: 'reactor', label: 'Реактор', x: 240, y: 150 },
+  { type: 'drill', label: 'Бур', x: 348, y: 150 },
+  { type: 'shield', label: 'Щит', x: 186, y: 44 },
+  { type: 'weapon', label: 'Орудие', x: 294, y: 44 },
 ];
 
 /**
@@ -60,7 +61,7 @@ export function shipSchematic(modules = [], { name = 'Корабль', ready = n
                       preserveAspectRatio="xMidYMid slice" clip-path="url(#${clip})"/>`
             : '<circle class="ship__slot-core" r="14"/>'
         }
-        ${count > 1 ? `<text class="ship__slot-count" x="26" y="-22" text-anchor="middle">×${count}</text>` : ''}
+        ${count > 1 ? `<text class="ship__slot-count" x="${filled ? 34 : 26}" y="${filled ? -28 : -22}" text-anchor="middle">×${count}</text>` : ''}
         <text class="ship__slot-label" y="${filled ? 52 : 46}" text-anchor="middle">${escapeHtml(slot.label)}</text>
         ${filled ? '' : '<text class="ship__slot-miss" y="5" text-anchor="middle">?</text>'}
       </g>`;

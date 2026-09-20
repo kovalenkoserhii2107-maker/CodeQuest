@@ -28,6 +28,8 @@
     } from '../js/state.js';
     import { RouteBook } from '../js/routes.js';
     import { Market } from '../js/market.js';
+    import { ThreatLog } from '../js/enemy.js';
+    import { Shipyard } from '../js/shipyard.js';
 
     const problems = [];
     const lines = [];
@@ -188,6 +190,45 @@
     check(routes.length >= 3, 'в маршрутной книге есть направления');
     check(routes.every(route => route.distance > 0 && route.richness > 0), 'у каждого маршрута есть путь и богатство жилы');
     check(new RouteBook().getRoute('нет-такого') === null, 'несуществующий маршрут не выдумывается');
+
+    // --- Бой на коде игрока ---
+
+    const arsenal = questById('arsenal');
+    check((await runSolution(arsenal.solution, arsenal)).ok, 'решение боевой сводки проходит тесты');
+
+    const strikeQuest = questById('strike');
+    check((await runSolution(strikeQuest.solution, strikeQuest)).ok, 'решение обмена ударами проходит тесты');
+
+    const battleQuest = questById('battle');
+    check((await runSolution(battleQuest.solution, battleQuest)).ok, 'решение боевого вылета проходит тесты');
+
+    // Сводка считается по настоящему каталогу верфи, а не по выдуманным данным
+    const combatModules = new Shipyard().getCatalog().filter(m => m.type === 'weapon' || m.type === 'shield');
+    const stats = await runConsole(arsenal.solution, `combatStats(${JSON.stringify(combatModules)})`, {});
+    check(stats.value?.attack === 135, 'атака складывается по всем орудиям каталога');
+    check(stats.value?.shield === 85, 'щиты каталога тоже суммируются');
+
+    const threats = new ThreatLog().getThreats();
+    check(threats.length >= 3, 'в патрульной сводке есть противники');
+    check(threats.every(t => t.attack > 0 && t.hull > 0 && t.bounty > 0), 'у каждого противника есть характеристики и премия');
+    check(new ThreatLog().getThreat('нет-такого') === null, 'несуществующий противник не выдумывается');
+
+    // Слабое орудие против тяжёлого щита: бой не выигрывается, но и не виснет
+    const hopeless = await runConsole(
+      battleQuest.solution,
+      `runBattle({ name: "Слабый", attack: 5, shield: 0, hull: 100 }, { name: "Крейсер", attack: 80, shield: 45, hull: 260 })`,
+      {},
+    );
+    check(hopeless.value?.winner === 'enemy', 'без пробивного орудия крейсер выигрывает');
+    check(hopeless.value?.rounds <= 20, 'бой всегда укладывается в лимит раундов');
+
+    const armedWin = await runConsole(
+      battleQuest.solution,
+      `runBattle({ name: "Квест", attack: 135, shield: 25, hull: 420 }, { name: "Крейсер", attack: 80, shield: 45, hull: 260 })`,
+      {},
+    );
+    check(armedWin.value?.winner === 'ship', 'с рельсотроном крейсер выбивается');
+    check(armedWin.value?.enemyHull === 0, 'у побеждённого противника корпус на нуле');
 
     resetProgress();
     check(

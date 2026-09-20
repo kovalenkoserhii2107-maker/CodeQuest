@@ -7,7 +7,7 @@
 import {
   num, shortNumber, fillBar, balanceBar, gauge, barChart, sparkline, chartFromSpec,
 } from '../js/ui/charts.js';
-import { shipSchematic } from '../js/ui/shipview.js';
+import { shipSchematic, SLOTS } from '../js/ui/shipview.js';
 import { mapMarkup } from '../js/ui/map.js';
 import { resetProgress } from '../js/state.js';
 import { QUESTS } from '../js/data/quests.js';
@@ -106,8 +106,9 @@ check(!gauge({ value: 1, max: 2, label: evil }).includes('<img'), 'подпис�
 /* --- Схема корабля ------------------------------------------------------- */
 
 const empty = shipSchematic([]);
-check((empty.match(/ship__slot /g) ?? []).length === 4, 'на чертеже всегда четыре слота');
-check((empty.match(/is-empty/g) ?? []).length === 4, 'без модулей все слоты пустые');
+check((empty.match(/ship__slot /g) ?? []).length === SLOTS.length, 'на чертеже слот под каждый тип модуля');
+check((empty.match(/is-empty/g) ?? []).length === SLOTS.length, 'без модулей все слоты пустые');
+check(SLOTS.some(slot => slot.type === 'weapon'), 'на чертеже есть слот орудия');
 
 const fitted = shipSchematic([{ type: 'engine' }, { type: 'reactor' }, { type: 'reactor' }]);
 check((fitted.match(/is-filled/g) ?? []).length === 2, 'занятыми считаются только свои слоты');
