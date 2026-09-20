@@ -1642,10 +1642,11 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
   grid-template-areas:
-    "index name    name  name"
-    ".     in      arrow out"
-    ".     verdict verdict verdict";
-  align-items: center;
+    "index name     name     name"
+    ".     in       arrow    out"
+    ".     expected expected expected"
+    ".     verdict  verdict  verdict";
+  align-items: start;
   gap: var(--space-2);
   padding: var(--space-3);
   border-radius: var(--radius-sm);
@@ -1657,11 +1658,57 @@
 }
 
 .trace__index { grid-area: index; }
-.trace__name { grid-area: name; }
-.trace__in { grid-area: in; }
-.trace__arrow { grid-area: arrow; }
-.trace__out { grid-area: out; }
+.trace__name { grid-area: name; align-self: center; }
+.trace__in { grid-area: in; min-width: 0; }
+.trace__arrow { grid-area: arrow; align-self: center; }
+.trace__out { grid-area: out; min-width: 0; }
+.trace__expected { grid-area: expected; min-width: 0; }
 .trace__verdict { grid-area: verdict; }
+
+/* Подпись над блоком значения: «вызов», «получили», «ждали» */
+.trace__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-dim);
+  margin-bottom: 2px;
+}
+
+.trace__code {
+  margin: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow: auto;
+}
+
+/* Разбор различий: то, ради чего игрок и смотрит в провалившийся тест */
+.trace__diff {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  list-style: disc;
+}
+
+.trace__diff li {
+  color: var(--color-warn);
+  overflow-wrap: anywhere;
+}
+
+/* Пройденный тест не разбирают: там хватает одной строки без скролла */
+.trace__step--ok .trace__code {
+  max-height: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
 .trace__name {
   font-size: var(--fs-sm);
@@ -1700,16 +1747,11 @@
 
 .trace__arrow { color: var(--color-accent); }
 
-/* У провалившегося шага ничего не прячем: именно его и разбирают */
 .trace__verdict {
   font-size: var(--fs-xs);
-  color: var(--color-warn);
-  overflow-wrap: anywhere;
   min-width: 0;
+  margin-top: var(--space-1);
 }
-
-.trace__step--fail .trace__in,
-.trace__step--fail .trace__out { white-space: normal; overflow-wrap: anywhere; }
 
 @keyframes trace-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -1723,6 +1765,7 @@
       "index name"
       ".     in"
       ".     out"
+      ".     expected"
       ".     verdict";
   }
   .trace__arrow { display: none; }
@@ -1896,4 +1939,91 @@
     justify-items: center;
   }
   .duel__side { width: 100%; }
+}
+
+/* ======================================================================
+   Условие задачи и разбор темы
+   ====================================================================== */
+
+.task__signature {
+  display: inline-block;
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  color: var(--color-text);
+  font-size: var(--fs-sm);
+}
+
+.task__brief p { margin-bottom: var(--space-2); }
+
+.task__list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+  list-style: disc;
+}
+
+.task__list li { color: var(--color-muted); }
+
+/*
+ * Разбор занимает всю ширину задания, а не левую колонку: в узкой колонке
+ * примеры кода приходилось прокручивать вбок почти в каждом блоке.
+ */
+.task__lesson {
+  grid-column: 1 / -1;
+  background: var(--surface-sunken);
+  min-width: 0;
+}
+
+.lesson__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+  min-width: 0;
+}
+
+.task__lesson > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-violet);
+}
+
+/* min-width: 0 обязателен: иначе блок кода раздувает колонку сетки */
+.lesson__block {
+  margin-top: var(--space-4);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-line);
+  min-width: 0;
+}
+
+.lesson__title {
+  font-size: var(--fs-base);
+  margin-bottom: var(--space-1);
+}
+
+.lesson__text {
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+  margin-bottom: var(--space-2);
+}
+
+/*
+ * Код не переносим по словам: перенос сбивает отступы и выравнивание
+ * комментариев, из-за чего пример перестаёт читаться. Длинные строки
+ * прокручиваются вбок.
+ */
+.lesson__code {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
 }

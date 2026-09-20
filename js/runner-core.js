@@ -37,6 +37,91 @@ export function formatValue(value) {
   }
 }
 
+/**
+ * Значение в несколько строк, если одной строкой его уже не прочитать.
+ * Длинный JSON в одну строку — главная причина, по которой отчёт о тесте
+ * невозможно разобрать глазами.
+ */
+export function prettyValue(value, force = false) {
+  const flat = formatValue(value);
+  if (value === null || typeof value !== 'object') return flat;
+  if (!force && flat.length <= 48) return flat;
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return flat;
+  }
+}
+
+/** Человеческое название типа — для объяснения, что именно вернулось. */
+function typeName(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (Array.isArray(value)) return 'массив';
+  if (typeof value === 'object') return 'объект';
+  if (typeof value === 'number') return 'число';
+  if (typeof value === 'string') return 'строка';
+  if (typeof value === 'boolean') return 'логическое значение';
+  return typeof value;
+}
+
+/**
+ * Чем полученное значение отличается от ожидаемого — словами.
+ *
+ * Сравнение «ждали {…} получили {…}» заставляет игрока искать различие
+ * глазами по двум длинным строкам. Здесь различия названы по именам полей,
+ * поэтому сразу видно, где именно код свернул не туда.
+ *
+ * @returns {string[]} до шести коротких объяснений
+ */
+export function describeDifference(expected, actual, path = '') {
+  const at = path ? `${path}: ` : '';
+
+  if (deepEqual(expected, actual)) return [];
+
+  // Разные типы — всё остальное объяснять бессмысленно
+  if (typeName(expected) !== typeName(actual)) {
+    return [`${at}ждали ${typeName(expected)}, получили ${typeName(actual)} (${formatValue(actual)})`];
+  }
+
+  if (Array.isArray(expected)) {
+    if (expected.length !== actual.length) {
+      return [`${at}ждали элементов: ${expected.length}, получили ${actual.length}`];
+    }
+    const out = [];
+    for (let i = 0; i < expected.length; i += 1) {
+      out.push(...describeDifference(expected[i], actual[i], `${path}[${i}]`));
+      if (out.length >= 6) break;
+    }
+    return out.slice(0, 6);
+  }
+
+  if (expected !== null && typeof expected === 'object') {
+    const out = [];
+
+    for (const key of Object.keys(expected)) {
+      if (!Object.prototype.hasOwnProperty.call(actual, key)) {
+        out.push(`${at}нет поля ${key}`);
+      } else {
+        out.push(...describeDifference(expected[key], actual[key], path ? `${path}.${key}` : key));
+      }
+      if (out.length >= 6) break;
+    }
+
+    for (const key of Object.keys(actual)) {
+      if (out.length >= 6) break;
+      if (!Object.prototype.hasOwnProperty.call(expected, key)) {
+        out.push(`${at}лишнее поле ${key}`);
+      }
+    }
+
+    return out.slice(0, 6);
+  }
+
+  return [`${at}ждали ${formatValue(expected)}, получили ${formatValue(actual)}`];
+}
+
 /** Копия аргументов, чтобы решение не испортило исходные данные теста. */
 function cloneArgs(args) {
   if (typeof structuredClone === 'function') {
@@ -54,6 +139,31 @@ function describeCall(fnName, test) {
   if (test.expr) return test.name;
   const args = test.args.map(formatValue).join(', ');
   return `${fnName}(${args})`;
+}
+
+/**
+ * Тот же вызов, но с аргументами в столбик, если одной строкой он длинный.
+ * Разворачиваем сразу все аргументы: вперемешку со сжатыми читать хуже,
+ * чем одинаково развёрнутые.
+ */
+function describeCallPretty(fnName, test) {
+  if (test.expr) return test.expr;
+
+  const flat = describeCall(fnName, test);
+  if (flat.length <= 56) return flat;
+
+  const args = test.args
+    .map(arg => {
+      try {
+        return JSON.stringify(arg, null, 2);
+      } catch {
+        return formatValue(arg);
+      }
+    })
+    .map(text => text.replace(/^/gm, '  '))
+    .join(',\n');
+
+  return `${fnName}(\n${args}\n)`;
 }
 
 /** Выполняет код игрока и достаёт из него объявление с нужным именем. */
@@ -139,21 +249,32 @@ export async function runQuestTests(source, quest) {
       } else {
         actual = await target(...cloneArgs(test.args));
       }
+      const pass = deepEqual(actual, test.expected);
       results.push({
         name: test.name,
         call: label,
-        pass: deepEqual(actual, test.expected),
+        callPretty: test.expr ? test.expr : describeCallPretty(quest.fn, test),
+        pass,
         expected: formatValue(test.expected),
         actual: formatValue(actual),
+        // У провалившегося теста разворачиваем оба значения: одинаковый
+        // формат нужен, чтобы сравнивать их глазами строка за строкой
+        expectedPretty: prettyValue(test.expected, !pass),
+        actualPretty: prettyValue(actual, !pass),
+        diff: pass ? [] : describeDifference(test.expected, actual),
         error: null,
       });
     } catch (error) {
       results.push({
         name: test.name,
         call: label,
+        callPretty: test.expr ? test.expr : describeCallPretty(quest.fn, test),
         pass: false,
         expected: formatValue(test.expected),
         actual: null,
+        expectedPretty: prettyValue(test.expected, true),
+        actualPretty: null,
+        diff: [],
         error: `${error.name}: ${error.message}`,
       });
     }
