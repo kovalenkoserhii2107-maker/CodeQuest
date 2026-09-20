@@ -24,20 +24,45 @@ function nextQuest(current) {
  */
 function traceStep(result, index) {
   const state = result.pass ? 'ok' : 'fail';
-  const out = result.error ? result.error : result.actual;
+
+  // Пройденный тест показываем сжато, провалившийся — подробно:
+  // разбирают всегда именно его, и там важна каждая строка.
+  const call = result.pass ? result.call : (result.callPretty ?? result.call);
+  const out = result.error
+    ? result.error
+    : (result.pass ? result.actual : (result.actualPretty ?? result.actual));
+
+  const diff = Array.isArray(result.diff) && result.diff.length
+    ? `<ul class="trace__diff">${result.diff.map(line => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`
+    : '';
+
+  const expected = result.pass
+    ? ''
+    : `
+      <div class="trace__expected">
+        <p class="trace__label mono">ждали</p>
+        <pre class="trace__code mono">${escapeHtml(result.expectedPretty ?? result.expected)}</pre>
+      </div>`;
 
   return `
     <li class="trace__step trace__step--${state}" style="animation-delay: ${index * 90}ms">
       <span class="trace__index mono" aria-hidden="true">${result.pass ? '✓' : '✗'}</span>
       <span class="trace__name">${escapeHtml(result.name)}</span>
-      <code class="trace__in mono" title="${escapeHtml(result.call)}">${escapeHtml(result.call)}</code>
+
+      <div class="trace__in">
+        <p class="trace__label mono">вызов</p>
+        <pre class="trace__code mono">${escapeHtml(call)}</pre>
+      </div>
+
       <span class="trace__arrow" aria-hidden="true">→</span>
-      <code class="trace__out mono" title="${escapeHtml(out)}">${escapeHtml(out)}</code>
-      ${
-        result.pass
-          ? ''
-          : `<span class="trace__verdict">ждали <b>${escapeHtml(result.expected)}</b></span>`
-      }
+
+      <div class="trace__out">
+        <p class="trace__label mono">${result.error ? 'ошибка' : 'получили'}</p>
+        <pre class="trace__code mono">${escapeHtml(out)}</pre>
+      </div>
+
+      ${expected}
+      ${diff ? `<div class="trace__verdict"><p class="trace__label mono">что не так</p>${diff}</div>` : ''}
     </li>`;
 }
 
@@ -52,6 +77,62 @@ function traceStrip(results) {
         ${results.map((result, index) => traceStep(result, index)).join('')}
       </ol>
     </div>`;
+}
+
+/**
+ * Условие задачи в разметку.
+ *
+ * Строки, начинающиеся с «•», собираются в список, остальные остаются
+ * абзацами: сплошной текст с переносами читается заметно хуже.
+ */
+function briefHtml(brief) {
+  const blocks = [];
+  let list = [];
+
+  const flushList = () => {
+    if (list.length === 0) return;
+    blocks.push(`<ul class="task__list">${list.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`);
+    list = [];
+  };
+
+  for (const rawLine of String(brief).split('\n')) {
+    const line = rawLine.trim();
+    if (line.startsWith('•')) {
+      list.push(line.slice(1).trim());
+      continue;
+    }
+    flushList();
+    if (line) blocks.push(`<p>${escapeHtml(line)}</p>`);
+  }
+  flushList();
+
+  return blocks.join('');
+}
+
+/**
+ * Разбор темы: короткий урок перед задачей.
+ *
+ * Теория в списке «что понадобится» — это напоминание для того, кто тему
+ * уже знает. Разбор нужен тому, кто видит её впервые: объяснение своими
+ * словами и рабочий пример, который можно прочитать построчно.
+ */
+function lessonHtml(quest) {
+  if (!Array.isArray(quest.lesson) || quest.lesson.length === 0) return '';
+
+  return `
+    <details class="panel task__lesson" open>
+      <summary>Разбор темы: ${escapeHtml(quest.topic)}</summary>
+      <div class="lesson__grid">
+      ${quest.lesson
+        .map(block => `
+          <section class="lesson__block">
+            <h4 class="lesson__title">${escapeHtml(block.title)}</h4>
+            <p class="lesson__text">${escapeHtml(block.text)}</p>
+            ${block.code ? `<pre class="lesson__code mono">${escapeHtml(block.code)}</pre>` : ''}
+          </section>`)
+        .join('')}
+      </div>
+    </details>`;
 }
 
 /**
@@ -77,7 +158,9 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
       </div>
 
       <p class="task__story">${escapeHtml(quest.story)}</p>
-      <p class="task__brief">${escapeHtml(quest.brief).replaceAll('\n', '<br>')}</p>
+
+      ${quest.signature ? `<p class="task__signature mono">${escapeHtml(quest.signature)}</p>` : ''}
+      <div class="task__brief">${briefHtml(quest.brief)}</div>
 
       <div class="task__reward mono">
         Награда: +${quest.reward.credits} ¢ · открывает раздел «${escapeHtml(quest.unlocks.label)}»
@@ -114,6 +197,8 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
       <div class="task__report" id="report"></div>
     </div>
+
+    ${lessonHtml(quest)}
   `;
 
   const editor = createEditor(root.querySelector('#editor-host'), {

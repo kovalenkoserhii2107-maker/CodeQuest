@@ -48,13 +48,68 @@ const ids = new Set(QUESTS.map(quest => quest.id));
 if (ids.size !== QUESTS.length) fail('Идентификаторы заданий повторяются');
 
 for (const quest of QUESTS) {
-  for (const field of ['story', 'brief', 'theory', 'fn', 'starter', 'solution', 'hints', 'tests', 'unlocks', 'practice']) {
+  for (const field of ['story', 'brief', 'theory', 'fn', 'starter', 'solution', 'hints', 'tests', 'unlocks', 'practice', 'signature', 'lesson']) {
     if (!quest[field] || (Array.isArray(quest[field]) && quest[field].length === 0)) {
       fail(`У задания ${quest.id} не заполнено поле ${field}`);
     }
   }
   if (quest.reward?.credits <= 0) fail(`У задания ${quest.id} нет награды`);
 }
+
+/* --- 3.1. Учебная часть --------------------------------------------------- */
+
+for (const quest of QUESTS) {
+  // Сигнатура — первое, что видит игрок: она обязана называть нужную функцию
+  if (!quest.signature?.includes(quest.fn)) {
+    fail(`Сигнатура задания ${quest.id} не называет функцию ${quest.fn}`);
+  }
+  if (!quest.brief.includes(quest.fn)) {
+    fail(`Условие задания ${quest.id} не называет функцию ${quest.fn}`);
+  }
+
+  // Условие должно перечислять, что вернуть, а не описывать это одной фразой
+  if (!quest.brief.includes('•')) {
+    fail(`Условие задания ${quest.id} не разбито на пункты — его тяжело читать`);
+  }
+
+  // Три подсказки — это ступеньки: направление, приём, почти решение
+  if (quest.hints.length < 3) {
+    fail(`У задания ${quest.id} меньше трёх подсказок: ступенек не хватает`);
+  }
+
+  // Подсказка, дословно повторяющая строку решения, лишает задание смысла
+  const solutionLines = quest.solution
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 24);
+
+  for (const hint of quest.hints) {
+    if (solutionLines.includes(hint.trim())) {
+      fail(`Подсказка задания ${quest.id} дословно повторяет строку решения`);
+    }
+  }
+
+  // Разбор темы: объяснение своими словами, а не пересказ условия
+  if (!Array.isArray(quest.lesson) || quest.lesson.length < 2) {
+    fail(`У задания ${quest.id} меньше двух блоков разбора темы`);
+  }
+
+  for (const block of quest.lesson ?? []) {
+    if (!block.title || !block.text) {
+      fail(`В разборе темы задания ${quest.id} есть блок без заголовка или текста`);
+    }
+    if ((block.text ?? '').length < 80) {
+      fail(`Блок «${block.title}» задания ${quest.id} слишком короткий, чтобы чему-то научить`);
+    }
+  }
+
+  // Хотя бы один блок разбора должен показывать код: словами приём не объяснить
+  if (!(quest.lesson ?? []).some(block => block.code)) {
+    fail(`В разборе темы задания ${quest.id} нет ни одного примера кода`);
+  }
+}
+
+console.log(`✓ разбор темы и подсказки на месте (${QUESTS.length})`);
 
 /* --- 4. Разделы интерфейса ----------------------------------------------- */
 
