@@ -19,6 +19,8 @@ import { Market } from '../market.js';
 import { ThreatLog } from '../enemy.js';
 import { runConsole } from '../runner.js';
 import { assembledShip, powerEfficiency, underPower } from './corp.js';
+import { fittedModules, stockModules, stockUsedSpace } from '../state.js';
+import { battleShip } from './combat.js';
 import { escapeHtml } from './html.js';
 
 const shipyard = new Shipyard();
@@ -50,11 +52,11 @@ function expeditionInput() {
 
   // Питание урезает добычу так же, как в разделе «Экспедиция»:
   // консоль и интерфейс обязаны считать одинаково
-  const efficiency = powerEfficiency(state.inventory);
+  const efficiency = powerEfficiency(fittedModules());
 
   return {
     ship: {
-      drills: state.inventory.filter(item => item.type === 'drill').length,
+      drills: fittedModules().filter(item => item.type === 'drill').length,
       fuel: resources().fuel,
       cargo: CARGO_HOLD,
     },
@@ -67,19 +69,23 @@ function expeditionInput() {
 }
 
 /**
- * Боевой корабль для консоли: атаку и щит берём из последней сводки,
- * которую игрок сам положил в базу своей combatStats.
+ * Боевой корабль для консоли.
+ *
+ * Атаку и щит считает функция игрока по установленным модулям — так же,
+ * как раздел «Арсенал». Брать их из последней записи в базе нельзя:
+ * запись устаревает, как только модуль сняли или поставили, и корабль
+ * с новым орудием продолжал бы числиться безоружным.
  */
-function battleShipInput(ship) {
+async function battleShipInput(ship) {
   if (!ship) return null;
 
-  const arsenal = db.last('arsenals');
-  const efficiency = powerEfficiency(state.inventory);
+  const live = await battleShip();
+  if (live.error || !live.value) return null;
 
   return {
-    name: ship.name,
-    attack: underPower(Number(arsenal?.attack) || 0, efficiency),
-    shield: underPower(Number(arsenal?.shield) || 0, efficiency),
+    name: ship.name ?? live.value.name,
+    attack: live.value.attack,
+    shield: live.value.shield,
     hull: Math.max(40, Math.round((Number(ship.mass) || 0) / 2)),
   };
 }
@@ -113,7 +119,7 @@ async function corpData() {
 
   return {
     corp: {
-      battleShip: battleShipInput(ship),
+      battleShip: await battleShipInput(ship),
       threats: threatLog.getThreats(),
       targets: threatLog.getTargets(),
       ore: resources().ore,
@@ -126,7 +132,9 @@ async function corpData() {
         ? { ...db.last('commanders'), credits: state.credits, crew: state.crew.map(member => ({ ...member })) }
         : null,
       catalog: shipyard.getCatalog(),
-      modules: state.inventory.map(item => ({ ...item })),
+      modules: fittedModules(),
+      stock: stockModules(),
+      stockUsed: stockUsedSpace(),
       crew: state.crew.map(member => ({ ...member })),
       candidates: laborExchange.getCandidates().filter(candidate => !hiredIds.includes(candidate.id)).map(c => ({ ...c })),
       warehouseCapacity: db.last('warehouses')?.capacity ?? null,

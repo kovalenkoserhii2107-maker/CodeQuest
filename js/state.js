@@ -24,7 +24,8 @@ function emptyState() {
     solutions: {},  // questId -> код, прошедший тесты: на нём работает Мостик
     drafts: {},     // questId -> исходный код игрока
     log: [],
-    inventory: [],  // купленные на верфи модули
+    inventory: [],  // модули на складе космопорта
+    fitted: [],     // модули, установленные на корабль
     crew: [],       // нанятый на бирже экипаж
     resources: { fuel: 0, ore: 0 },  // бак и рудный бункер, в тоннах
   };
@@ -43,6 +44,14 @@ function readStorage() {
     if (!s.panels) s.panels = [];
     if (!s.consoleHistory) s.consoleHistory = [];
     if (!s.resources) s.resources = { fuel: 0, ore: 0 };
+
+    // Раньше склад и корабль были одним списком: всё купленное считалось
+    // стоящим на корабле. Старые сохранения переносим именно так.
+    if (!Array.isArray(s.fitted)) {
+      s.fitted = s.inventory;
+      s.inventory = [];
+    }
+
     return s;
   } catch {
     // Повреждённое или недоступное хранилище не должно ломать игру.
@@ -371,33 +380,89 @@ export function addInventoryItem(item) {
   emit();
 }
 
-/** Доля стоимости, которую верфь возвращает за снятый модуль. */
-export const SALVAGE_RATE = 0.6;
+/** Доля стоимости, которую верфь платит за сданный со склада модуль. */
+export const SALVAGE_RATE = 0.5;
 
 /** Сколько вернут за демонтаж этого модуля. */
 export function salvagePrice(item) {
   return Math.round((Number(item?.price) || 0) * SALVAGE_RATE);
 }
 
+/** Модули, лежащие на складе космопорта. */
+export function stockModules() {
+  return (state.inventory ?? []).map(item => ({ ...item }));
+}
+
+/** Модули, установленные на корабль. Именно они дают массу и энергию. */
+export function fittedModules() {
+  return (state.fitted ?? []).map(item => ({ ...item }));
+}
+
+/** Сколько тонн занимают модули на складе. Корабельные склад не занимают. */
+export function stockUsedSpace() {
+  return (state.inventory ?? []).reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+}
+
 /**
- * Снять модуль со склада и вернуть часть денег.
+ * Установить модуль со склада на корабль.
+ * @returns {object|null} установленный модуль, либо null, если его нет на складе
+ */
+export function installModule(uniqueId) {
+  const index = (state.inventory ?? []).findIndex(item => item.uniqueId === uniqueId);
+  if (index === -1) return null;
+
+  const [module] = state.inventory.splice(index, 1);
+  state.fitted.push(module);
+
+  addLog(`Модуль «${module.name}» установлен на корабль`, 'info');
+  emit();
+  return module;
+}
+
+/**
+ * Снять модуль с корабля обратно на склад.
  *
- * Без этого ошибку в закупке нельзя было исправить: корабль с отрицательным
- * энергобалансом оставался таким навсегда, а место на складе — занятым.
+ * Склад не резиновый: если места нет, демонтаж не состоится — иначе
+ * вместимость, которую игрок сам задал своим кодом, ничего бы не значила.
+ *
+ * @param {string} uniqueId модуль на корабле
+ * @param {number} capacity вместимость склада
+ * @returns {{ok: boolean, module?: object, reason?: string}}
+ */
+export function uninstallModule(uniqueId, capacity) {
+  const index = (state.fitted ?? []).findIndex(item => item.uniqueId === uniqueId);
+  if (index === -1) return { ok: false, reason: 'Такого модуля на корабле нет' };
+
+  const module = state.fitted[index];
+  const weight = Number(module.weight) || 0;
+
+  if (stockUsedSpace() + weight > capacity) {
+    return { ok: false, reason: `На складе нет места: нужно ${weight} т, свободно ${capacity - stockUsedSpace()} т` };
+  }
+
+  state.fitted.splice(index, 1);
+  state.inventory.push(module);
+
+  addLog(`Модуль «${module.name}» снят с корабля на склад`, 'info');
+  emit();
+  return { ok: true, module };
+}
+
+/**
+ * Сдать модуль со склада верфи за полцены.
+ * Установленный на корабль модуль сдать нельзя — сначала его снимают.
  *
  * @returns {number|null} сколько кредитов вернули, либо null, если модуля нет
  */
-export function removeInventoryItem(uniqueId) {
-  if (!state.inventory) state.inventory = [];
-
-  const index = state.inventory.findIndex(item => item.uniqueId === uniqueId);
+export function sellStockModule(uniqueId) {
+  const index = (state.inventory ?? []).findIndex(item => item.uniqueId === uniqueId);
   if (index === -1) return null;
 
-  const [removed] = state.inventory.splice(index, 1);
-  const refund = salvagePrice(removed);
+  const [sold] = state.inventory.splice(index, 1);
+  const refund = salvagePrice(sold);
 
   state.credits += refund;
-  addLog(`Модуль «${removed.name}» снят, верфь вернула ${refund.toLocaleString()} ¢`, 'info');
+  addLog(`Модуль «${sold.name}» сдан верфи за ${refund.toLocaleString()} ¢`, 'info');
   emit();
 
   return refund;

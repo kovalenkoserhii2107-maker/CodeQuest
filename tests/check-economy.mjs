@@ -8,10 +8,11 @@ import { PlayerState } from '../js/player.js';
 import { Warehouse } from '../js/warehouse.js';
 import { Shipyard } from '../js/shipyard.js';
 import { LaborExchange, CrewMember } from '../js/crew.js';
-import { powerEfficiency, powerPercent, underPower } from '../js/ui/corp.js';
+import { powerEfficiency, powerPercent, underPower, thrustDraw } from '../js/ui/corp.js';
 import {
   state, resetProgress, spendCredits, refundCredits, addInventoryItem,
-  removeInventoryItem, salvagePrice, SALVAGE_RATE,
+  salvagePrice, SALVAGE_RATE, installModule, uninstallModule, sellStockModule,
+  stockModules, fittedModules, stockUsedSpace,
 } from '../js/state.js';
 
 let failures = 0;
@@ -119,6 +120,18 @@ check(underPower(40, 0) === 0, 'без питания модуль мёртв');
 check(underPower(0, 1) === 0, 'нечему падать, если исходно ноль');
 check(underPower(3, 0.01) === 1, 'работающий модуль не обнуляется округлением');
 
+/* --- Тяга ------------------------------------------------------------------ */
+
+/*
+ * Масса корабля стоит энергии: чем он тяжелее, тем больше уходит на тягу.
+ * Раньше вес не влиял на энергобаланс вовсе, и навесить можно было что угодно.
+ */
+check(thrustDraw([{ type: 'engine', weight: 500 }]) === 10, 'тяга растёт от массы корабля');
+check(thrustDraw([{ type: 'drill', weight: 500 }]) === 0, 'без двигателя корабль не летит и тяги не просит');
+check(thrustDraw([]) === 0, 'пустому кораблю тяга не нужна');
+check(thrustDraw('не массив') === 0, 'мусор вместо модулей не роняет расчёт тяги');
+check(thrustDraw([{ type: 'engine', weight: 1 }]) === 1, 'даже лёгкий корабль тратит на тягу хотя бы единицу');
+
 /* --- Баланс каталога ------------------------------------------------------ */
 
 /*
@@ -157,6 +170,44 @@ check(
   `баланс ${greedyEnergy} при массе ${greedyMass}`,
 );
 
+/* --- Склад и корабль ------------------------------------------------------- */
+
+/*
+ * Склад и корабль — разные места. Модуль, лежащий на складе, не даёт ни
+ * массы, ни энергии; установленный не занимает склад. Раньше это было одно
+ * и то же множество, из-за чего вес корабля включал и запасные детали.
+ */
+resetProgress();
+
+const catalog = new Shipyard().getCatalog();
+const spec = id => catalog.find(module => module.id === id);
+const partSpec = spec('mod-reactor-1');
+addInventoryItem({ ...partSpec, uniqueId: 'part-1' });
+
+check(stockModules().length === 1, 'купленный модуль приезжает на склад');
+check(fittedModules().length === 0, 'на корабль он сам не встаёт');
+check(stockUsedSpace() === partSpec.weight, 'лежащий модуль занимает место на складе');
+
+const installed = installModule('part-1');
+check(installed?.uniqueId === 'part-1', 'модуль устанавливается на корабль');
+check(fittedModules().length === 1 && stockModules().length === 0, 'после установки он числится только на корабле');
+check(stockUsedSpace() === 0, 'установленный модуль склад не занимает');
+check(installModule('нет-такого') === null, 'нельзя установить то, чего на складе нет');
+
+const back = uninstallModule('part-1', 1000);
+check(back.ok === true, 'модуль снимается с корабля на склад');
+check(stockModules().length === 1 && fittedModules().length === 0, 'после демонтажа он снова на складе');
+
+// Склад не резиновый: снять некуда — значит нельзя
+addInventoryItem({ ...spec('mod-railgun-1'), uniqueId: 'filler' });
+installModule('part-1');
+const noRoom = uninstallModule('part-1', partSpec.weight);
+check(noRoom.ok === false, 'демонтаж отменяется, если на складе нет места');
+check(typeof noRoom.reason === 'string' && noRoom.reason.length > 10, 'отказ объясняется словами');
+check(fittedModules().length === 1, 'неудачный демонтаж оставляет модуль на корабле');
+
+check(sellStockModule('part-1') === null, 'установленный модуль сдать нельзя');
+
 /* --- Демонтаж модулей ----------------------------------------------------- */
 
 /*
@@ -166,8 +217,6 @@ check(
  */
 resetProgress();
 
-const catalog = new Shipyard().getCatalog();
-const spec = id => catalog.find(module => module.id === id);
 const reactorSpec = spec('mod-reactor-1');
 const railgunSpec = spec('mod-railgun-1');
 
@@ -182,27 +231,26 @@ for (const [id, count] of [['mod-railgun-1', 2], ['mod-engine-1', 2], ['mod-dril
   }
 }
 
-const trapped = new Warehouse(1000);
-check(trapped.getUsedSpace() === 920, 'склад забит потребителями под завязку');
-check(trapped.getUsedSpace() + reactorSpec.weight > trapped.capacity, 'реактор в такой склад уже не помещается');
+check(stockUsedSpace() === 920, 'склад забит потребителями под завязку');
+check(stockUsedSpace() + reactorSpec.weight > 1000, 'реактор в такой склад уже не помещается');
 
 state.credits = 0;
-const refund = removeInventoryItem('mod-railgun-1-0');
+const refund = sellStockModule('mod-railgun-1-0');
 
-check(refund === salvagePrice(railgunSpec), 'демонтаж возвращает долю стоимости');
-check(state.credits === refund, 'возврат зачисляется на счёт');
-check(state.inventory.every(item => item.uniqueId !== 'mod-railgun-1-0'), 'снятый модуль уходит со склада');
-check(new Warehouse(1000).getUsedSpace() === 920 - railgunSpec.weight, 'место на складе освобождается');
+check(refund === salvagePrice(railgunSpec), 'верфь платит за модуль полцены');
+check(state.credits === refund, 'выручка зачисляется на счёт');
+check(state.inventory.every(item => item.uniqueId !== 'mod-railgun-1-0'), 'сданный модуль уходит со склада');
+check(stockUsedSpace() === 920 - railgunSpec.weight, 'место на складе освобождается');
 check(
-  new Warehouse(1000).getUsedSpace() + reactorSpec.weight <= 1000,
-  'после демонтажа реактор помещается — из тупика есть выход',
+  stockUsedSpace() + reactorSpec.weight <= 1000,
+  'после сдачи реактор помещается — из тупика есть выход',
 );
 
-check(removeInventoryItem('нет-такого') === null, 'несуществующий модуль не снимается');
-check(state.credits === refund, 'неудачный демонтаж не начисляет денег');
+check(sellStockModule('нет-такого') === null, 'несуществующий модуль не сдаётся');
+check(state.credits === refund, 'неудачная сдача не начисляет денег');
 
 resetProgress();
-check(state.inventory.length === 0, 'сброс очищает склад после демонтажа');
+check(state.inventory.length === 0 && state.fitted.length === 0, 'сброс очищает и склад, и корабль');
 
 console.log(failures === 0 ? '\nЭкономика: все проверки пройдены' : `\nЭкономика: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
