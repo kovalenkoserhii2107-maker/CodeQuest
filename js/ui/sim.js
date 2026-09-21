@@ -6,24 +6,34 @@
  * идёт в воркере с таймаутом — сломанный код не вешает страницу.
  */
 import { questById } from '../data/quests.js';
-import { isSolved, solutionOf } from '../state.js';
+import { appSource, activeSourceOf, activeStageOf } from '../state.js';
 import { evaluateWidgets } from '../runner.js';
 
 /**
- * Выполнить выражение на коде игрока из указанного задания.
- * @param {string} questId задание, чьё решение используем
- * @param {string} expr тело функции; внутри доступно объявление задания
+ * Выполнить выражение на рабочем коде игрока.
+ *
+ * Первый аргумент — задание, чья функция нужна разделу. Но в область
+ * видимости попадает всё приложение: активные версии всех написанных
+ * функций. Поэтому функция может вызвать соседнюю, а доработанная версия
+ * подхватывается сама — раздел берёт последний пройденный этап, а не тот
+ * этап, на который когда-то сослались.
+ *
+ * @param {string} questId задание, чья функция нужна
+ * @param {string} expr тело функции; внутри доступны все функции игрока
  * @returns {Promise<{value: unknown, error: string|null}>}
  */
 export async function runPlayerCode(questId, expr) {
   const quest = questById(questId);
   if (!quest) return { value: null, error: `Неизвестное задание ${questId}` };
-  if (!isSolved(questId)) return { value: null, error: `Сначала решите задание «${quest.title}»` };
 
-  const source = solutionOf(questId);
-  if (!source) return { value: null, error: 'Код решения не найден — откройте задание и запустите тесты' };
+  const stage = activeStageOf(quest.fn);
+  if (!stage) return { value: null, error: `Сначала решите задание «${quest.title}»` };
 
-  const [result] = await evaluateWidgets([{ id: questId, fn: quest.fn, expr, source }]);
+  if (!activeSourceOf(quest.fn)) {
+    return { value: null, error: 'Код решения не найден — откройте задание и запустите тесты' };
+  }
+
+  const [result] = await evaluateWidgets([{ id: questId, fn: quest.fn, expr, source: appSource() }]);
   return result ?? { value: null, error: 'Код не ответил' };
 }
 

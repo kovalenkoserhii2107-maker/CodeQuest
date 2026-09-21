@@ -28,6 +28,7 @@ function emptyState() {
     fitted: [],     // модули, установленные на корабль
     crew: [],       // нанятый на бирже экипаж
     resources: { fuel: 0, ore: 0 },  // бак и рудный бункер, в тоннах
+    fuelLog: [],    // журнал операций с топливом: по нему сводят ревизию
   };
 }
 
@@ -44,10 +45,13 @@ function readStorage() {
     if (!s.panels) s.panels = [];
     if (!s.consoleHistory) s.consoleHistory = [];
     if (!s.resources) s.resources = { fuel: 0, ore: 0 };
+    if (!Array.isArray(s.fuelLog)) s.fuelLog = [];
 
     // Раньше склад и корабль были одним списком: всё купленное считалось
     // стоящим на корабле. Старые сохранения переносим именно так.
-    if (!Array.isArray(s.fitted)) {
+    // Смотрим на сам файл сохранения: в состоянии по умолчанию корабль
+    // уже есть, и по нему старую запись от новой не отличить.
+    if (!Array.isArray(parsed.fitted)) {
       s.fitted = s.inventory;
       s.inventory = [];
     }
@@ -199,6 +203,76 @@ export function draftOf(questId) {
  */
 export function solutionOf(questId) {
   return state.solutions[questId] ?? state.drafts[questId] ?? null;
+}
+
+/* --- Версии функций ------------------------------------------------------ */
+
+/*
+ * Одну функцию игрок пишет не один раз: сначала простую, потом дорабатывает.
+ * Каждый такой этап — отдельное задание со своим решением, а приложение
+ * работает на последней проверенной версии. Поэтому код ищется не по
+ * заданию, а по имени функции.
+ */
+
+/** Все этапы развития функции по порядку цепочки. */
+export function stagesOf(fnName) {
+  return questChain().filter(quest => quest.fn === fnName);
+}
+
+/** Этапы, которые игрок уже прошёл: у них есть проверенный код. */
+export function solvedStagesOf(fnName) {
+  return stagesOf(fnName).filter(quest => isSolved(quest.id));
+}
+
+/**
+ * Рабочая версия функции — код последнего пройденного этапа.
+ * Именно на нём работает корпорация.
+ */
+export function activeSourceOf(fnName) {
+  const stages = solvedStagesOf(fnName);
+  const last = stages[stages.length - 1];
+  return last ? solutionOf(last.id) : null;
+}
+
+/** Задание, чья версия функции сейчас активна. */
+export function activeStageOf(fnName) {
+  const stages = solvedStagesOf(fnName);
+  return stages[stages.length - 1] ?? null;
+}
+
+/** Предыдущий этап той же функции — с ним сравнивают доработку. */
+export function previousStageOf(questId) {
+  const quest = questById(questId);
+  if (!quest) return null;
+
+  const stages = stagesOf(quest.fn);
+  const index = stages.findIndex(item => item.id === questId);
+  return index > 0 ? stages[index - 1] : null;
+}
+
+/**
+ * Исходник всего приложения: по одной активной версии на каждую функцию.
+ *
+ * Склеивать решения всех заданий подряд нельзя — у доработанной функции
+ * оказалось бы два объявления, и какое из них победит, зависело бы от
+ * порядка строк.
+ */
+export function appSource() {
+  const names = [...new Set(questChain().map(quest => quest.fn))];
+
+  return names
+    .map(name => activeSourceOf(name))
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/** Функции, которые уже работают в приложении. */
+export function liveFunctions() {
+  const names = [...new Set(questChain().map(quest => quest.fn))];
+
+  return names
+    .map(name => ({ fn: name, stage: activeStageOf(name), stages: stagesOf(name) }))
+    .filter(item => item.stage);
 }
 
 /**
@@ -488,6 +562,25 @@ export function resources() {
 }
 
 /**
+ * Журнал операций с топливом.
+ *
+ * Каждая заправка и каждый рейс оставляют здесь запись. По журналу
+ * сводится ревизия: остаток нигде не хранится отдельно, его получают,
+ * пройдя записи от начала до конца.
+ */
+export function fuelLog() {
+  return (state.fuelLog ?? []).map(entry => ({ ...entry }));
+}
+
+function noteFuel(kind, amount, note) {
+  if (!Array.isArray(state.fuelLog)) state.fuelLog = [];
+  if (!Number.isFinite(amount) || amount <= 0) return;
+
+  state.fuelLog.push({ kind, amount, note, at: new Date().toISOString() });
+  state.fuelLog = state.fuelLog.slice(-40);
+}
+
+/**
  * Пополнить запас. Сверх ёмкости не принимаем и честно говорим, сколько влезло.
  * @returns {number} сколько тонн реально добавлено
  */
@@ -500,6 +593,7 @@ export function addResource(kind, amount) {
   if (added <= 0) return 0;
 
   state.resources[kind] += added;
+  if (kind === 'fuel') noteFuel('fill', added, 'заправка');
   emit();
   return added;
 }
@@ -510,6 +604,7 @@ export function spendResource(kind, amount) {
   if (state.resources[kind] < amount) return false;
 
   state.resources[kind] -= amount;
+  if (kind === 'fuel') noteFuel('burn', amount, 'рейс');
   emit();
   return true;
 }

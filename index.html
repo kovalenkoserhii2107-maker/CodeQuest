@@ -55,6 +55,12 @@
                 <span>Задание</span>
               </a>
             </li>
+            <li>
+              <a class="nav__link" href="#/myapp" data-route="myapp">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 13h8M8 16h5"/></svg>
+                <span>Моё приложение</span>
+              </a>
+            </li>
             <li hidden data-view-item="console">
               <a class="nav__link" href="#/console" data-route="console">
                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>
@@ -126,6 +132,12 @@
               <a class="nav__link" href="#/market" data-route="market">
                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h16l-1.5 11H5.5z"/><path d="M8 8V6a4 4 0 018 0v2"/></svg>
                 <span>Рынок</span>
+              </a>
+            </li>
+            <li hidden data-view-item="audit">
+              <a class="nav__link" href="#/audit" data-route="audit">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M8 10h8M8 14h5"/></svg>
+                <span>Ревизия</span>
               </a>
             </li>
             <li hidden data-view-item="arsenal">
@@ -499,6 +511,33 @@
 
           <div class="panel" id="battle-launch"></div>
           <div class="panel" id="battle-report"></div>
+        </section>
+
+        <!-- ------------------------- Ревизия ------------------------- -->
+        <section class="view" id="view-audit" hidden aria-labelledby="audit-title">
+          <div class="section-head">
+            <div>
+              <h2 id="audit-title">Ревизия топлива</h2>
+              <p>Баланс по журналу операций сводит ваша функция fuelBalance.</p>
+            </div>
+          </div>
+
+          <div class="panel" id="audit-balance"></div>
+          <div class="panel" id="audit-log"></div>
+        </section>
+
+        <!-- ------------------------- Моё приложение ------------------------- -->
+        <section class="view" id="view-myapp" hidden aria-labelledby="myapp-title">
+          <div class="section-head">
+            <div>
+              <h2 id="myapp-title">Моё приложение</h2>
+              <p>Что умеет ваша система управления корпорацией и какой код за это отвечает.</p>
+            </div>
+            <span class="panel__hint" id="myapp-progress">—</span>
+          </div>
+
+          <div class="panel" id="myapp-next"></div>
+          <div class="grid grid--cards" id="myapp-features"></div>
         </section>
 
         <!-- ------------------------- Журнал ------------------------- -->

@@ -9,7 +9,7 @@ import { RouteBook } from '../routes.js';
 import { Market } from '../market.js';
 import {
   state, addLog, spendCredits, addResource, spendResource, resources,
-  TANK_CAPACITY, ORE_CAPACITY, CARGO_HOLD, FUEL_PRICE, db,
+  TANK_CAPACITY, ORE_CAPACITY, CARGO_HOLD, FUEL_PRICE, db, fuelLog,
 } from '../state.js';
 import { runPlayerCode, errorPanel } from './sim.js';
 import { assembledShip, drillCount, shipName, fittedModules, powerEfficiency, powerPercent, underPower } from './corp.js';
@@ -29,9 +29,21 @@ let lastFlight = null;
 
 /* --- Маршруты ------------------------------------------------------------ */
 
+/**
+ * Сколько топлива реально заливать под рейс.
+ *
+ * Пока игрок не дописал резерв, в плане есть только расход — берём его.
+ * Как только появляется поле total, заправка начинает спрашивать именно
+ * его: доработка функции сразу меняет поведение корпорации.
+ */
+export function fuelNeeded(plan) {
+  const total = Number(plan?.total);
+  return Number.isFinite(total) && total > 0 ? total : (Number(plan?.fuel) || 0);
+}
+
 /** План для одного маршрута: считает функция игрока. */
-async function planFor(mass, distance) {
-  const { value, error } = await runPlayerCode('plan', `return planFlight(${json({ mass })}, ${distance});`);
+async function planFor(ship, distance) {
+  const { value, error } = await runPlayerCode('plan', `return planFlight(${json(ship)}, ${distance});`);
   return error ? { error } : { plan: value };
 }
 
@@ -52,6 +64,9 @@ export async function renderRoutes() {
   }
 
   const mass = Number(ship.value?.mass) || 0;
+
+  // Обратно корабль идёт гружёным: планировщик обязан это учитывать
+  const planShip = { mass, cargo: CARGO_HOLD };
 
   tankHost.innerHTML = `
     <div class="panel__head">
@@ -84,7 +99,7 @@ export async function renderRoutes() {
     <p class="widget__note">Топливо расходуется за рейс целиком: сколько насчитал ваш план, столько и спишется.</p>`;
 
   const routes = routeBook.getRoutes();
-  const plans = await Promise.all(routes.map(route => planFor(mass, route.distance)));
+  const plans = await Promise.all(routes.map(route => planFor(planShip, route.distance)));
 
   listHost.innerHTML = `
     <div class="panel__head">
@@ -104,7 +119,8 @@ export async function renderRoutes() {
                 return `<tr><td>${escapeHtml(route.name)}</td><td colspan="4">${escapeHtml(outcome.error)}</td></tr>`;
               }
 
-              const need = Number(outcome.plan?.fuel) || 0;
+              const need = fuelNeeded(outcome.plan);
+              const reserve = Number(outcome.plan?.reserve) || 0;
               const enough = fuel >= need;
 
               // Тяжёлый корабль может не вытянуть дальний рейс даже с полным баком —
@@ -122,7 +138,9 @@ export async function renderRoutes() {
                     }</span>
                   </td>
                   <td class="table__num">${route.distance} км</td>
-                  <td class="table__num ${enough ? '' : 'is-danger'}">${need} т</td>
+                  <td class="table__num ${enough ? '' : 'is-danger'}">
+                    ${need} т${reserve > 0 ? ` <small>из них резерв ${reserve}</small>` : ''}
+                  </td>
                   <td class="table__num">${escapeHtml(showValue(outcome.plan?.hours))}</td>
                   <td class="table__num">${route.richness} т/ч</td>
                 </tr>`;
@@ -131,7 +149,10 @@ export async function renderRoutes() {
         </tbody>
       </table>
     </div>
-    <p class="widget__note">Красным — рейсы, на которые не хватает топлива в баке.</p>`;
+    <p class="widget__note">
+      Красным — рейсы, на которые не хватает топлива в баке.
+      Расход посчитан для гружёного корабля: обратно он идёт с рудой.
+    </p>`;
 
   for (const button of tankHost.querySelectorAll('[data-fuel]')) {
     button.addEventListener('click', () => buyFuel(Number(button.dataset.fuel), button));
@@ -179,7 +200,10 @@ async function expeditionInput() {
   const route = routeBook.getRoute(chosenRoute) ?? routeBook.getRoutes()[0];
   const mass = Number(ship.value?.mass) || 0;
 
-  const planned = await runPlayerCode('plan', `return planFlight(${json({ mass })}, ${route.distance});`);
+  const planned = await runPlayerCode(
+    'plan',
+    `return planFlight(${json({ mass, cargo: CARGO_HOLD })}, ${route.distance});`,
+  );
   if (planned.error) return { error: planned.error };
 
   // При нехватке энергии буры работают вполсилы: жила та же, а выработка ниже
@@ -191,6 +215,10 @@ async function expeditionInput() {
     ship: { drills: drillCount(), fuel: resources().fuel, cargo: CARGO_HOLD },
     plan: {
       ...planned.value,
+      // Рейс тратит столько, сколько насчитал план: с резервом, если он есть
+      fuel: fuelNeeded(planned.value),
+      onRoute: Number(planned.value?.fuel) || 0,
+      reserve: Number(planned.value?.reserve) || 0,
       richness: underPower(route.richness, efficiency),
       name: route.name,
     },
@@ -232,7 +260,12 @@ export async function renderExpedition() {
     </div>
 
     <div class="widget__row"><span>Топливо в баке</span><b class="mono ${enough ? 'is-ok' : 'is-danger'}">${ship.fuel} т</b></div>
-    <div class="widget__row"><span>Нужно на рейс</span><b class="mono">${escapeHtml(showValue(plan.fuel))} т</b></div>
+    <div class="widget__row">
+      <span>Нужно залить</span>
+      <b class="mono">${escapeHtml(showValue(plan.fuel))} т${
+        plan.reserve > 0 ? ` <small>${plan.onRoute} на рейс + ${plan.reserve} резерв</small>` : ''
+      }</b>
+    </div>
     <div class="widget__row"><span>Часов в пути</span><b class="mono">${escapeHtml(showValue(plan.hours))}</b></div>
     <div class="widget__row"><span>Буров на борту</span><b class="mono">${ship.drills}</b></div>
     <div class="widget__row">

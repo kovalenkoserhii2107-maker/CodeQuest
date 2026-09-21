@@ -22,6 +22,7 @@ import {
 } from './ui/corp.js';
 import { renderRoutes, renderExpedition, renderMarket } from './ui/mission.js';
 import { renderArsenal, renderRange, renderBattle } from './ui/combat.js';
+import { renderAudit } from './ui/audit.js';
 
 const player = new PlayerState();
 const shipyard = new Shipyard();
@@ -619,6 +620,7 @@ export function renderView(viewId) {
     arsenal: renderArsenal,
     range: renderRange,
     battle: renderBattle,
+    audit: renderAudit,
   };
   return renderers[viewId]?.();
 }

@@ -5,7 +5,7 @@
  * Панели — функции игрока: они запускаются заново при каждой отрисовке и
  * возвращают описание того, что показать.
  */
-import { db, panels, removePanel, isSolved, solutionOf } from '../state.js';
+import { db, panels, removePanel, appSource } from '../state.js';
 import { QUESTS } from '../data/quests.js';
 import { runConsole } from '../runner.js';
 import { escapeHtml, showValue } from './html.js';
@@ -15,10 +15,7 @@ let openCollection = null;
 
 /** Код игрока: панели пишутся поверх уже решённых заданий. */
 function playerSource() {
-  return QUESTS.filter(quest => isSolved(quest.id))
-    .map(quest => solutionOf(quest.id))
-    .filter(Boolean)
-    .join('\n\n');
+  return appSource();
 }
 
 /* --- База данных ---------------------------------------------------------- */
