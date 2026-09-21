@@ -92,6 +92,44 @@ check(state.inventory.length === 1, 'инвентарь пополняется')
 resetProgress();
 check(state.inventory.length === 0 && state.crew.length === 0, 'сброс очищает склад и экипаж');
 
+/* --- Баланс каталога ------------------------------------------------------ */
+
+/*
+ * Корабль с полным набором потребителей должен поддаваться балансировке.
+ * Раньше это не выполнялось: шесть модулей давали -150, второй обычный
+ * реактор вытягивал только до -30, а третий уже не помещался на склад.
+ * Игрок оказывался с вечным минусом и без выхода.
+ */
+const catalogAll = new Shipyard().getCatalog();
+const reactors = catalogAll.filter(module => module.energy > 0);
+const consumers = catalogAll.filter(module => module.energy < 0);
+
+check(reactors.length >= 2, 'в каталоге есть из чего выбрать источник энергии');
+
+const strongest = reactors.reduce((best, module) => (module.energy > best.energy ? module : best));
+check(
+  strongest.energy >= Math.abs(Math.min(...consumers.map(module => module.energy))) * 2,
+  'самый мощный реактор перекрывает хотя бы двух прожорливых потребителей',
+);
+
+// Жадно набиваем корабль потребителями: сначала лёгкие, пока влезают
+const HOLD = 1000;
+let greedyMass = strongest.weight;
+let greedyEnergy = strongest.energy;
+
+for (const module of [...consumers].sort((a, b) => a.weight - b.weight)) {
+  if (greedyMass + module.weight > HOLD) continue;
+  greedyMass += module.weight;
+  greedyEnergy += module.energy;
+}
+
+check(greedyMass <= HOLD, 'забитый корабль умещается в стандартный склад');
+check(
+  greedyEnergy >= 0,
+  'корабль, забитый потребителями под завязку, можно вывести в плюс',
+  `баланс ${greedyEnergy} при массе ${greedyMass}`,
+);
+
 /* --- Демонтаж модулей ----------------------------------------------------- */
 
 /*
