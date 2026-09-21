@@ -52,7 +52,9 @@ export function renderPath({ onOpenQuest }) {
                          <span class="chain__unlock">
                            ${testsOnly
                              ? `Практика: <code class="mono">${escapeHtml(quest.practice.example)}</code>`
-                             : `Открывает: ${escapeHtml(quest.unlocks.label)}`}
+                             : quest.unlocks
+                               ? `Открывает: ${escapeHtml(quest.unlocks.label)}`
+                               : `Дорабатывает: ${escapeHtml(quest.fn)}`}
                          </span>
                          ${testsOnly
                            ? '<a class="btn btn--primary btn--sm" href="#/console">В консоль</a>'

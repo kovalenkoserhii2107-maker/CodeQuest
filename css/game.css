@@ -2040,3 +2040,64 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+/* ======================================================================
+   Доработка собственной функции
+   ====================================================================== */
+
+.task__evolution {
+  margin: var(--space-3) 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-violet);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-violet) 8%, transparent);
+}
+
+.task__evolution-label {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-violet);
+  margin-bottom: var(--space-2);
+}
+
+.evolution {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.evolution dt {
+  color: var(--color-dim);
+  white-space: nowrap;
+}
+
+.evolution dd {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.task__actions--tight { margin-top: var(--space-3); }
+
+/* Сравнение версий: что ушло и что появилось */
+.diff {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff__line { display: block; }
+.diff__line--in { color: var(--color-ok); }
+.diff__line--out { color: var(--color-danger); opacity: 0.85; }
+
+@media (max-width: 720px) {
+  .evolution { grid-template-columns: minmax(0, 1fr); }
+  .evolution dt { margin-top: var(--space-2); }
+}

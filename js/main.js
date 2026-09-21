@@ -12,6 +12,7 @@ import {
 import { renderPath } from './ui/path.js';
 import { renderConsole } from './ui/console.js';
 import { renderDatabase, renderPanels } from './ui/dbview.js';
+import { renderMyApp } from './ui/myapp.js';
 import { renderTask } from './ui/task.js';
 import { renderLog } from './ui/log.js';
 import { renderView, corporationName, toast } from './ui.js';
@@ -34,6 +35,8 @@ const VIEW_TITLES = {
   arsenal: 'Арсенал',
   range: 'Полигон',
   battle: 'Боевой вылет',
+  audit: 'Ревизия топлива',
+  myapp: 'Моё приложение',
   database: 'Бортовая база данных',
   panels: 'Ваши панели',
   log: 'Журнал',
@@ -117,6 +120,11 @@ function render() {
 
   if (name === 'path') {
     renderPath({ onOpenQuest: openQuest });
+    return;
+  }
+
+  if (name === 'myapp') {
+    renderMyApp();
     return;
   }
 

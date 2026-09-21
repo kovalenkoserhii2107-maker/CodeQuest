@@ -8,9 +8,9 @@
  */
 import { QUESTS } from '../data/quests.js';
 import {
-  state, isSolved, isPracticed, currentQuest, solutionOf, markPracticed,
+  state, isSolved, isPracticed, currentQuest, markPracticed,
   setCorpRecord, pushConsoleHistory, spendCredits, addCrewMember, addLog,
-  db, applyDbOps, panels, resources, addResource, spendResource, CARGO_HOLD,
+  db, applyDbOps, panels, resources, addResource, spendResource, CARGO_HOLD, appSource, fuelLog,
 } from '../state.js';
 import { Shipyard } from '../shipyard.js';
 import { LaborExchange } from '../crew.js';
@@ -21,6 +21,7 @@ import { runConsole } from '../runner.js';
 import { assembledShip, powerEfficiency, underPower } from './corp.js';
 import { fittedModules, stockModules, stockUsedSpace } from '../state.js';
 import { battleShip } from './combat.js';
+import { fuelNeeded } from './mission.js';
 import { escapeHtml } from './html.js';
 
 const shipyard = new Shipyard();
@@ -33,10 +34,7 @@ let historyIndex = -1;
 
 /** Код всех решённых заданий — он доступен в консоли. */
 function playerSource() {
-  return QUESTS.filter(quest => isSolved(quest.id))
-    .map(quest => solutionOf(quest.id))
-    .filter(Boolean)
-    .join('\n\n');
+  return appSource();
 }
 
 /**
@@ -62,6 +60,8 @@ function expeditionInput() {
     },
     plan: {
       ...plan,
+      // Заливаем столько, сколько насчитал план: с резервом, если он есть
+      fuel: fuelNeeded(plan),
       richness: underPower(route?.richness ?? 3, efficiency),
       name: route?.name ?? 'маршрут',
     },
@@ -108,6 +108,8 @@ async function currentShip() {
     mass: assembled.value.mass,
     energy: assembled.value.energy,
     modules: assembled.value.modules,
+    // Трюм, с которым корабль возвращается: планировщик считает по гружёному
+    cargo: CARGO_HOLD,
   };
 }
 
@@ -124,6 +126,7 @@ async function corpData() {
       targets: threatLog.getTargets(),
       ore: resources().ore,
       fuel: resources().fuel,
+      fuelLog: fuelLog(),
       offers: market.getOffers(),
       expeditionShip: expedition.ship,
       expeditionPlan: expedition.plan,

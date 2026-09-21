@@ -5,7 +5,7 @@
  * Стратегия — «сначала сеть, кэш про запас»: так обновления страниц и кода
  * видны сразу после деплоя, а офлайн по-прежнему работает из кэша.
  */
-const CACHE = 'codequest-v9';
+const CACHE = 'codequest-v10';
 
 const SHELL = [
   './',
@@ -53,6 +53,8 @@ const SHELL = [
   'js/ui/corp.js',
   'js/ui/mission.js',
   'js/ui/combat.js',
+  'js/ui/audit.js',
+  'js/ui/myapp.js',
   'js/editor/edit-ops.js',
   'js/editor/highlight.js',
   'js/editor/complete.js',

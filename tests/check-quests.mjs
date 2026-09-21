@@ -9,7 +9,7 @@
  *  5. у каждого задания есть практика: команда для консоли и проверка результата.
  */
 import { readFileSync } from 'node:fs';
-import { QUESTS } from '../js/data/quests.js';
+import { QUESTS, questById, testsOf, stageChain } from '../js/data/quests.js';
 import { runQuestTests } from '../js/runner-core.js';
 
 let failures = 0;
@@ -21,7 +21,7 @@ const fail = message => {
 /* --- 1–2. Решения и заготовки -------------------------------------------- */
 
 for (const quest of QUESTS) {
-  const report = await runQuestTests(quest.solution, quest);
+  const report = await runQuestTests(quest.solution, { fn: quest.fn, tests: testsOf(quest) });
   if (!report.ok) {
     const details = report.error ?? report.results
       .filter(result => !result.pass)
@@ -29,10 +29,12 @@ for (const quest of QUESTS) {
       .join('; ');
     fail(`Решение задания «${quest.title}» не проходит тесты — ${details}`);
   } else {
-    console.log(`✓ ${quest.order}. ${quest.id}: ${report.results.length} тест(ов)`);
+    const own = quest.tests.length;
+    const total = report.results.length;
+    console.log(`✓ ${quest.order}. ${quest.id}: ${total} тест(ов)${total > own ? ` (из них ${total - own} на прежнее поведение)` : ''}`);
   }
 
-  const starter = await runQuestTests(quest.starter, quest);
+  const starter = await runQuestTests(quest.starter, { fn: quest.fn, tests: testsOf(quest) });
   if (starter.ok) fail(`Заготовка задания ${quest.id} проходит тесты — задание бессмысленно`);
 }
 
@@ -48,7 +50,10 @@ const ids = new Set(QUESTS.map(quest => quest.id));
 if (ids.size !== QUESTS.length) fail('Идентификаторы заданий повторяются');
 
 for (const quest of QUESTS) {
-  for (const field of ['story', 'brief', 'theory', 'fn', 'starter', 'solution', 'hints', 'tests', 'unlocks', 'practice', 'signature', 'lesson']) {
+  const required = ['story', 'brief', 'theory', 'fn', 'starter', 'solution', 'hints', 'tests', 'practice', 'signature', 'lesson'];
+  if (!quest.extends) required.push('unlocks');
+
+  for (const field of required) {
     if (!quest[field] || (Array.isArray(quest[field]) && quest[field].length === 0)) {
       fail(`У задания ${quest.id} не заполнено поле ${field}`);
     }
@@ -113,18 +118,18 @@ console.log(`✓ разбор темы и подсказки на месте (${
 
 /* --- 4. Разделы интерфейса ----------------------------------------------- */
 
-const views = QUESTS.map(quest => quest.unlocks.view);
+const views = QUESTS.filter(quest => quest.unlocks).map(quest => quest.unlocks.view);
 if (new Set(views).size !== views.length) fail('Два задания открывают один и тот же раздел');
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-for (const quest of QUESTS) {
+for (const quest of QUESTS.filter(item => item.unlocks)) {
   const view = quest.unlocks.view;
   if (!html.includes(`id="view-${view}"`)) fail(`В интерфейсе нет раздела view-${view} для задания ${quest.id}`);
   if (!html.includes(`data-view-item="${view}"`)) fail(`В меню нет пункта для раздела ${view}`);
 }
 
 // Разделы, закрытые заданиями, не должны быть видны до их решения
-for (const quest of QUESTS) {
+for (const quest of QUESTS.filter(item => item.unlocks)) {
   const item = html.match(new RegExp(`<li hidden data-view-item="${quest.unlocks.view}"`));
   if (!item) fail(`Пункт меню ${quest.unlocks.view} не скрыт по умолчанию`);
 }
@@ -190,6 +195,58 @@ for (const quest of QUESTS) {
 }
 
 console.log(`✓ обновляемые практики не трогают счёт (${QUESTS.filter(q => q.practice.refresh).length})`);
+
+/* --- 7. Этапы развития функции -------------------------------------------- */
+
+/*
+ * Доработка начинается с кода прошлого этапа и обязана сохранить его
+ * поведение. Проверяем всю цепочку: ссылка ведёт на существующее задание,
+ * идёт раньше по порядку, объявляет ту же функцию; решение прошлого этапа
+ * новые требования уже не проходит, а новое решение проходит и старые.
+ */
+for (const quest of QUESTS.filter(item => item.extends)) {
+  const parent = questById(quest.extends);
+
+  if (!parent) {
+    fail(`Задание ${quest.id} ссылается на несуществующий этап ${quest.extends}`);
+    continue;
+  }
+  if (parent.fn !== quest.fn) {
+    fail(`Этап ${quest.id} дорабатывает ${quest.fn}, а предыдущий — ${parent.fn}`);
+  }
+  if (parent.order >= quest.order) {
+    fail(`Этап ${quest.id} стоит в цепочке раньше своего предыдущего этапа`);
+  }
+  if (!quest.changes?.works || !quest.changes?.todo) {
+    fail(`У этапа ${quest.id} не объяснено, что уже работает и что нужно добавить`);
+  }
+  if (!quest.inheritTests) {
+    fail(`Этап ${quest.id} не прогоняет прежние проверки: доработка может сломать работающее`);
+  }
+
+  // Старый код обязан провалить новые требования, иначе задание пустое
+  const withNew = await runQuestTests(parent.solution, { fn: quest.fn, tests: testsOf(quest) });
+  if (withNew.ok) {
+    fail(`Решение прошлого этапа проходит требования ${quest.id} — дорабатывать нечего`);
+  }
+}
+
+for (const fn of new Set(QUESTS.map(quest => quest.fn))) {
+  const chain = stageChain(fn);
+  if (chain.length < 2) continue;
+
+  // У каждого этапа, кроме первого, должна быть ссылка на предыдущий
+  for (const [index, quest] of chain.entries()) {
+    if (index === 0 && quest.extends) {
+      fail(`Первый этап функции ${fn} (${quest.id}) ссылается на предыдущий, которого нет`);
+    }
+    if (index > 0 && quest.extends !== chain[index - 1].id) {
+      fail(`Этап ${quest.id} должен продолжать ${chain[index - 1].id}`);
+    }
+  }
+}
+
+console.log(`✓ цепочки доработок согласованы (${QUESTS.filter(q => q.extends).length} этапов)`);
 
 console.log(failures === 0 ? '\nЦепочка: все проверки пройдены' : `\nЦепочка: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

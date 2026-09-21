@@ -13,13 +13,17 @@
      * Проверяет в реальном браузере то, чего не видно в Node: запуск кода
      * игрока через Web Worker, прогрессию цепочки и мост «код → симулятор».
      */
-    import { QUESTS, questById } from '../js/data/quests.js';
+    import { QUESTS, questById, testsOf, stageChain } from '../js/data/quests.js';
     import { runSolution, isFallbackMode } from '../js/runner.js';
     import { runPlayerCode } from '../js/ui/sim.js';
     import {
       completeQuest, currentQuest, isQuestAvailable, isViewUnlocked, resetProgress, state,
       isPracticed, isQuestClosed, markPracticed, setCorpRecord, corpRecord,
       db, applyDbOps, panels, addPanel, removePanel,
+      activeStageOf, activeSourceOf, previousStageOf, appSource, liveFunctions,
+      solutionOf, saveDraft, draftOf, fuelLog,
+      addInventoryItem, installModule, uninstallModule, sellStockModule,
+      stockModules, fittedModules,
     } from '../js/state.js';
     import { runConsole } from '../js/runner.js';
     import { chartFromSpec } from '../js/ui/charts.js';
@@ -31,6 +35,7 @@
     import { ThreatLog } from '../js/enemy.js';
     import { Shipyard } from '../js/shipyard.js';
     import { powerEfficiency, underPower } from '../js/ui/corp.js';
+    import { matchesSubset } from '../js/runner-core.js';
 
     const problems = [];
     const lines = [];
@@ -267,12 +272,168 @@
     check(strongFight.value?.winner === 'ship', 'сытый корабль побеждает крейсер');
     check(weakFight.value?.rounds > strongFight.value?.rounds, 'голодному кораблю тот же бой даётся тяжелее');
 
+    // --- Одна функция, несколько этапов ---
+
+    resetProgress();
+
+    const planStages = stageChain('planFlight');
+    check(planStages.length === 3, 'planFlight развивается в трёх заданиях подряд');
+    check(planStages.every(stage => stage.fn === 'planFlight'), 'все этапы дорабатывают одну функцию');
+
+    const [stage1, stage2, stage3] = planStages;
+
+    completeQuest(stage1.id, { source: stage1.solution });
+    check(activeStageOf('planFlight')?.id === stage1.id, 'рабочей становится версия первого этапа');
+    check(activeSourceOf('planFlight') === stage1.solution, 'приложение берёт код именно этого этапа');
+    check(previousStageOf(stage1.id) === null, 'у первого этапа предыдущей версии нет');
+
+    const firstPlan = await runPlayerCode('plan', 'return planFlight({ mass: 430, cargo: 600 }, 240);');
+    check(firstPlan.value?.fuel === 104, 'первая версия считает рейс по одной массе корабля');
+
+    completeQuest(stage2.id, { source: stage2.solution });
+    check(activeStageOf('planFlight')?.id === stage2.id, 'после доработки активна новая версия');
+    check(activeSourceOf('planFlight') === stage2.solution, 'рабочий код — код последнего пройденного этапа');
+    check(solutionOf(stage1.id) === stage1.solution, 'прежняя версия сохранилась: её можно посмотреть');
+    check(previousStageOf(stage2.id)?.id === stage1.id, 'у доработки есть версия для сравнения');
+    check(appSource().split('function planFlight').length - 1 === 1,
+      'в приложении ровно одно объявление planFlight');
+
+    const cargoPlan = await runPlayerCode('plan', 'return planFlight({ mass: 430, cargo: 600 }, 240);');
+    check(cargoPlan.value?.fuel === 248, 'разделы сразу считают по доработанной версии, а не по старой');
+
+    completeQuest(stage3.id, { source: stage3.solution });
+    const reservePlan = await runPlayerCode('plan', 'return planFlight({ mass: 430, cargo: 600 }, 240);');
+    check(reservePlan.value?.total === 273, 'третья версия добавляет резерв, не ломая расход');
+    check(reservePlan.value?.fuel === 248, 'прежнее поле расхода осталось прежним');
+
+    const live = liveFunctions();
+    check(live.length === 1, 'в приложении пока одна работающая функция');
+    check(live[0].stages.length === 3 && live[0].stage.id === stage3.id,
+      'у функции видно три этапа и активный — последний');
+
+    // --- Доработка не ломает прежнее поведение ---
+
+    check(testsOf(stage1).length === stage1.tests.length, 'у первого этапа только свои проверки');
+    check(testsOf(stage2).length === stage1.tests.length + stage2.tests.length,
+      'доработка прогоняет и свои проверки, и прежние');
+    check(testsOf(stage3).every(test => !test.name.includes('поведение · прежнее')),
+      'пометка о прежнем поведении не дублируется на третьем этапе');
+
+    const stale = await runSolution(stage1.solution, stage2);
+    check(!stale.ok, 'код прежнего этапа не проходит проверки доработки — иначе дорабатывать нечего');
+
+    const reworked = await runSolution(stage2.solution, stage2);
+    check(reworked.ok, 'доработанный код проходит и новые проверки, и прежние');
+    check(reworked.results.filter(result => result.inherited).length === stage1.tests.length,
+      'проверки прежнего поведения помечены отдельно');
+
+    const wider = await runSolution(stage3.solution, stage3);
+    check(wider.ok, 'третья версия проходит всё, хотя в ответе появились новые поля');
+
+    check(matchesSubset({ fuel: 104 }, { fuel: 104, reserve: 11 }), 'доработка вправе добавить поле в ответ');
+    check(!matchesSubset({ fuel: 104 }, { fuel: 120, reserve: 11 }), 'но прежние значения менять нельзя');
+    check(!matchesSubset({ fuel: 104 }, { reserve: 11 }), 'пропавшее прежнее поле — тоже поломка');
+
+    // --- Черновик не подменяет рабочую версию ---
+
+    saveDraft(stage3.id, 'function planFlight() { return null; }');
+    check(draftOf(stage3.id).includes('return null'), 'черновик хранится отдельно от решения');
+    check(activeSourceOf('planFlight') === stage3.solution, 'сломанный черновик не попадает в приложение');
+
+    const safePlan = await runPlayerCode('plan', 'return planFlight({ mass: 430, cargo: 600 }, 240);');
+    check(safePlan.value?.total === 273, 'разделы работают, пока черновик не прошёл тесты');
+    saveDraft(stage3.id, stage3.solution);
+
+    // --- Функции игрока видят друг друга ---
+
+    completeQuest('expedition', { source: questById('expedition').solution });
+    const chained = await runPlayerCode('expedition', `
+      const route = planFlight({ mass: 430, cargo: 150 }, 240);
+      return runExpedition(
+        { drills: 1, fuel: 300, cargo: 150 },
+        { hours: route.hours, fuel: route.total, richness: 3 },
+      );
+    `);
+    check(!chained.error, 'рейс считается связкой из двух функций игрока');
+    check(chained.value?.ore === 60 && chained.value?.fuelLeft === 146,
+      'следующая функция берёт данные из предыдущей, а не из эталона');
+
+    // --- Журнал топлива и ревизия ---
+
+    resetProgress();
+    check(fuelLog().length === 0, 'у новой корпорации журнал топлива пуст');
+
+    addResource('fuel', 200);
+    spendResource('fuel', 154);
+
+    const ledgerEntries = fuelLog();
+    check(ledgerEntries.length === 2, 'заправка и рейс попали в журнал');
+    check(ledgerEntries[0].kind === 'fill' && ledgerEntries[0].amount === 200, 'заправка записана с объёмом');
+    check(ledgerEntries[1].kind === 'burn' && ledgerEntries[1].amount === 154, 'расход записан с объёмом');
+
+    const ledgerQuest = questById('ledger');
+    check((await runSolution(ledgerQuest.solution, ledgerQuest)).ok, 'решение ревизии проходит тесты');
+
+    const buggy = await runSolution(ledgerQuest.starter, ledgerQuest);
+    check(!buggy.ok, 'заготовка ревизии с ошибкой не проходит проверки — её и предстоит починить');
+
+    const audit = await runConsole(ledgerQuest.solution, `fuelBalance(${JSON.stringify(ledgerEntries)})`, {});
+    check(audit.value?.in === 200 && audit.value?.out === 154, 'ревизия видит и приход, и расход');
+    check(audit.value?.left === resources().fuel, 'остаток по журналу сходится с настоящим баком');
+
+    check(addResource('fuel', TANK_CAPACITY * 2) === TANK_CAPACITY - 46, 'сверх бака не принимается');
+    check(fuelLog()[2].amount === TANK_CAPACITY - 46, 'в журнал попадает залитое по факту, а не запрошенное');
+    check(spendResource('fuel', 10_000) === false, 'неудачное списание отклоняется');
+    check(fuelLog().length === 3, 'несостоявшийся расход в журнал не пишется');
+
+    // --- Склад и корабль — разные места ---
+
+    resetProgress();
+    const drill = { id: 'drill-s', uniqueId: 'u-1', name: 'Бур «Проба»', type: 'drill', weight: 40, price: 20000 };
+    addInventoryItem(drill);
+    check(stockModules().length === 1 && fittedModules().length === 0,
+      'купленный модуль лежит на складе, а не на корабле');
+
+    check(installModule('u-1')?.uniqueId === 'u-1', 'модуль ставится на корабль');
+    check(stockModules().length === 0 && fittedModules().length === 1, 'после установки он числится на корабле');
+    check(installModule('u-1') === null, 'дважды поставить один модуль нельзя');
+    check(sellStockModule('u-1') === null, 'установленный модуль со склада не продать');
+
+    check(uninstallModule('u-1', 0).ok === false, 'демонтаж без места на складе не проходит');
+    check(fittedModules().length === 1, 'неудачный демонтаж ничего не меняет');
+    check(uninstallModule('u-1', 1000).ok === true, 'на свободный склад модуль снимается');
+    check(stockModules().length === 1 && fittedModules().length === 0, 'снятый модуль вернулся на склад');
+
+    const refund = sellStockModule('u-1');
+    check(refund === 10000, 'сдача модуля возвращает половину цены');
+    check(state.credits === 10000 && stockModules().length === 0, 'кредиты начислены, склад пуст');
+
     resetProgress();
     check(
       Object.keys(state.solved).length === 0 && state.credits === 0 && !corpRecord('commander') && db.count('logs') === 0,
       'сброс возвращает игру в начало и очищает базу',
     );
     check(resources().fuel === 0 && resources().ore === 0, 'сброс опустошает бак и бункер');
+
+    // --- Старое сохранение: всё купленное считалось стоящим на корабле ---
+
+    const KEY = 'codequest.progress.v2';
+    const backup = localStorage.getItem(KEY);
+    localStorage.setItem(KEY, JSON.stringify({
+      version: 1,
+      credits: 5000,
+      solved: {},
+      inventory: [{ uniqueId: 'old-1', name: 'Старый бур', type: 'drill', weight: 40, price: 1000 }],
+    }));
+
+    const fresh = await import('../js/state.js?migration=1');
+    check(fresh.fittedModules().length === 1, 'модули из старого сохранения оказались на корабле');
+    check(fresh.stockModules().length === 0, 'на складе их больше не числится');
+    check(fresh.state.credits === 5000, 'кредиты старого сохранения на месте');
+    check(Array.isArray(fresh.fuelLog()) && fresh.fuelLog().length === 0, 'журнал топлива заводится пустым');
+
+    localStorage.removeItem(KEY);
+    if (backup) localStorage.setItem(KEY, backup);
 
     document.getElementById('out').textContent = lines.join('\n');
     document.title = problems.length === 0

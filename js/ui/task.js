@@ -1,8 +1,10 @@
 /**
  * Экран задачи: условие, теория, редактор кода и отчёт по тестам.
  */
-import { QUESTS } from '../data/quests.js';
-import { completeQuest, draftOf, isSolved, isPracticed, saveDraft } from '../state.js';
+import { QUESTS, questById } from '../data/quests.js';
+import {
+  completeQuest, draftOf, isSolved, isPracticed, saveDraft, solutionOf, previousStageOf, stagesOf,
+} from '../state.js';
 import { runSolution } from '../runner.js';
 import { escapeHtml } from './html.js';
 import { fillBar } from './charts.js';
@@ -24,6 +26,7 @@ function nextQuest(current) {
  */
 function traceStep(result, index) {
   const state = result.pass ? 'ok' : 'fail';
+  const kept = result.inherited ?? result.name.includes('прежнее поведение');
 
   // Пройденный тест показываем сжато, провалившийся — подробно:
   // разбирают всегда именно его, и там важна каждая строка.
@@ -47,7 +50,10 @@ function traceStep(result, index) {
   return `
     <li class="trace__step trace__step--${state}" style="animation-delay: ${index * 90}ms">
       <span class="trace__index mono" aria-hidden="true">${result.pass ? '✓' : '✗'}</span>
-      <span class="trace__name">${escapeHtml(result.name)}</span>
+      <span class="trace__name">
+        ${escapeHtml(result.name)}
+        ${kept ? '<span class="badge badge--idle">регрессия</span>' : ''}
+      </span>
 
       <div class="trace__in">
         <p class="trace__label mono">вызов</p>
@@ -136,6 +142,85 @@ function lessonHtml(quest) {
 }
 
 /**
+ * Код, с которого игрок начинает задание.
+ *
+ * У доработки это его собственное решение прошлого этапа: переписывать
+ * заново нечего, менять нужно одно-два места. Черновик, если он есть,
+ * всегда важнее — человек мог уже начать.
+ */
+function startingCode(quest) {
+  const draft = draftOf(quest.id);
+  if (draft !== null) return draft;
+
+  if (quest.extends) {
+    const inherited = solutionOf(quest.extends);
+    if (inherited) return inherited;
+  }
+
+  return quest.starter;
+}
+
+/** Блок «что уже работает, что меняется, что добавить». */
+function changesHtml(quest) {
+  if (!quest.extends) return '';
+
+  const stages = stagesOf(quest.fn);
+  const index = stages.findIndex(item => item.id === quest.id);
+  const previous = previousStageOf(quest.id);
+  const changes = quest.changes ?? {};
+
+  return `
+    <div class="task__evolution">
+      <p class="task__evolution-label">
+        Доработка функции ${escapeHtml(quest.fn)} · этап ${index + 1} из ${stages.length}
+      </p>
+      <dl class="evolution">
+        ${changes.works ? `<dt>Уже работает</dt><dd>${escapeHtml(changes.works)}</dd>` : ''}
+        ${changes.changed ? `<dt>Что изменилось</dt><dd>${escapeHtml(changes.changed)}</dd>` : ''}
+        ${changes.todo ? `<dt>Что добавить</dt><dd>${escapeHtml(changes.todo)}</dd>` : ''}
+      </dl>
+      ${
+        previous && solutionOf(previous.id)
+          ? `<div class="task__actions task__actions--tight">
+               <button class="btn btn--ghost btn--sm" type="button" id="show-previous">
+                 Предыдущая версия
+               </button>
+               <button class="btn btn--ghost btn--sm" type="button" id="restore-previous">
+                 Вернуть её в редактор
+               </button>
+             </div>
+             <div id="previous-version"></div>`
+          : ''
+      }
+    </div>`;
+}
+
+/** Построчное сравнение двух версий — что добавилось и что ушло. */
+function diffHtml(before, after) {
+  const oldLines = String(before).split('\n');
+  const newLines = String(after).split('\n');
+  const removed = new Set(oldLines.map(line => line.trim()).filter(Boolean));
+  const added = new Set(newLines.map(line => line.trim()).filter(Boolean));
+
+  const rows = [];
+  for (const line of oldLines) {
+    const key = line.trim();
+    if (key && !added.has(key)) rows.push({ sign: '−', line, kind: 'out' });
+  }
+  for (const line of newLines) {
+    const key = line.trim();
+    if (key && !removed.has(key)) rows.push({ sign: '+', line, kind: 'in' });
+  }
+
+  if (rows.length === 0) return '<p class="widget__note">Версии совпадают строка в строку.</p>';
+
+  return `
+    <pre class="diff mono">${rows
+      .map(row => `<span class="diff__line diff__line--${row.kind}">${row.sign} ${escapeHtml(row.line.trim())}</span>`)
+      .join('\n')}</pre>`;
+}
+
+/**
  * Отрисовать экран задачи.
  * @param {object} quest задача
  * @param {{onOpenQuest: Function, onSolved: Function}} handlers
@@ -159,11 +244,17 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
       <p class="task__story">${escapeHtml(quest.story)}</p>
 
+      ${changesHtml(quest)}
+
       ${quest.signature ? `<p class="task__signature mono">${escapeHtml(quest.signature)}</p>` : ''}
       <div class="task__brief">${briefHtml(quest.brief)}</div>
 
       <div class="task__reward mono">
-        Награда: +${quest.reward.credits} ¢ · открывает раздел «${escapeHtml(quest.unlocks.label)}»
+        Награда: +${quest.reward.credits} ¢ · ${
+          quest.unlocks
+            ? `открывает раздел «${escapeHtml(quest.unlocks.label)}»`
+            : `улучшает ${escapeHtml(quest.fn)} во всём приложении`
+        }
       </div>
 
       <div class="task__practice">
@@ -202,7 +293,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
   `;
 
   const editor = createEditor(root.querySelector('#editor-host'), {
-    value: draftOf(quest.id) ?? quest.starter,
+    value: startingCode(quest),
     onInput: code => saveDraft(quest.id, code),
     onRun: () => run(),
   });
@@ -239,7 +330,11 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
         ? `
           <div class="report__success">
             <p class="report__success-title">Тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
-            <p class="report__success-text">Задание уже закрыто практикой — раздел «${escapeHtml(quest.unlocks.label)}» работает на вашем коде.</p>
+            <p class="report__success-text">Задание уже закрыто практикой — ${
+              quest.unlocks
+                ? `раздел «${escapeHtml(quest.unlocks.label)}» работает на вашем коде`
+                : `новая версия ${escapeHtml(quest.fn)} уже работает в приложении`
+            }.</p>
             ${next ? `<button class="btn btn--primary btn--sm" type="button" id="next-quest">Следующее задание: ${escapeHtml(next.title)}</button>` : ''}
           </div>`
         : `
@@ -247,8 +342,11 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
             <p class="report__success-title">Тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
             <p class="report__success-text">
               Осталась практическая часть: ${escapeHtml(quest.practice.title.toLowerCase())}.
-              Откройте консоль и выполните команду — объект попадёт в базу корпорации,
-              и раздел «${escapeHtml(quest.unlocks.label)}» откроется.
+              Откройте консоль и выполните команду${
+                quest.unlocks
+                  ? ` — объект попадёт в базу корпорации, и раздел «${escapeHtml(quest.unlocks.label)}» откроется`
+                  : ' — новая версия функции вступит в силу во всём приложении'
+              }.
             </p>
             <code class="console__example mono">${escapeHtml(quest.practice.example)}</code>
             <a class="btn btn--primary btn--sm" href="#/console">Перейти в консоль</a>
@@ -283,9 +381,33 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
   });
 
   root.querySelector('#reset-code').addEventListener('click', () => {
-    editor.setValue(quest.starter);
-    saveDraft(quest.id, quest.starter);
+    const base = quest.extends ? (solutionOf(quest.extends) ?? quest.starter) : quest.starter;
+    editor.setValue(base);
+    saveDraft(quest.id, base);
     showReport('');
+  });
+
+  // Предыдущая версия: посмотреть, сравнить, вернуть в редактор
+  const previous = previousStageOf(quest.id);
+  const previousSource = previous ? solutionOf(previous.id) : null;
+  const previousHost = root.querySelector('#previous-version');
+
+  root.querySelector('#show-previous')?.addEventListener('click', () => {
+    if (!previousHost) return;
+
+    previousHost.innerHTML = previousHost.innerHTML
+      ? ''
+      : `
+        <p class="task__evolution-label">Версия из задания «${escapeHtml(previous.title)}»</p>
+        <pre class="lesson__code mono">${escapeHtml(previousSource)}</pre>
+        <p class="task__evolution-label">Что изменилось в редакторе</p>
+        ${diffHtml(previousSource, editor.getValue())}`;
+  });
+
+  root.querySelector('#restore-previous')?.addEventListener('click', () => {
+    editor.setValue(previousSource);
+    saveDraft(quest.id, previousSource);
+    showReport('<p class="report__note">Предыдущая версия возвращена в редактор. Рабочий код корпорации не менялся.</p>');
   });
 
   root.querySelector('#reveal').addEventListener('click', () => {

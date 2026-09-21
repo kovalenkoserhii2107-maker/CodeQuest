@@ -3,6 +3,7 @@
  * режиме (без воркера), если страницу открыли не через сервер.
  */
 import { runQuestTests, runPlayerCode, runConsoleInput } from './runner-core.js';
+import { testsOf } from './data/quests.js';
 
 const TIMEOUT_MS = 3000;
 
@@ -41,7 +42,7 @@ export function runSolution(source, quest) {
   if (!active) {
     // Запасной путь: выполняем в основном потоке. Бесконечный цикл здесь
     // прервать нельзя, поэтому интерфейс предупреждает об этом отдельно.
-    return runQuestTests(source, { fn: quest.fn, tests: quest.tests });
+    return runQuestTests(source, { fn: quest.fn, tests: testsOf(quest) });
   }
 
   const id = nextId++;
@@ -68,7 +69,7 @@ export function runSolution(source, quest) {
       cleanup();
       workerBroken = true;
       worker = null;
-      runQuestTests(source, { fn: quest.fn, tests: quest.tests }).then(resolve);
+      runQuestTests(source, { fn: quest.fn, tests: testsOf(quest) }).then(resolve);
     }
 
     function cleanup() {
@@ -79,7 +80,7 @@ export function runSolution(source, quest) {
 
     active.addEventListener('message', onMessage);
     active.addEventListener('error', onError);
-    active.postMessage({ id, kind: 'tests', source, quest: { fn: quest.fn, tests: quest.tests } });
+    active.postMessage({ id, kind: 'tests', source, quest: { fn: quest.fn, tests: testsOf(quest) } });
   });
 }
 

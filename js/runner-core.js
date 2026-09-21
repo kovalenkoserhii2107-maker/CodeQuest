@@ -6,6 +6,25 @@ import { Database } from './db.js';
  * Один и тот же модуль используют воркер игры и автотесты из tests/.
  */
 
+/**
+ * Сравнение по включению: все поля ожидаемого совпадают, лишние допускаются.
+ *
+ * Так проверяется прежнее поведение доработанной функции. Она вправе вернуть
+ * новые поля — важно, что старые остались теми же.
+ */
+export function matchesSubset(expected, actual) {
+  if (expected === null || typeof expected !== 'object') return deepEqual(expected, actual);
+  if (actual === null || typeof actual !== 'object') return false;
+  if (Array.isArray(expected) !== Array.isArray(actual)) return false;
+
+  if (Array.isArray(expected)) {
+    if (expected.length !== actual.length) return false;
+    return expected.every((item, index) => matchesSubset(item, actual[index]));
+  }
+
+  return Object.keys(expected).every(key => matchesSubset(expected[key], actual[key]));
+}
+
 /** Глубокое сравнение значений: числа, строки, массивы, простые объекты. */
 export function deepEqual(a, b) {
   if (Object.is(a, b)) return true;
@@ -75,10 +94,10 @@ function typeName(value) {
  *
  * @returns {string[]} до шести коротких объяснений
  */
-export function describeDifference(expected, actual, path = '') {
+export function describeDifference(expected, actual, path = '', subset = false) {
   const at = path ? `${path}: ` : '';
 
-  if (deepEqual(expected, actual)) return [];
+  if (subset ? matchesSubset(expected, actual) : deepEqual(expected, actual)) return [];
 
   // Разные типы — всё остальное объяснять бессмысленно
   if (typeName(expected) !== typeName(actual)) {
@@ -91,7 +110,7 @@ export function describeDifference(expected, actual, path = '') {
     }
     const out = [];
     for (let i = 0; i < expected.length; i += 1) {
-      out.push(...describeDifference(expected[i], actual[i], `${path}[${i}]`));
+      out.push(...describeDifference(expected[i], actual[i], `${path}[${i}]`, subset));
       if (out.length >= 6) break;
     }
     return out.slice(0, 6);
@@ -104,15 +123,18 @@ export function describeDifference(expected, actual, path = '') {
       if (!Object.prototype.hasOwnProperty.call(actual, key)) {
         out.push(`${at}нет поля ${key}`);
       } else {
-        out.push(...describeDifference(expected[key], actual[key], path ? `${path}.${key}` : key));
+        out.push(...describeDifference(expected[key], actual[key], path ? `${path}.${key}` : key, subset));
       }
       if (out.length >= 6) break;
     }
 
-    for (const key of Object.keys(actual)) {
-      if (out.length >= 6) break;
-      if (!Object.prototype.hasOwnProperty.call(expected, key)) {
-        out.push(`${at}лишнее поле ${key}`);
+    // При проверке прежнего поведения новые поля — это норма, а не ошибка
+    if (!subset) {
+      for (const key of Object.keys(actual)) {
+        if (out.length >= 6) break;
+        if (!Object.prototype.hasOwnProperty.call(expected, key)) {
+          out.push(`${at}лишнее поле ${key}`);
+        }
       }
     }
 
@@ -182,26 +204,33 @@ const silentConsole = { log() {}, info() {}, warn() {}, error() {} };
  * Запускает выражение на коде игрока — так работают приборы Мостика.
  * Возвращает либо значение, либо текст ошибки, но никогда не бросает.
  *
- * @param {string} source код игрока
- * @param {string} fnName имя функции или класса, которое ждёт выражение
- * @param {string} expr тело функции; внутри доступно объявление fnName
+ * Выражение выполняется в той же области видимости, где объявлены функции
+ * игрока. Благодаря этому одна его функция может вызвать другую: раньше
+ * выражение видело ровно одно объявление и было отрезано от остальных.
+ *
+ * @param {string} source код игрока — все его рабочие функции
+ * @param {string} fnName имя функции, наличие которой обязательно
+ * @param {string} expr тело функции; внутри доступны все объявления source
  */
 export async function runPlayerCode(source, fnName, expr) {
-  let target;
+  let run;
   try {
-    target = buildTarget(source, fnName, silentConsole);
+    run = new Function(
+      'console',
+      `"use strict";\n${source}\n;` +
+      `if (typeof ${fnName} === "undefined") throw new ReferenceError("нет объявления ${fnName}");\n` +
+      `return (async () => {\n${expr}\n})();`,
+    );
   } catch (error) {
     return { value: null, error: `Код не запустился: ${error.message}` };
   }
 
-  if (target === undefined) {
-    return { value: null, error: `В коде нет объявления с именем ${fnName}` };
-  }
-
   try {
-    const run = new Function(fnName, `"use strict";\n${expr}`);
-    return { value: await run(target), error: null };
+    return { value: await run(silentConsole), error: null };
   } catch (error) {
+    if (error instanceof ReferenceError && error.message.startsWith('нет объявления')) {
+      return { value: null, error: `В коде нет объявления с именем ${fnName}` };
+    }
     return { value: null, error: `${error.name}: ${error.message}` };
   }
 }
@@ -249,11 +278,13 @@ export async function runQuestTests(source, quest) {
       } else {
         actual = await target(...cloneArgs(test.args));
       }
-      const pass = deepEqual(actual, test.expected);
+      const pass = test.subset ? matchesSubset(test.expected, actual) : deepEqual(actual, test.expected);
       results.push({
         name: test.name,
         call: label,
         callPretty: test.expr ? test.expr : describeCallPretty(quest.fn, test),
+        // Проверка прежнего поведения: пришла с прошлого этапа функции
+        inherited: Boolean(test.inherited),
         pass,
         expected: formatValue(test.expected),
         actual: formatValue(actual),
@@ -261,7 +292,7 @@ export async function runQuestTests(source, quest) {
         // формат нужен, чтобы сравнивать их глазами строка за строкой
         expectedPretty: prettyValue(test.expected, !pass),
         actualPretty: prettyValue(actual, !pass),
-        diff: pass ? [] : describeDifference(test.expected, actual),
+        diff: pass ? [] : describeDifference(test.expected, actual, '', Boolean(test.subset)),
         error: null,
       });
     } catch (error) {
@@ -269,6 +300,7 @@ export async function runQuestTests(source, quest) {
         name: test.name,
         call: label,
         callPretty: test.expr ? test.expr : describeCallPretty(quest.fn, test),
+        inherited: Boolean(test.inherited),
         pass: false,
         expected: formatValue(test.expected),
         actual: null,

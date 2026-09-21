@@ -13,7 +13,11 @@ import {
   state, resetProgress, spendCredits, refundCredits, addInventoryItem,
   salvagePrice, SALVAGE_RATE, installModule, uninstallModule, sellStockModule,
   stockModules, fittedModules, stockUsedSpace,
+  addResource, spendResource, resources, fuelLog, TANK_CAPACITY,
+  completeQuest, activeSourceOf, activeStageOf, previousStageOf, appSource, liveFunctions,
 } from '../js/state.js';
+import { questById, stageChain, testsOf } from '../js/data/quests.js';
+import { runQuestTests } from '../js/runner-core.js';
 
 let failures = 0;
 const check = (ok, message, extra = '') => {
@@ -249,8 +253,66 @@ check(
 check(sellStockModule('нет-такого') === null, 'несуществующий модуль не сдаётся');
 check(state.credits === refund, 'неудачная сдача не начисляет денег');
 
+/* --- Журнал топлива ------------------------------------------------------ */
+
+resetProgress();
+check(fuelLog().length === 0, 'журнал топлива новой корпорации пуст');
+
+addResource('fuel', 200);
+spendResource('fuel', 154);
+
+const ledger = fuelLog();
+check(ledger.length === 2, 'заправка и рейс оставляют по записи');
+check(ledger[0].kind === 'fill' && ledger[0].amount === 200, 'заправка записана приходом');
+check(ledger[1].kind === 'burn' && ledger[1].amount === 154, 'рейс записан расходом');
+check(ledger.every(entry => typeof entry.at === 'string' && entry.note), 'у записи есть время и пояснение');
+
+const balance = ledger.reduce((left, e) => left + (e.kind === 'fill' ? e.amount : -e.amount), 0);
+check(balance === resources().fuel, 'остаток по журналу совпадает с баком');
+
+check(addResource('fuel', TANK_CAPACITY * 2) === TANK_CAPACITY - 46, 'сверх бака не принимается');
+check(fuelLog()[2].amount === TANK_CAPACITY - 46, 'в журнал идёт залитое по факту, а не запрошенное');
+
+check(spendResource('fuel', TANK_CAPACITY * 2) === false, 'списание сверх бака отклоняется');
+check(fuelLog().length === 3, 'несостоявшийся расход в журнал не попадает');
+
+check(fuelLog() !== fuelLog(), 'журнал отдаётся копией');
+fuelLog().push({ kind: 'fill', amount: 999 });
+check(fuelLog().length === 3, 'снаружи журнал не дописать');
+
+/* --- Версии одной функции ------------------------------------------------ */
+
+resetProgress();
+const [first, second, third] = stageChain('planFlight');
+check(Boolean(first && second && third), 'у planFlight три этапа развития');
+
+check(activeSourceOf('planFlight') === null, 'пока ничего не решено, рабочей версии нет');
+
+completeQuest(first.id, { source: first.solution });
+check(activeStageOf('planFlight')?.id === first.id, 'рабочей стала версия первого этапа');
+check(previousStageOf(first.id) === null, 'у первого этапа предыдущей версии нет');
+
+completeQuest(second.id, { source: second.solution });
+check(activeSourceOf('planFlight') === second.solution, 'после доработки работает новая версия');
+check(previousStageOf(second.id)?.id === first.id, 'предыдущая версия доступна для сравнения');
+check((appSource().match(/function planFlight/g) ?? []).length === 1,
+  'в приложении ровно одно объявление planFlight');
+
+completeQuest('expedition', { source: questById('expedition').solution });
+check(liveFunctions().length === 2, 'в приложении две работающие функции');
+check((appSource().match(/function /g) ?? []).length === 2, 'на каждое имя — по одной версии');
+
+const staleRun = await runQuestTests(first.solution, { fn: second.fn, tests: testsOf(second) });
+check(staleRun.ok === false, 'код прошлого этапа не проходит проверки доработки');
+
+const freshRun = await runQuestTests(second.solution, { fn: second.fn, tests: testsOf(second) });
+check(freshRun.ok === true, 'доработанный код проходит и новые проверки, и прежние');
+check(freshRun.results.filter(result => result.inherited).length === first.tests.length,
+  'проверки прежнего поведения помечены отдельно');
+
 resetProgress();
 check(state.inventory.length === 0 && state.fitted.length === 0, 'сброс очищает и склад, и корабль');
+check(fuelLog().length === 0 && activeSourceOf('planFlight') === null, 'сброс очищает журнал и версии функций');
 
 console.log(failures === 0 ? '\nЭкономика: все проверки пройдены' : `\nЭкономика: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);
