@@ -8,6 +8,7 @@ import { PlayerState } from '../js/player.js';
 import { Warehouse } from '../js/warehouse.js';
 import { Shipyard } from '../js/shipyard.js';
 import { LaborExchange, CrewMember } from '../js/crew.js';
+import { powerEfficiency, powerPercent, underPower } from '../js/ui/corp.js';
 import {
   state, resetProgress, spendCredits, refundCredits, addInventoryItem,
   removeInventoryItem, salvagePrice, SALVAGE_RATE,
@@ -91,6 +92,32 @@ addInventoryItem({ name: 'Проверка', weight: 1 });
 check(state.inventory.length === 1, 'инвентарь пополняется');
 resetProgress();
 check(state.inventory.length === 0 && state.crew.length === 0, 'сброс очищает склад и экипаж');
+
+/* --- Питание модулей ------------------------------------------------------ */
+
+/*
+ * Нехватка энергии делится между всеми потребителями поровну: буры
+ * крутятся медленнее, орудия бьют слабее. До этого отрицательный баланс
+ * ни на что не влиял, и игрок не понимал, зачем за ним следить.
+ */
+const power = list => powerEfficiency(list.map(energy => ({ energy })));
+
+check(power([120, -60, -40]) === 1, 'при достатке энергии КПД полный');
+check(power([]) === 1, 'пустому кораблю терять нечего');
+check(power([120]) === 1, 'реактор без потребителей не снижает КПД');
+check(power([-60, -40]) === 0, 'без реактора модули стоят');
+check(Math.abs(power([120, -60, -40, -30, -50, -90]) - 120 / 270) < 1e-9, 'КПД равен отношению выработки к потреблению');
+check(power([300, -60, -40]) === 1, 'избыток энергии не даёт КПД выше единицы');
+check(powerPercent([{ energy: 120 }, { energy: -270 }]) === 44, 'КПД показывается целыми процентами');
+check(powerEfficiency('не массив') === 1, 'мусор вместо модулей не роняет расчёт');
+check(powerEfficiency([null, { energy: 'нечисло' }]) === 1, 'нечисловая энергия игнорируется');
+
+check(underPower(3, 1) === 3, 'при полном питании значение не меняется');
+check(underPower(3, 120 / 270) === 1, 'бур на 44% питания даёт треть выработки');
+check(underPower(40, 120 / 270) === 18, 'атака падает пропорционально питанию');
+check(underPower(40, 0) === 0, 'без питания модуль мёртв');
+check(underPower(0, 1) === 0, 'нечему падать, если исходно ноль');
+check(underPower(3, 0.01) === 1, 'работающий модуль не обнуляется округлением');
 
 /* --- Баланс каталога ------------------------------------------------------ */
 

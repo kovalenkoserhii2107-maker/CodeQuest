@@ -16,7 +16,9 @@ import { escapeHtml, showValue } from './ui/html.js';
 import { fillBar, balanceBar, gauge, barChart } from './ui/charts.js';
 import { shipSchematic } from './ui/shipview.js';
 import { moduleArt } from './data/module-art.js';
-import { commanderName, shipyardName, shipName, warehouseCapacity, warehouse } from './ui/corp.js';
+import {
+  commanderName, shipyardName, shipName, warehouseCapacity, warehouse, powerPercent,
+} from './ui/corp.js';
 import { renderRoutes, renderExpedition, renderMarket } from './ui/mission.js';
 import { renderArsenal, renderRange, renderBattle } from './ui/combat.js';
 
@@ -413,9 +415,18 @@ export async function renderShip() {
     ${balanceBar({ value: energy, max: Math.max(produced, Math.abs(consumed), 1), label: 'Энергобаланс' })}
     <div class="widget__row"><span>Выработка</span><b class="mono is-ok">+${produced}</b></div>
     <div class="widget__row"><span>Потребление</span><b class="mono">${consumed}</b></div>
+    <div class="widget__row">
+      <span>Модули работают на</span>
+      <b class="mono ${powerPercent(modules) < 100 ? 'is-danger' : 'is-ok'}">${powerPercent(modules)}%</b>
+    </div>
     <div class="widget__row"><span>Модулей в сборке</span><b class="mono">${escapeHtml(showValue(value?.count))}</b></div>
     ${corpRecord('ship') ? `<p class="widget__note">В базе корпорации: «${escapeHtml(showValue(corpRecord('ship').name))}», ${escapeHtml(showValue(corpRecord('ship').mass))} т</p>` : ''}
-    ${energy < 0 ? '<p class="widget__note">Потребление выше выработки — нужен реактор.</p>' : ''}`;
+    ${
+      energy < 0
+        ? `<p class="widget__note">Потребление выше выработки: питание делится поровну, и все модули `
+          + `работают на ${powerPercent(modules)}%. Буры добывают меньше, орудия и щит слабее.</p>`
+        : ''
+    }`;
 
   if (scheme) scheme.innerHTML = shipSchematic(modules, { name: showValue(value?.name) });
 
