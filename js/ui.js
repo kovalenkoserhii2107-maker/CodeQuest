@@ -8,6 +8,7 @@ import { LaborExchange } from './crew.js';
 import {
   state, subscribe, isSolved, refundCredits, spendCredits,
   addCrewMember, addLog, solvedCount, totalCount, corpRecord,
+  removeInventoryItem, salvagePrice,
 } from './state.js';
 import { runPlayerCode, errorPanel } from './ui/sim.js';
 import { renderPanelCards } from './ui/dbview.js';
@@ -107,6 +108,13 @@ export async function renderShipyard() {
   const modules = Array.isArray(value?.modules) ? value.modules : [];
   if (source) source.textContent = `верфь «${showValue(value?.name)}» · ${modules.length} модулей`;
 
+  // Что уже стоит на складе: покупка меняет и массу, и энергобаланс,
+  // а раньше об этом становилось известно только в разделе «Корабль»
+  const owned = warehouse().items;
+  const usedSpace = owned.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+  const balance = owned.reduce((sum, item) => sum + (Number(item.energy) || 0), 0);
+  const capacity = warehouseCapacity();
+
   host.innerHTML = modules
     .map(
       module => `
@@ -123,6 +131,12 @@ export async function renderShipyard() {
             <div class="widget__row"><span>Масса</span><b class="mono">${escapeHtml(showValue(module.weight))} т</b></div>
             <div class="widget__row"><span>Энергия</span><b class="mono">${module.energy > 0 ? '+' : ''}${escapeHtml(showValue(module.energy))}</b></div>
           </div>
+          <p class="widget__note">
+            После покупки: ${usedSpace + (Number(module.weight) || 0)} / ${capacity} т,
+            энергобаланс <b class="mono ${balance + (Number(module.energy) || 0) < 0 ? 'is-danger' : 'is-ok'}">${
+              balance + (Number(module.energy) || 0) > 0 ? '+' : ''
+            }${balance + (Number(module.energy) || 0)}</b>
+          </p>
           <footer class="widget__foot">
             <code class="mono widget__call">findModule("${escapeHtml(showValue(module.id))}")</code>
             <button class="btn btn--primary btn--sm" type="button" data-module="${escapeHtml(showValue(module.id))}">Купить</button>
@@ -220,7 +234,7 @@ export async function renderWarehouse() {
         ? '<p class="empty-state">Склад пуст. Купите модуль на верфи.</p>'
         : `<div class="table-wrap">
              <table class="table">
-               <thead><tr><th>Модуль</th><th>Тип</th><th>Масса</th><th>Энергия</th></tr></thead>
+               <thead><tr><th>Модуль</th><th>Тип</th><th>Масса</th><th>Энергия</th><th></th></tr></thead>
                <tbody>
                  ${items
                    .map(item => `
@@ -234,12 +248,38 @@ export async function renderWarehouse() {
                        <td>${escapeHtml(showValue(item.type))}</td>
                        <td class="table__num">${escapeHtml(showValue(item.weight))} т</td>
                        <td class="table__num">${item.energy > 0 ? '+' : ''}${escapeHtml(showValue(item.energy))}</td>
+                       <td class="table__num">
+                         <button class="btn btn--ghost btn--sm" type="button"
+                                 data-salvage="${escapeHtml(showValue(item.uniqueId))}"
+                                 title="Снять модуль и вернуть часть денег">
+                           Снять · +${salvagePrice(item).toLocaleString()} ¢
+                         </button>
+                       </td>
                      </tr>`)
                    .join('')}
                </tbody>
              </table>
            </div>`
-    }`;
+    }
+    ${items.length ? '<p class="widget__note">Верфь выкупает снятые модули за 60% цены — так можно исправить неудачную закупку.</p>' : ''}`;
+
+  for (const button of host.querySelectorAll('[data-salvage]')) {
+    button.addEventListener('click', () => salvageModule(button.dataset.salvage, button));
+  }
+}
+
+/** Демонтаж: модуль уходит со склада, часть денег возвращается. */
+function salvageModule(uniqueId, button) {
+  button.disabled = true;
+
+  const refund = removeInventoryItem(uniqueId);
+  if (refund === null) {
+    button.disabled = false;
+    toast('Модуль на складе не найден');
+    return;
+  }
+
+  toast(`Модуль снят, возвращено ${refund.toLocaleString()} ¢`);
 }
 
 /* --- Экипаж -------------------------------------------------------------- */

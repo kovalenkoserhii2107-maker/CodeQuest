@@ -8,7 +8,10 @@ import { PlayerState } from '../js/player.js';
 import { Warehouse } from '../js/warehouse.js';
 import { Shipyard } from '../js/shipyard.js';
 import { LaborExchange, CrewMember } from '../js/crew.js';
-import { state, resetProgress, spendCredits, refundCredits, addInventoryItem } from '../js/state.js';
+import {
+  state, resetProgress, spendCredits, refundCredits, addInventoryItem,
+  removeInventoryItem, salvagePrice, SALVAGE_RATE,
+} from '../js/state.js';
 
 let failures = 0;
 const check = (ok, message, extra = '') => {
@@ -88,6 +91,53 @@ addInventoryItem({ name: 'Проверка', weight: 1 });
 check(state.inventory.length === 1, 'инвентарь пополняется');
 resetProgress();
 check(state.inventory.length === 0 && state.crew.length === 0, 'сброс очищает склад и экипаж');
+
+/* --- Демонтаж модулей ----------------------------------------------------- */
+
+/*
+ * Без демонтажа ошибку в закупке нельзя исправить: склад можно забить
+ * потребителями так, что реактор уже не влезает, и корабль навсегда
+ * остаётся с отрицательным энергобалансом.
+ */
+resetProgress();
+
+const catalog = new Shipyard().getCatalog();
+const spec = id => catalog.find(module => module.id === id);
+const reactorSpec = spec('mod-reactor-1');
+const railgunSpec = spec('mod-railgun-1');
+
+check(salvagePrice(reactorSpec) === Math.round(reactorSpec.price * SALVAGE_RATE), 'возврат считается от цены модуля');
+check(salvagePrice(null) === 0, 'за пустоту ничего не возвращают');
+check(salvagePrice({}) === 0, 'модуль без цены не приносит денег');
+
+// Забиваем склад так, что реактор уже не влезает
+for (const [id, count] of [['mod-railgun-1', 2], ['mod-engine-1', 2], ['mod-drill-1', 1]]) {
+  for (let i = 0; i < count; i += 1) {
+    addInventoryItem({ ...spec(id), uniqueId: `${id}-${i}` });
+  }
+}
+
+const trapped = new Warehouse(1000);
+check(trapped.getUsedSpace() === 920, 'склад забит потребителями под завязку');
+check(trapped.getUsedSpace() + reactorSpec.weight > trapped.capacity, 'реактор в такой склад уже не помещается');
+
+state.credits = 0;
+const refund = removeInventoryItem('mod-railgun-1-0');
+
+check(refund === salvagePrice(railgunSpec), 'демонтаж возвращает долю стоимости');
+check(state.credits === refund, 'возврат зачисляется на счёт');
+check(state.inventory.every(item => item.uniqueId !== 'mod-railgun-1-0'), 'снятый модуль уходит со склада');
+check(new Warehouse(1000).getUsedSpace() === 920 - railgunSpec.weight, 'место на складе освобождается');
+check(
+  new Warehouse(1000).getUsedSpace() + reactorSpec.weight <= 1000,
+  'после демонтажа реактор помещается — из тупика есть выход',
+);
+
+check(removeInventoryItem('нет-такого') === null, 'несуществующий модуль не снимается');
+check(state.credits === refund, 'неудачный демонтаж не начисляет денег');
+
+resetProgress();
+check(state.inventory.length === 0, 'сброс очищает склад после демонтажа');
 
 console.log(failures === 0 ? '\nЭкономика: все проверки пройдены' : `\nЭкономика: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

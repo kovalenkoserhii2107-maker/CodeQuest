@@ -371,6 +371,38 @@ export function addInventoryItem(item) {
   emit();
 }
 
+/** Доля стоимости, которую верфь возвращает за снятый модуль. */
+export const SALVAGE_RATE = 0.6;
+
+/** Сколько вернут за демонтаж этого модуля. */
+export function salvagePrice(item) {
+  return Math.round((Number(item?.price) || 0) * SALVAGE_RATE);
+}
+
+/**
+ * Снять модуль со склада и вернуть часть денег.
+ *
+ * Без этого ошибку в закупке нельзя было исправить: корабль с отрицательным
+ * энергобалансом оставался таким навсегда, а место на складе — занятым.
+ *
+ * @returns {number|null} сколько кредитов вернули, либо null, если модуля нет
+ */
+export function removeInventoryItem(uniqueId) {
+  if (!state.inventory) state.inventory = [];
+
+  const index = state.inventory.findIndex(item => item.uniqueId === uniqueId);
+  if (index === -1) return null;
+
+  const [removed] = state.inventory.splice(index, 1);
+  const refund = salvagePrice(removed);
+
+  state.credits += refund;
+  addLog(`Модуль «${removed.name}» снят, верфь вернула ${refund.toLocaleString()} ¢`, 'info');
+  emit();
+
+  return refund;
+}
+
 /* --- Ресурсы: топливо и руда --------------------------------------------- */
 
 /** Ёмкости хранилищ космопорта, в тоннах. */

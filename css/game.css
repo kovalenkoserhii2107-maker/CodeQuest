@@ -1132,8 +1132,12 @@
   color: var(--color-dim);
 }
 
-.chart .is-ok { color: var(--color-ok); }
-.chart .is-danger { color: var(--color-danger); }
+/*
+ * Общие пометки «хорошо / плохо». Раньше они действовали только внутри
+ * графиков, поэтому в разделах те же классы ничего не красили.
+ */
+.is-ok { color: var(--color-ok); }
+.is-danger { color: var(--color-danger); }
 
 /* --- Полоса заполненности --- */
 
