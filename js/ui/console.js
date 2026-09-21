@@ -20,6 +20,7 @@ import { ThreatLog } from '../enemy.js';
 import { runConsole } from '../runner.js';
 import { assembledShip, powerEfficiency, underPower } from './corp.js';
 import { fittedModules, stockModules, stockUsedSpace } from '../state.js';
+import { battleShip } from './combat.js';
 import { escapeHtml } from './html.js';
 
 const shipyard = new Shipyard();
@@ -68,19 +69,23 @@ function expeditionInput() {
 }
 
 /**
- * Боевой корабль для консоли: атаку и щит берём из последней сводки,
- * которую игрок сам положил в базу своей combatStats.
+ * Боевой корабль для консоли.
+ *
+ * Атаку и щит считает функция игрока по установленным модулям — так же,
+ * как раздел «Арсенал». Брать их из последней записи в базе нельзя:
+ * запись устаревает, как только модуль сняли или поставили, и корабль
+ * с новым орудием продолжал бы числиться безоружным.
  */
-function battleShipInput(ship) {
+async function battleShipInput(ship) {
   if (!ship) return null;
 
-  const arsenal = db.last('arsenals');
-  const efficiency = powerEfficiency(fittedModules());
+  const live = await battleShip();
+  if (live.error || !live.value) return null;
 
   return {
-    name: ship.name,
-    attack: underPower(Number(arsenal?.attack) || 0, efficiency),
-    shield: underPower(Number(arsenal?.shield) || 0, efficiency),
+    name: ship.name ?? live.value.name,
+    attack: live.value.attack,
+    shield: live.value.shield,
     hull: Math.max(40, Math.round((Number(ship.mass) || 0) / 2)),
   };
 }
@@ -114,7 +119,7 @@ async function corpData() {
 
   return {
     corp: {
-      battleShip: battleShipInput(ship),
+      battleShip: await battleShipInput(ship),
       threats: threatLog.getThreats(),
       targets: threatLog.getTargets(),
       ore: resources().ore,

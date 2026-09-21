@@ -545,9 +545,14 @@ export async function renderFlight() {
     return;
   }
 
+  // Диспетчеру важен итоговый баланс, а не паспортная сумма модулей:
+  // тяга тоже ест энергию, и без её учёта допуск выдавался бы зря
+  const draw = thrustDraw(modules);
+  const forCheck = { ...assembled.value, energy: (Number(assembled.value?.energy) || 0) - draw };
+
   const { value, error } = await runPlayerCode(
     'preflight',
-    `return checkReadiness(${json(assembled.value)}, ${json(crew)});`,
+    `return checkReadiness(${json(forCheck)}, ${json(crew)});`,
   );
 
   if (error) {
@@ -592,7 +597,9 @@ export async function renderFlight() {
         : '<p class="widget__note">Все проверки пройдены: двигатель на месте, энергии хватает, капитан в экипаже.</p>'
     }
 
-    ${balanceBar({ value: Number(assembled.value?.energy) || 0, max: 200, label: 'Энергобаланс' })}
+    ${balanceBar({ value: forCheck.energy, max: 200, label: 'Энергобаланс с учётом тяги' })}
+    <div class="widget__row"><span>Модули потребляют</span><b class="mono">${escapeHtml(showValue(assembled.value?.energy))}</b></div>
+    <div class="widget__row"><span>Уходит на тягу</span><b class="mono">-${draw}</b></div>
     <div class="widget__row"><span>Масса</span><b class="mono">${escapeHtml(showValue(assembled.value?.mass))} т</b></div>
     <div class="widget__row"><span>Экипаж</span><b class="mono">${crew.length} чел.</b></div>`;
 }
