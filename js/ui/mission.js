@@ -12,7 +12,7 @@ import {
   TANK_CAPACITY, ORE_CAPACITY, CARGO_HOLD, FUEL_PRICE, db,
 } from '../state.js';
 import { runPlayerCode, errorPanel } from './sim.js';
-import { assembledShip, drillCount, shipName } from './corp.js';
+import { assembledShip, drillCount, shipName, warehouse, powerEfficiency, powerPercent, underPower } from './corp.js';
 import { escapeHtml, showValue } from './html.js';
 import { fillBar, barChart } from './charts.js';
 
@@ -62,7 +62,11 @@ export async function renderRoutes() {
     <div class="grid grid--split">
       <div>
         <div class="widget__row"><span>Корабль</span><b class="mono">«${escapeHtml(showValue(ship.value?.name))}», ${mass} т</b></div>
-        <div class="widget__row"><span>Буров на борту</span><b class="mono">${drillCount()}</b></div>
+            <div class="widget__row"><span>Буров на борту</span><b class="mono">${drillCount()}</b></div>
+        <div class="widget__row">
+          <span>Питание</span>
+          <b class="mono ${powerPercent(warehouse().items) < 100 ? 'is-danger' : 'is-ok'}">${powerPercent(warehouse().items)}%</b>
+        </div>
       </div>
       <div>
         <div class="widget__row"><span>Трюм корабля</span><b class="mono">${CARGO_HOLD} т</b></div>
@@ -178,10 +182,18 @@ async function expeditionInput() {
   const planned = await runPlayerCode('plan', `return planFlight(${json({ mass })}, ${route.distance});`);
   if (planned.error) return { error: planned.error };
 
+  // При нехватке энергии буры работают вполсилы: жила та же, а выработка ниже
+  const efficiency = powerEfficiency(warehouse().items);
+
   return {
     route,
+    efficiency,
     ship: { drills: drillCount(), fuel: resources().fuel, cargo: CARGO_HOLD },
-    plan: { ...planned.value, richness: route.richness, name: route.name },
+    plan: {
+      ...planned.value,
+      richness: underPower(route.richness, efficiency),
+      name: route.name,
+    },
   };
 }
 
@@ -197,9 +209,10 @@ export async function renderExpedition() {
     return;
   }
 
-  const { route, ship, plan } = input;
+  const { route, ship, plan, efficiency } = input;
   const enough = ship.fuel >= plan.fuel;
   const ore = resources().ore;
+  const percent = Math.round(efficiency * 100);
 
   launch.innerHTML = `
     <div class="panel__head">
@@ -222,6 +235,16 @@ export async function renderExpedition() {
     <div class="widget__row"><span>Нужно на рейс</span><b class="mono">${escapeHtml(showValue(plan.fuel))} т</b></div>
     <div class="widget__row"><span>Часов в пути</span><b class="mono">${escapeHtml(showValue(plan.hours))}</b></div>
     <div class="widget__row"><span>Буров на борту</span><b class="mono">${ship.drills}</b></div>
+    <div class="widget__row">
+      <span>Питание</span>
+      <b class="mono ${percent < 100 ? 'is-danger' : 'is-ok'}">${percent}%</b>
+    </div>
+    <div class="widget__row">
+      <span>Добыча с бура</span>
+      <b class="mono">${escapeHtml(showValue(plan.richness))} т/ч${
+        plan.richness < route.richness ? ` <small>вместо ${route.richness}</small>` : ''
+      }</b>
+    </div>
     <div class="widget__row"><span>Трюм</span><b class="mono">${ship.cargo} т</b></div>
     ${fillBar({ value: ore, max: ORE_CAPACITY, label: 'Руды в бункере', unit: 'т' })}
 
@@ -232,7 +255,13 @@ export async function renderExpedition() {
       ${enough ? '' : '<a class="btn btn--ghost btn--sm" href="#/routes">Заправиться</a>'}
       ${ship.drills === 0 ? '<a class="btn btn--ghost btn--sm" href="#/shipyard">Купить бур</a>' : ''}
     </div>
-    ${ship.drills === 0 ? '<p class="widget__note">Без бура рейс пройдёт впустую: добывать нечем.</p>' : ''}`;
+    ${ship.drills === 0 ? '<p class="widget__note">Без бура рейс пройдёт впустую: добывать нечем.</p>' : ''}
+    ${
+      percent < 100
+        ? `<p class="widget__note">Энергии не хватает: модули работают на ${percent}%. `
+          + 'Снимите потребителя на складе или поставьте реактор помощнее.</p>'
+        : ''
+    }`;
 
   report.innerHTML = lastFlight ?? `
     <div class="panel__head"><h3 class="panel__title">Отчёт о рейсе</h3></div>

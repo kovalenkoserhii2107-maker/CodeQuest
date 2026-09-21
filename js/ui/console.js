@@ -18,7 +18,7 @@ import { RouteBook } from '../routes.js';
 import { Market } from '../market.js';
 import { ThreatLog } from '../enemy.js';
 import { runConsole } from '../runner.js';
-import { assembledShip } from './corp.js';
+import { assembledShip, powerEfficiency, underPower } from './corp.js';
 import { escapeHtml } from './html.js';
 
 const shipyard = new Shipyard();
@@ -48,13 +48,21 @@ function expeditionInput() {
 
   const route = routeBook.getRoutes().find(item => item.distance === plan.distance) ?? routeBook.getRoutes()[0];
 
+  // Питание урезает добычу так же, как в разделе «Экспедиция»:
+  // консоль и интерфейс обязаны считать одинаково
+  const efficiency = powerEfficiency(state.inventory);
+
   return {
     ship: {
       drills: state.inventory.filter(item => item.type === 'drill').length,
       fuel: resources().fuel,
       cargo: CARGO_HOLD,
     },
-    plan: { ...plan, richness: route?.richness ?? 3, name: route?.name ?? 'маршрут' },
+    plan: {
+      ...plan,
+      richness: underPower(route?.richness ?? 3, efficiency),
+      name: route?.name ?? 'маршрут',
+    },
   };
 }
 
@@ -66,10 +74,12 @@ function battleShipInput(ship) {
   if (!ship) return null;
 
   const arsenal = db.last('arsenals');
+  const efficiency = powerEfficiency(state.inventory);
+
   return {
     name: ship.name,
-    attack: Number(arsenal?.attack) || 0,
-    shield: Number(arsenal?.shield) || 0,
+    attack: underPower(Number(arsenal?.attack) || 0, efficiency),
+    shield: underPower(Number(arsenal?.shield) || 0, efficiency),
     hull: Math.max(40, Math.round((Number(ship.mass) || 0) / 2)),
   };
 }

@@ -1386,7 +1386,16 @@ export const QUESTS = [
           const need = context?.corp?.expeditionPlan?.fuel ?? 0;
           return `Рейс не состоялся: в баке ${fuel} т, а нужно ${need} т. Заправьтесь в разделе «Маршруты»`;
         }
-        if (value.ore <= 0) return 'Рейс прошёл, но руды нет: купите бур на верфи — добывать нечем';
+        if (value.ore <= 0) {
+          const drills = context?.corp?.expeditionShip?.drills ?? 0;
+          const richness = context?.corp?.expeditionPlan?.richness ?? 0;
+
+          if (drills > 0 && richness <= 0) {
+            return 'Буры стоят без энергии: энергобаланс отрицательный, питания не хватает. '
+              + 'Снимите потребителя на складе или поставьте реактор помощнее';
+          }
+          return 'Рейс прошёл, но руды нет: купите бур на верфи — добывать нечем';
+        }
         if (typeof value.id !== 'number') return 'Отчёт не попал в базу: оберните результат в db.insert("expeditions", …)';
         return true;
       },
@@ -1853,7 +1862,8 @@ export const QUESTS = [
         }
         if (value.damage < 1) return 'Сквозь щит всегда проходит минимум 1 единица урона';
         if ((context?.corp?.battleShip?.attack ?? 0) === 0) {
-          return 'На корабле нет орудий: купите лазер или рельсотрон на верфи';
+          return 'Орудия молчат: либо их нет на борту, либо не хватает энергии. '
+            + 'Купите орудие на верфи и проверьте энергобаланс';
         }
         if (typeof value.id !== 'number') return 'Выстрел не попал в базу: оберните результат в db.insert("strikes", …)';
         return true;
@@ -2018,7 +2028,8 @@ export const QUESTS = [
         if (typeof value.winner !== 'string') return 'В отчёте нет строкового поля winner — передайте результат runBattle';
         if (typeof value.rounds !== 'number') return 'В отчёте нет числа раундов';
         if ((context?.corp?.battleShip?.attack ?? 0) === 0) {
-          return 'На корабле нет орудий: без них бой не выиграть — загляните на верфь';
+          return 'Орудия молчат: либо их нет на борту, либо не хватает энергии. '
+            + 'Проверьте арсенал и энергобаланс корабля';
         }
         if (value.winner !== 'ship') {
           return value.winner === 'enemy'

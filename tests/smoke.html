@@ -30,6 +30,7 @@
     import { Market } from '../js/market.js';
     import { ThreatLog } from '../js/enemy.js';
     import { Shipyard } from '../js/shipyard.js';
+    import { powerEfficiency, underPower } from '../js/ui/corp.js';
 
     const problems = [];
     const lines = [];
@@ -229,6 +230,42 @@
     );
     check(armedWin.value?.winner === 'ship', 'с рельсотроном крейсер выбивается');
     check(armedWin.value?.enemyHull === 0, 'у побеждённого противника корпус на нуле');
+
+    // --- Нехватка энергии бьёт по всем модулям ---
+
+    const starved = [
+      { type: 'reactor', energy: 120 },
+      { type: 'engine', energy: -60 },
+      { type: 'drill', energy: -40 },
+      { type: 'shield', energy: -30, shield: 25 },
+      { type: 'weapon', energy: -50, attack: 40 },
+      { type: 'weapon', energy: -90, attack: 95 },
+    ];
+    const starvedPower = powerEfficiency(starved);
+    check(Math.round(starvedPower * 100) === 44, 'перегруженный корабль работает на 44% питания');
+
+    // Рейс на недокормленном корабле привозит заметно меньше руды
+    const rich = await runConsole(expedition.solution,
+      `runExpedition({ drills: 1, fuel: 300, cargo: 150 }, { hours: 20, fuel: 104, richness: 3 })`, {});
+    const poor = await runConsole(expedition.solution,
+      `runExpedition({ drills: 1, fuel: 300, cargo: 150 }, { hours: 20, fuel: 104, richness: ${underPower(3, starvedPower)} })`, {});
+    check(rich.value?.ore === 60, 'при полном питании рейс привозит полный груз');
+    check(poor.value?.ore === 20, 'при нехватке энергии добыча падает втрое');
+
+    // И бой складывается иначе: орудия бьют слабее
+    const strongShip = { name: 'Сытый', attack: 135, shield: 25, hull: 420 };
+    const weakShip = {
+      name: 'Голодный',
+      attack: underPower(135, starvedPower),
+      shield: underPower(25, starvedPower),
+      hull: 420,
+    };
+    const cruiser = { name: 'Крейсер', attack: 80, shield: 45, hull: 260 };
+
+    const strongFight = await runConsole(battleQuest.solution, `runBattle(${JSON.stringify(strongShip)}, ${JSON.stringify(cruiser)})`, {});
+    const weakFight = await runConsole(battleQuest.solution, `runBattle(${JSON.stringify(weakShip)}, ${JSON.stringify(cruiser)})`, {});
+    check(strongFight.value?.winner === 'ship', 'сытый корабль побеждает крейсер');
+    check(weakFight.value?.rounds > strongFight.value?.rounds, 'голодному кораблю тот же бой даётся тяжелее');
 
     resetProgress();
     check(

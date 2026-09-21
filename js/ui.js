@@ -8,6 +8,7 @@ import { LaborExchange } from './crew.js';
 import {
   state, subscribe, isSolved, refundCredits, spendCredits,
   addCrewMember, addLog, solvedCount, totalCount, corpRecord,
+  removeInventoryItem, salvagePrice,
 } from './state.js';
 import { runPlayerCode, errorPanel } from './ui/sim.js';
 import { renderPanelCards } from './ui/dbview.js';
@@ -15,7 +16,9 @@ import { escapeHtml, showValue } from './ui/html.js';
 import { fillBar, balanceBar, gauge, barChart } from './ui/charts.js';
 import { shipSchematic } from './ui/shipview.js';
 import { moduleArt } from './data/module-art.js';
-import { commanderName, shipyardName, shipName, warehouseCapacity, warehouse } from './ui/corp.js';
+import {
+  commanderName, shipyardName, shipName, warehouseCapacity, warehouse, powerPercent,
+} from './ui/corp.js';
 import { renderRoutes, renderExpedition, renderMarket } from './ui/mission.js';
 import { renderArsenal, renderRange, renderBattle } from './ui/combat.js';
 
@@ -107,6 +110,13 @@ export async function renderShipyard() {
   const modules = Array.isArray(value?.modules) ? value.modules : [];
   if (source) source.textContent = `верфь «${showValue(value?.name)}» · ${modules.length} модулей`;
 
+  // Что уже стоит на складе: покупка меняет и массу, и энергобаланс,
+  // а раньше об этом становилось известно только в разделе «Корабль»
+  const owned = warehouse().items;
+  const usedSpace = owned.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+  const balance = owned.reduce((sum, item) => sum + (Number(item.energy) || 0), 0);
+  const capacity = warehouseCapacity();
+
   host.innerHTML = modules
     .map(
       module => `
@@ -123,6 +133,12 @@ export async function renderShipyard() {
             <div class="widget__row"><span>Масса</span><b class="mono">${escapeHtml(showValue(module.weight))} т</b></div>
             <div class="widget__row"><span>Энергия</span><b class="mono">${module.energy > 0 ? '+' : ''}${escapeHtml(showValue(module.energy))}</b></div>
           </div>
+          <p class="widget__note">
+            После покупки: ${usedSpace + (Number(module.weight) || 0)} / ${capacity} т,
+            энергобаланс <b class="mono ${balance + (Number(module.energy) || 0) < 0 ? 'is-danger' : 'is-ok'}">${
+              balance + (Number(module.energy) || 0) > 0 ? '+' : ''
+            }${balance + (Number(module.energy) || 0)}</b>
+          </p>
           <footer class="widget__foot">
             <code class="mono widget__call">findModule("${escapeHtml(showValue(module.id))}")</code>
             <button class="btn btn--primary btn--sm" type="button" data-module="${escapeHtml(showValue(module.id))}">Купить</button>
@@ -220,7 +236,7 @@ export async function renderWarehouse() {
         ? '<p class="empty-state">Склад пуст. Купите модуль на верфи.</p>'
         : `<div class="table-wrap">
              <table class="table">
-               <thead><tr><th>Модуль</th><th>Тип</th><th>Масса</th><th>Энергия</th></tr></thead>
+               <thead><tr><th>Модуль</th><th>Тип</th><th>Масса</th><th>Энергия</th><th></th></tr></thead>
                <tbody>
                  ${items
                    .map(item => `
@@ -234,12 +250,38 @@ export async function renderWarehouse() {
                        <td>${escapeHtml(showValue(item.type))}</td>
                        <td class="table__num">${escapeHtml(showValue(item.weight))} т</td>
                        <td class="table__num">${item.energy > 0 ? '+' : ''}${escapeHtml(showValue(item.energy))}</td>
+                       <td class="table__num">
+                         <button class="btn btn--ghost btn--sm" type="button"
+                                 data-salvage="${escapeHtml(showValue(item.uniqueId))}"
+                                 title="Снять модуль и вернуть часть денег">
+                           Снять · +${salvagePrice(item).toLocaleString()} ¢
+                         </button>
+                       </td>
                      </tr>`)
                    .join('')}
                </tbody>
              </table>
            </div>`
-    }`;
+    }
+    ${items.length ? '<p class="widget__note">Верфь выкупает снятые модули за 60% цены — так можно исправить неудачную закупку.</p>' : ''}`;
+
+  for (const button of host.querySelectorAll('[data-salvage]')) {
+    button.addEventListener('click', () => salvageModule(button.dataset.salvage, button));
+  }
+}
+
+/** Демонтаж: модуль уходит со склада, часть денег возвращается. */
+function salvageModule(uniqueId, button) {
+  button.disabled = true;
+
+  const refund = removeInventoryItem(uniqueId);
+  if (refund === null) {
+    button.disabled = false;
+    toast('Модуль на складе не найден');
+    return;
+  }
+
+  toast(`Модуль снят, возвращено ${refund.toLocaleString()} ¢`);
 }
 
 /* --- Экипаж -------------------------------------------------------------- */
@@ -373,9 +415,18 @@ export async function renderShip() {
     ${balanceBar({ value: energy, max: Math.max(produced, Math.abs(consumed), 1), label: 'Энергобаланс' })}
     <div class="widget__row"><span>Выработка</span><b class="mono is-ok">+${produced}</b></div>
     <div class="widget__row"><span>Потребление</span><b class="mono">${consumed}</b></div>
+    <div class="widget__row">
+      <span>Модули работают на</span>
+      <b class="mono ${powerPercent(modules) < 100 ? 'is-danger' : 'is-ok'}">${powerPercent(modules)}%</b>
+    </div>
     <div class="widget__row"><span>Модулей в сборке</span><b class="mono">${escapeHtml(showValue(value?.count))}</b></div>
     ${corpRecord('ship') ? `<p class="widget__note">В базе корпорации: «${escapeHtml(showValue(corpRecord('ship').name))}», ${escapeHtml(showValue(corpRecord('ship').mass))} т</p>` : ''}
-    ${energy < 0 ? '<p class="widget__note">Потребление выше выработки — нужен реактор.</p>' : ''}`;
+    ${
+      energy < 0
+        ? `<p class="widget__note">Потребление выше выработки: питание делится поровну, и все модули `
+          + `работают на ${powerPercent(modules)}%. Буры добывают меньше, орудия и щит слабее.</p>`
+        : ''
+    }`;
 
   if (scheme) scheme.innerHTML = shipSchematic(modules, { name: showValue(value?.name) });
 

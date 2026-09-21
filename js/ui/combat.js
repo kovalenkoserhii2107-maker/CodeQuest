@@ -9,7 +9,7 @@ import { ThreatLog } from '../enemy.js';
 import { Shipyard } from '../shipyard.js';
 import { state, addLog, db } from '../state.js';
 import { runPlayerCode, errorPanel } from './sim.js';
-import { assembledShip, warehouse } from './corp.js';
+import { assembledShip, warehouse, powerEfficiency, powerPercent, underPower } from './corp.js';
 import { escapeHtml, showValue } from './html.js';
 import { fillBar, barChart } from './charts.js';
 import { moduleArt } from '../data/module-art.js';
@@ -37,14 +37,24 @@ export async function battleShip() {
 
   const mass = Number(ship.value?.mass) || 0;
 
+  // Паспортные данные орудий и щитов — то, что посчитала функция игрока.
+  // В бой корабль идёт с поправкой на питание: недокормленные модули слабее.
+  const rated = {
+    attack: Number(stats.value?.attack) || 0,
+    shield: Number(stats.value?.shield) || 0,
+  };
+  const efficiency = powerEfficiency(modules);
+
   return {
     value: {
       name: ship.value?.name ?? 'Квест',
-      attack: Number(stats.value?.attack) || 0,
-      shield: Number(stats.value?.shield) || 0,
+      attack: underPower(rated.attack, efficiency),
+      shield: underPower(rated.shield, efficiency),
       // Прочность корпуса — половина массы: тяжёлый корабль держит дольше
       hull: Math.max(40, Math.round(mass / 2)),
       weapons: Array.isArray(stats.value?.weapons) ? stats.value.weapons : [],
+      rated,
+      efficiency,
     },
     error: null,
   };
@@ -64,7 +74,9 @@ export async function renderArsenal() {
     return;
   }
 
-  const { attack, shield, hull, weapons, name } = ship.value;
+  const { attack, shield, hull, weapons, name, rated, efficiency } = ship.value;
+  const percent = Math.round(efficiency * 100);
+  const starved = percent < 100;
   const combatModules = shipyard.getCatalog().filter(module => module.type === 'weapon' || module.type === 'shield');
   const owned = warehouse().items;
 
@@ -75,14 +87,29 @@ export async function renderArsenal() {
     </div>
     <div class="grid grid--split">
       <div>
-        <div class="widget__row"><span>Атака</span><b class="mono ${attack > 0 ? 'is-ok' : 'is-danger'}">${attack}</b></div>
-        <div class="widget__row"><span>Щит</span><b class="mono">${shield}</b></div>
+        <div class="widget__row">
+          <span>Атака</span>
+          <b class="mono ${attack > 0 ? 'is-ok' : 'is-danger'}">${attack}${starved ? ` <small>из ${rated.attack}</small>` : ''}</b>
+        </div>
+        <div class="widget__row">
+          <span>Щит</span>
+          <b class="mono">${shield}${starved ? ` <small>из ${rated.shield}</small>` : ''}</b>
+        </div>
       </div>
       <div>
         <div class="widget__row"><span>Прочность корпуса</span><b class="mono">${hull}</b></div>
-        <div class="widget__row"><span>Орудий на борту</span><b class="mono">${weapons.length}</b></div>
+        <div class="widget__row">
+          <span>Питание</span>
+          <b class="mono ${starved ? 'is-danger' : 'is-ok'}">${percent}%</b>
+        </div>
       </div>
     </div>
+    ${
+      starved
+        ? `<p class="widget__note">Энергии не хватает: орудия и щит работают на ${percent}%. `
+          + 'Снимите потребителя на складе или поставьте реактор помощнее.</p>'
+        : ''
+    }
     ${
       weapons.length
         ? `<ul class="widget__list">${weapons.map(weapon => `<li>${escapeHtml(showValue(weapon))}</li>`).join('')}</ul>`
