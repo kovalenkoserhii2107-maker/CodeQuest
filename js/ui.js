@@ -8,7 +8,8 @@ import { LaborExchange } from './crew.js';
 import {
   state, subscribe, isSolved, refundCredits, spendCredits,
   addCrewMember, addLog, solvedCount, totalCount, corpRecord,
-  removeInventoryItem, salvagePrice,
+  salvagePrice, stockModules, fittedModules, installModule, uninstallModule, sellStockModule,
+  stockUsedSpace,
 } from './state.js';
 import { runPlayerCode, errorPanel } from './ui/sim.js';
 import { renderPanelCards } from './ui/dbview.js';
@@ -17,7 +18,7 @@ import { fillBar, balanceBar, gauge, barChart } from './ui/charts.js';
 import { shipSchematic } from './ui/shipview.js';
 import { moduleArt } from './data/module-art.js';
 import {
-  commanderName, shipyardName, shipName, warehouseCapacity, warehouse, powerPercent,
+  commanderName, shipyardName, shipName, warehouseCapacity, warehouse, powerPercent, thrustDraw,
 } from './ui/corp.js';
 import { renderRoutes, renderExpedition, renderMarket } from './ui/mission.js';
 import { renderArsenal, renderRange, renderBattle } from './ui/combat.js';
@@ -65,7 +66,7 @@ export async function renderCommand() {
   renderPanelCards('command-panels');
 
   const crew = player.crew;
-  const store = warehouse();
+  const fitted = fittedModules();
 
   // Экипаж по специальностям — сразу видно перекос в найме
   const byRole = crew.reduce((acc, member) => {
@@ -81,9 +82,10 @@ export async function renderCommand() {
     </div>
     <p class="widget__value mono">${player.credits.toLocaleString()} <small>¢</small></p>
     ${fillBar({ value: solvedCount(), max: totalCount(), label: 'Заданий решено', unit: 'шт', tone: 'progress' })}
-    ${fillBar({ value: store.getUsedSpace(), max: warehouseCapacity(), label: 'Склад', unit: 'т' })}
+    ${fillBar({ value: stockUsedSpace(), max: warehouseCapacity(), label: 'Склад', unit: 'т' })}
     ${crew.length ? barChart({ items: Object.entries(byRole), unit: 'чел' }) : ''}
-    <div class="widget__row"><span>Модулей на складе</span><b class="mono">${store.items.length}</b></div>
+    <div class="widget__row"><span>Модулей на корабле</span><b class="mono">${fitted.length}</b></div>
+    <div class="widget__row"><span>Модулей на складе</span><b class="mono">${stockModules().length}</b></div>
     <div class="widget__row"><span>Экипаж</span><b class="mono">${crew.length}</b></div>`;
 }
 
@@ -112,9 +114,9 @@ export async function renderShipyard() {
 
   // Что уже стоит на складе: покупка меняет и массу, и энергобаланс,
   // а раньше об этом становилось известно только в разделе «Корабль»
-  const owned = warehouse().items;
-  const usedSpace = owned.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
-  const balance = owned.reduce((sum, item) => sum + (Number(item.energy) || 0), 0);
+  const onShip = fittedModules();
+  const usedSpace = stockUsedSpace();
+  const balance = onShip.reduce((sum, item) => sum + (Number(item.energy) || 0), 0);
   const capacity = warehouseCapacity();
 
   host.innerHTML = modules
@@ -134,8 +136,9 @@ export async function renderShipyard() {
             <div class="widget__row"><span>Энергия</span><b class="mono">${module.energy > 0 ? '+' : ''}${escapeHtml(showValue(module.energy))}</b></div>
           </div>
           <p class="widget__note">
-            После покупки: ${usedSpace + (Number(module.weight) || 0)} / ${capacity} т,
-            энергобаланс <b class="mono ${balance + (Number(module.energy) || 0) < 0 ? 'is-danger' : 'is-ok'}">${
+            Склад после покупки: ${usedSpace + (Number(module.weight) || 0)} / ${capacity} т.
+            Если поставить на корабль, энергобаланс станет
+            <b class="mono ${balance + (Number(module.energy) || 0) < 0 ? 'is-danger' : 'is-ok'}">${
               balance + (Number(module.energy) || 0) > 0 ? '+' : ''
             }${balance + (Number(module.energy) || 0)}</b>
           </p>
@@ -169,9 +172,9 @@ async function buyModule(moduleId, button) {
     return;
   }
 
-  if (warehouse().getUsedSpace() + found.weight > warehouse().capacity) {
+  if (stockUsedSpace() + found.weight > warehouseCapacity()) {
     button.disabled = false;
-    toast('На складе нет места');
+    toast('На складе нет места — снимите или сдайте что-нибудь');
     return;
   }
 
@@ -190,21 +193,42 @@ async function buyModule(moduleId, button) {
   }
 
   addLog(`Куплен модуль «${found.name}» за ${found.price} ¢`, 'info');
-  toast(`Куплен: ${found.name}`);
+  toast(`«${found.name}» на складе — установите его на корабль`);
 }
 
 /* --- Склад --------------------------------------------------------------- */
+
+/** Строка таблицы с модулем и кнопками действий. */
+function moduleRow(item, actions) {
+  return `
+    <tr>
+      <td>
+        <span class="table__module">
+          <img class="module-thumb" src="${escapeHtml(moduleArt(item))}" alt="" loading="lazy" width="512" height="512">
+          <span class="table__ship-name">${escapeHtml(showValue(item.name))}</span>
+        </span>
+      </td>
+      <td>${escapeHtml(showValue(item.type))}</td>
+      <td class="table__num">${escapeHtml(showValue(item.weight))} т</td>
+      <td class="table__num">${item.energy > 0 ? '+' : ''}${escapeHtml(showValue(item.energy))}</td>
+      <td class="table__num"><span class="row-actions">${actions}</span></td>
+    </tr>`;
+}
 
 export async function renderWarehouse() {
   const host = document.getElementById('warehouse-content');
   const capacity = document.getElementById('warehouse-capacity');
   if (!host) return;
 
-  const items = warehouse().items;
+  // Склад и корабль — разные места. На складе модуль лежит, на корабле работает:
+  // именно установленные дают массу, энергию и тягу.
+  const stock = stockModules();
+  const fitted = fittedModules();
+
   const { value, error } = await runPlayerCode(
     'warehouse',
     `const store = createWarehouse(${warehouseCapacity()});\n` +
-    `const accepted = ${json(items)}.filter(item => store.addItem(item));\n` +
+    `const accepted = ${json(stock)}.filter(item => store.addItem(item));\n` +
     `return { used: store.usedSpace(), accepted: accepted.length, capacity: store.capacity };`,
   );
 
@@ -215,73 +239,123 @@ export async function renderWarehouse() {
   }
 
   const used = Number(value?.used) || 0;
-  if (capacity) capacity.textContent = `${used} / ${warehouseCapacity()} т`;
-
-  // Масса по типам модулей: видно, на что уходит место
-  const byType = items.reduce((acc, item) => {
-    const type = String(item.type ?? 'прочее');
-    acc[type] = (acc[type] ?? 0) + (Number(item.weight) || 0);
-    return acc;
-  }, {});
+  const free = warehouseCapacity() - used;
+  const shipMass = fitted.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+  if (capacity) capacity.textContent = `склад ${used} / ${warehouseCapacity()} т · корабль ${shipMass} т`;
 
   host.innerHTML = `
     <div class="panel__head">
-      <h3 class="panel__title">Занято ${used} т</h3>
+      <h3 class="panel__title">На складе ${used} т</h3>
       <span class="panel__hint">usedSpace() из вашего кода</span>
     </div>
-    ${fillBar({ value: used, max: warehouseCapacity(), label: 'Заполненность трюма', unit: 'т' })}
-    ${items.length ? barChart({ items: Object.entries(byType), unit: 'т' }) : ''}
+    ${fillBar({ value: used, max: warehouseCapacity(), label: 'Заполненность склада', unit: 'т' })}
+
+    <div class="panel__head" style="margin-top: var(--space-5)">
+      <h3 class="panel__title">Установлено на корабль — ${shipMass} т</h3>
+      <span class="panel__hint">${fitted.length} модулей</span>
+    </div>
     ${
-      items.length === 0
-        ? '<p class="empty-state">Склад пуст. Купите модуль на верфи.</p>'
+      fitted.length === 0
+        ? '<p class="empty-state">На корабле ничего не стоит. Установите модули со склада — только они дают массу и энергию.</p>'
         : `<div class="table-wrap">
              <table class="table">
                <thead><tr><th>Модуль</th><th>Тип</th><th>Масса</th><th>Энергия</th><th></th></tr></thead>
                <tbody>
-                 ${items
-                   .map(item => `
-                     <tr>
-                       <td>
-                         <span class="table__module">
-                           <img class="module-thumb" src="${escapeHtml(moduleArt(item))}" alt="" loading="lazy" width="512" height="512">
-                           <span class="table__ship-name">${escapeHtml(showValue(item.name))}</span>
-                         </span>
-                       </td>
-                       <td>${escapeHtml(showValue(item.type))}</td>
-                       <td class="table__num">${escapeHtml(showValue(item.weight))} т</td>
-                       <td class="table__num">${item.energy > 0 ? '+' : ''}${escapeHtml(showValue(item.energy))}</td>
-                       <td class="table__num">
-                         <button class="btn btn--ghost btn--sm" type="button"
-                                 data-salvage="${escapeHtml(showValue(item.uniqueId))}"
-                                 title="Снять модуль и вернуть часть денег">
-                           Снять · +${salvagePrice(item).toLocaleString()} ¢
-                         </button>
-                       </td>
-                     </tr>`)
+                 ${fitted
+                   .map(item => moduleRow(item, `
+                     <button class="btn btn--ghost btn--sm" type="button"
+                             data-uninstall="${escapeHtml(showValue(item.uniqueId))}"
+                             ${(Number(item.weight) || 0) > free ? 'disabled title="На складе нет места"' : 'title="Снять модуль на склад"'}>
+                       Снять на склад
+                     </button>`))
                    .join('')}
                </tbody>
              </table>
            </div>`
     }
-    ${items.length ? '<p class="widget__note">Верфь выкупает снятые модули за 60% цены — так можно исправить неудачную закупку.</p>' : ''}`;
 
-  for (const button of host.querySelectorAll('[data-salvage]')) {
-    button.addEventListener('click', () => salvageModule(button.dataset.salvage, button));
+    <div class="panel__head" style="margin-top: var(--space-5)">
+      <h3 class="panel__title">Лежит на складе</h3>
+      <span class="panel__hint">свободно ${free} т</span>
+    </div>
+    ${
+      stock.length === 0
+        ? '<p class="empty-state">Склад пуст. Купите модуль на верфи — он приедет сюда.</p>'
+        : `<div class="table-wrap">
+             <table class="table">
+               <thead><tr><th>Модуль</th><th>Тип</th><th>Масса</th><th>Энергия</th><th></th></tr></thead>
+               <tbody>
+                 ${stock
+                   .map(item => moduleRow(item, `
+                     <button class="btn btn--primary btn--sm" type="button"
+                             data-install="${escapeHtml(showValue(item.uniqueId))}" title="Поставить модуль на корабль">
+                       Установить
+                     </button>
+                     <button class="btn btn--danger btn--sm" type="button"
+                             data-sell="${escapeHtml(showValue(item.uniqueId))}" title="Сдать модуль верфи за полцены">
+                       Сдать · +${salvagePrice(item).toLocaleString()} ¢
+                     </button>`))
+                   .join('')}
+               </tbody>
+             </table>
+           </div>`
+    }
+    <p class="widget__note">
+      Верфь принимает модули со склада за полцены. Чтобы сдать установленный модуль,
+      сначала снимите его с корабля.
+    </p>`;
+
+  for (const button of host.querySelectorAll('[data-install]')) {
+    button.addEventListener('click', () => installFromStock(button.dataset.install, button));
+  }
+  for (const button of host.querySelectorAll('[data-uninstall]')) {
+    button.addEventListener('click', () => uninstallToStock(button.dataset.uninstall, button));
+  }
+  for (const button of host.querySelectorAll('[data-sell]')) {
+    button.addEventListener('click', () => sellFromStock(button.dataset.sell, button));
   }
 }
 
-/** Демонтаж: модуль уходит со склада, часть денег возвращается. */
-function salvageModule(uniqueId, button) {
+/** Установка: модуль уходит со склада на корабль. */
+function installFromStock(uniqueId, button) {
   button.disabled = true;
 
-  const refund = removeInventoryItem(uniqueId);
+  const module = installModule(uniqueId);
+  if (!module) {
+    button.disabled = false;
+    toast('Модуль на складе не найден');
+    return;
+  }
+
+  toast(`«${module.name}» установлен на корабль`);
+}
+
+/** Демонтаж: модуль возвращается с корабля на склад, если там есть место. */
+function uninstallToStock(uniqueId, button) {
+  button.disabled = true;
+
+  const result = uninstallModule(uniqueId, warehouseCapacity());
+  if (!result.ok) {
+    button.disabled = false;
+    toast(result.reason);
+    return;
+  }
+
+  toast(`«${result.module.name}» снят на склад`);
+}
+
+/** Продажа: верфь выкупает модуль со склада за полцены. */
+function sellFromStock(uniqueId, button) {
+  button.disabled = true;
+
+  const refund = sellStockModule(uniqueId);
   if (refund === null) {
     button.disabled = false;
     toast('Модуль на складе не найден');
     return;
   }
 
-  toast(`Модуль снят, возвращено ${refund.toLocaleString()} ¢`);
+  toast(`Модуль сдан, получено ${refund.toLocaleString()} ¢`);
 }
 
 /* --- Экипаж -------------------------------------------------------------- */
@@ -385,7 +459,7 @@ export async function renderShip() {
   const scheme = document.getElementById('ship-scheme');
   if (!summary || !modulesHost) return;
 
-  const modules = warehouse().items;
+  const modules = fittedModules();
   const { value, error } = await runPlayerCode(
     'assemble',
     `const ship = assembleShip(${json(shipName())}, ${json(modules)});\n` +
@@ -414,7 +488,8 @@ export async function renderShip() {
     ${gauge({ value: mass, max: warehouseCapacity(), label: 'Общая масса', unit: 'т' })}
     ${balanceBar({ value: energy, max: Math.max(produced, Math.abs(consumed), 1), label: 'Энергобаланс' })}
     <div class="widget__row"><span>Выработка</span><b class="mono is-ok">+${produced}</b></div>
-    <div class="widget__row"><span>Потребление</span><b class="mono">${consumed}</b></div>
+    <div class="widget__row"><span>Потребление модулей</span><b class="mono">${consumed}</b></div>
+    <div class="widget__row"><span>Расход на тягу</span><b class="mono">-${thrustDraw(modules)}</b></div>
     <div class="widget__row">
       <span>Модули работают на</span>
       <b class="mono ${powerPercent(modules) < 100 ? 'is-danger' : 'is-ok'}">${powerPercent(modules)}%</b>
@@ -456,7 +531,7 @@ export async function renderFlight() {
   const host = document.getElementById('flight-report');
   if (!host) return;
 
-  const modules = warehouse().items;
+  const modules = fittedModules();
   const crew = player.crew.map(member => ({ role: member.role, name: member.name }));
 
   const assembled = await runPlayerCode(

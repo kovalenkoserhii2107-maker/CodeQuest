@@ -9,7 +9,7 @@ import { ThreatLog } from '../enemy.js';
 import { Shipyard } from '../shipyard.js';
 import { state, addLog, db } from '../state.js';
 import { runPlayerCode, errorPanel } from './sim.js';
-import { assembledShip, warehouse, powerEfficiency, powerPercent, underPower } from './corp.js';
+import { assembledShip, fittedModules, powerEfficiency, powerPercent, underPower } from './corp.js';
 import { escapeHtml, showValue } from './html.js';
 import { fillBar, barChart } from './charts.js';
 import { moduleArt } from '../data/module-art.js';
@@ -31,7 +31,7 @@ export async function battleShip() {
   const ship = await assembledShip();
   if (ship.error) return { error: ship.error };
 
-  const modules = warehouse().items;
+  const modules = fittedModules();
   const stats = await runPlayerCode('arsenal', `return combatStats(${json(modules)});`);
   if (stats.error) return { error: stats.error };
 
@@ -78,7 +78,7 @@ export async function renderArsenal() {
   const percent = Math.round(efficiency * 100);
   const starved = percent < 100;
   const combatModules = shipyard.getCatalog().filter(module => module.type === 'weapon' || module.type === 'shield');
-  const owned = warehouse().items;
+  const owned = fittedModules();
 
   summary.innerHTML = `
     <div class="panel__head">

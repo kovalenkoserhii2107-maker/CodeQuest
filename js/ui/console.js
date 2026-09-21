@@ -19,6 +19,7 @@ import { Market } from '../market.js';
 import { ThreatLog } from '../enemy.js';
 import { runConsole } from '../runner.js';
 import { assembledShip, powerEfficiency, underPower } from './corp.js';
+import { fittedModules, stockModules, stockUsedSpace } from '../state.js';
 import { escapeHtml } from './html.js';
 
 const shipyard = new Shipyard();
@@ -50,11 +51,11 @@ function expeditionInput() {
 
   // Питание урезает добычу так же, как в разделе «Экспедиция»:
   // консоль и интерфейс обязаны считать одинаково
-  const efficiency = powerEfficiency(state.inventory);
+  const efficiency = powerEfficiency(fittedModules());
 
   return {
     ship: {
-      drills: state.inventory.filter(item => item.type === 'drill').length,
+      drills: fittedModules().filter(item => item.type === 'drill').length,
       fuel: resources().fuel,
       cargo: CARGO_HOLD,
     },
@@ -74,7 +75,7 @@ function battleShipInput(ship) {
   if (!ship) return null;
 
   const arsenal = db.last('arsenals');
-  const efficiency = powerEfficiency(state.inventory);
+  const efficiency = powerEfficiency(fittedModules());
 
   return {
     name: ship.name,
@@ -126,7 +127,9 @@ async function corpData() {
         ? { ...db.last('commanders'), credits: state.credits, crew: state.crew.map(member => ({ ...member })) }
         : null,
       catalog: shipyard.getCatalog(),
-      modules: state.inventory.map(item => ({ ...item })),
+      modules: fittedModules(),
+      stock: stockModules(),
+      stockUsed: stockUsedSpace(),
       crew: state.crew.map(member => ({ ...member })),
       candidates: laborExchange.getCandidates().filter(candidate => !hiredIds.includes(candidate.id)).map(c => ({ ...c })),
       warehouseCapacity: db.last('warehouses')?.capacity ?? null,

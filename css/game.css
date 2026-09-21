@@ -2031,3 +2031,12 @@
   white-space: pre;
   overflow-x: auto;
 }
+
+/* --- Действия в строке таблицы --- */
+
+.row-actions {
+  display: inline-flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}

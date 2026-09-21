@@ -12,7 +12,7 @@ import {
   TANK_CAPACITY, ORE_CAPACITY, CARGO_HOLD, FUEL_PRICE, db,
 } from '../state.js';
 import { runPlayerCode, errorPanel } from './sim.js';
-import { assembledShip, drillCount, shipName, warehouse, powerEfficiency, powerPercent, underPower } from './corp.js';
+import { assembledShip, drillCount, shipName, fittedModules, powerEfficiency, powerPercent, underPower } from './corp.js';
 import { escapeHtml, showValue } from './html.js';
 import { fillBar, barChart } from './charts.js';
 
@@ -65,7 +65,7 @@ export async function renderRoutes() {
             <div class="widget__row"><span>Буров на борту</span><b class="mono">${drillCount()}</b></div>
         <div class="widget__row">
           <span>Питание</span>
-          <b class="mono ${powerPercent(warehouse().items) < 100 ? 'is-danger' : 'is-ok'}">${powerPercent(warehouse().items)}%</b>
+          <b class="mono ${powerPercent(fittedModules()) < 100 ? 'is-danger' : 'is-ok'}">${powerPercent(fittedModules())}%</b>
         </div>
       </div>
       <div>
@@ -183,7 +183,7 @@ async function expeditionInput() {
   if (planned.error) return { error: planned.error };
 
   // При нехватке энергии буры работают вполсилы: жила та же, а выработка ниже
-  const efficiency = powerEfficiency(warehouse().items);
+  const efficiency = powerEfficiency(fittedModules());
 
   return {
     route,
