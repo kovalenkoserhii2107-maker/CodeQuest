@@ -100,6 +100,8 @@ export const QUESTS = [
       '  return { name, rank: "Командир", experience: 0, credits: 0 };\n' +
       '}\n',
     practice: {
+      // Карточка обновляется повторным вызовом: практика ничего не тратит
+      refresh: true,
       title: 'Занесите себя в реестр',
       hint: 'Тесты — это теория. Теперь вызовите свою функцию в консоли и укажите своё имя: объект попадёт в базу корпорации.',
       example: 'createCommander("Сергей Коваленко")',
@@ -230,6 +232,8 @@ export const QUESTS = [
       '  };\n' +
       '}\n',
     practice: {
+      // Карточка обновляется повторным вызовом: практика ничего не тратит
+      refresh: true,
       title: 'Подключите верфь к каталогу',
       hint: 'В консоли доступен объект corp: corp.catalog — настоящий каталог модулей. Передайте его своей функции.',
       example: 'createShipyard("Орион", corp.catalog)',
@@ -374,6 +378,8 @@ export const QUESTS = [
       '  };\n' +
       '}\n',
     practice: {
+      // Карточка обновляется повторным вызовом: практика ничего не тратит
+      refresh: true,
       title: 'Разверните склад',
       hint: 'Создайте склад на 1000 тонн — эта вместимость станет настоящим лимитом корпорации.',
       example: 'createWarehouse(1000)',
@@ -664,13 +670,20 @@ export const QUESTS = [
       '  return { name, modules, mass, energy };\n' +
       '}\n',
     practice: {
+      // Карточка обновляется повторным вызовом: практика ничего не тратит
+      refresh: true,
       title: 'Соберите корабль',
       hint: 'corp.modules — то, что реально лежит у вас на складе. Соберите из них корабль: его характеристики станут характеристиками корпорации.',
       example: 'assembleShip("Квест", corp.modules)',
       validate: (value, context) => {
         if (!value || typeof value !== 'object') return 'Команда должна вернуть объект корабля';
         if (typeof value.mass !== 'number' || typeof value.energy !== 'number') return 'В корабле нет числовых полей mass и energy';
-        if ((context.corp.modules?.length ?? 0) > 0 && value.mass === 0) return 'Масса нулевая — передайте модули со склада: corp.modules';
+        // Пустая карточка корабля потом ломает план полёта и бой: расход
+        // топлива и прочность корпуса считаются от массы, а она нулевая
+        if ((context.corp.modules?.length ?? 0) === 0) {
+          return 'На складе нет модулей: купите на верфи реактор и двигатель, иначе собирать нечего';
+        }
+        if (value.mass === 0) return 'Масса нулевая — передайте модули со склада: corp.modules';
         return true;
       },
       commit: (value, api) => {
@@ -815,6 +828,8 @@ export const QUESTS = [
       '  return { ready: problems.length === 0, problems };\n' +
       '}\n',
     practice: {
+      // Карточка обновляется повторным вызовом: практика ничего не тратит
+      refresh: true,
       title: 'Проведите диагностику',
       hint: 'corp.ship — собранный вами корабль, corp.crew — нанятый экипаж. Отчёт вашей функции станет допуском к вылету.',
       example: 'checkReadiness(corp.ship, corp.crew)',
@@ -1203,7 +1218,10 @@ export const QUESTS = [
         if (typeof value.fuel !== 'number' || typeof value.hours !== 'number') {
           return 'В плане нет числовых полей fuel и hours — передайте результат planFlight';
         }
-        if (value.fuel <= 0) return 'Расход топлива получился нулевым: проверьте массу корабля в corp.ship';
+        if (value.fuel <= 0) {
+          return 'Расход нулевой: корабль невесомый. Купите модули на верфи, '
+            + 'а потом обновите карточку — вызовите assembleShip(«имя», corp.modules) ещё раз';
+        }
         if (typeof value.id !== 'number') return 'План не попал в базу: оберните результат в db.insert("plans", …)';
         return true;
       },

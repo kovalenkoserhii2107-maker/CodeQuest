@@ -161,5 +161,35 @@ for (const quest of QUESTS) {
 
 console.log(`✓ практика описана у всех заданий (${QUESTS.length})`);
 
+/* --- 6. Обновляемые практики --------------------------------------------- */
+
+/*
+ * Карточку в реестре можно обновить повторным вызовом — но только у практик,
+ * которые ничего не тратят и не начисляют. Иначе повтор вызова означал бы
+ * повторную выплату премии или повторное списание за найм.
+ */
+const MONEY_METHODS = ['hireCandidate', 'deliverExpedition', 'settleDeal', 'claimBounty'];
+
+for (const quest of QUESTS.filter(item => item.practice.refresh)) {
+  const commit = quest.practice.commit.toString();
+  const dangerous = MONEY_METHODS.filter(method => commit.includes(method));
+
+  if (dangerous.length > 0) {
+    fail(`Практика ${quest.id} помечена обновляемой, но трогает счёт: ${dangerous.join(', ')}`);
+  }
+}
+
+// И наоборот: практика, которая только пишет карточку, обновляемой быть должна
+for (const quest of QUESTS) {
+  const commit = quest.practice.commit.toString();
+  const onlyRecords = commit.includes('setRecord') && !MONEY_METHODS.some(method => commit.includes(method));
+
+  if (onlyRecords && !quest.practice.refresh) {
+    fail(`Практика ${quest.id} только записывает карточку — её стоит пометить refresh: true`);
+  }
+}
+
+console.log(`✓ обновляемые практики не трогают счёт (${QUESTS.filter(q => q.practice.refresh).length})`);
+
 console.log(failures === 0 ? '\nЦепочка: все проверки пройдены' : `\nЦепочка: проблем ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

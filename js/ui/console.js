@@ -18,6 +18,7 @@ import { RouteBook } from '../routes.js';
 import { Market } from '../market.js';
 import { ThreatLog } from '../enemy.js';
 import { runConsole } from '../runner.js';
+import { assembledShip } from './corp.js';
 import { escapeHtml } from './html.js';
 
 const shipyard = new Shipyard();
@@ -61,8 +62,7 @@ function expeditionInput() {
  * Боевой корабль для консоли: атаку и щит берём из последней сводки,
  * которую игрок сам положил в базу своей combatStats.
  */
-function battleShipInput() {
-  const ship = db.last('ships');
+function battleShipInput(ship) {
   if (!ship) return null;
 
   const arsenal = db.last('arsenals');
@@ -74,14 +74,36 @@ function battleShipInput() {
   };
 }
 
+/**
+ * Корабль в его нынешнем виде.
+ *
+ * Запись в базе — это снимок того момента, когда игрок вызвал assembleShip.
+ * Купленные позже модули в ней не отражаются, и корабль «весит» столько же,
+ * сколько при сборке. Поэтому корабль пересчитывается тем же кодом игрока,
+ * что и раздел «Корабль»: consoles и интерфейс обязаны показывать одно и то же.
+ */
+async function currentShip() {
+  const assembled = await assembledShip();
+  if (assembled.error || !assembled.value) return db.last('ships');
+
+  return {
+    ...db.last('ships'),
+    name: assembled.value.name,
+    mass: assembled.value.mass,
+    energy: assembled.value.energy,
+    modules: assembled.value.modules,
+  };
+}
+
 /** Данные корпорации, доступные в команде как corp. */
-function corpData() {
+async function corpData() {
   const hiredIds = state.crew.map(member => member.id);
   const expedition = expeditionInput();
+  const ship = await currentShip();
 
   return {
     corp: {
-      battleShip: battleShipInput(),
+      battleShip: battleShipInput(ship),
       threats: threatLog.getThreats(),
       targets: threatLog.getTargets(),
       ore: resources().ore,
@@ -98,15 +120,15 @@ function corpData() {
       crew: state.crew.map(member => ({ ...member })),
       candidates: laborExchange.getCandidates().filter(candidate => !hiredIds.includes(candidate.id)).map(c => ({ ...c })),
       warehouseCapacity: db.last('warehouses')?.capacity ?? null,
-      ship: db.last('ships'),
+      ship,
       report: db.last('reports'),
     },
   };
 }
 
 /** Всё, что уходит в воркер: данные, снимок базы и список панелей. */
-function consolePayload() {
-  return { data: corpData(), dbStore: db.snapshot(), panels: panels() };
+async function consolePayload() {
+  return { data: await corpData(), dbStore: db.snapshot(), panels: panels() };
 }
 
 /** Что можно вызвать прямо сейчас — короткая справка сбоку. */
@@ -187,15 +209,43 @@ const commitApi = {
 };
 
 /**
+ * Задание, чью карточку сейчас можно обновить повторным вызовом.
+ *
+ * Карточка в реестре — снимок на момент первой практики. Купили модуль,
+ * пересобрали корабль — и снимок устарел. Такие задания помечены
+ * practice.refresh: их функцию можно вызвать заново, и запись обновится.
+ * Помечены только те, чья практика ничего не тратит и не начисляет.
+ */
+function refreshableQuest(input) {
+  return QUESTS.find(quest =>
+    quest.practice.refresh
+    && isPracticed(quest.id)
+    && new RegExp(`\\b${quest.fn}\\b`).test(input)) ?? null;
+}
+
+/**
  * Проверка практики: если команда вызвала нужную функцию и результат
  * подошёл — задание закрывается и открывается раздел.
+ *
+ * У уже закрытого задания повторный вызов не засчитывается второй раз,
+ * но может обновить его карточку в реестре.
  */
-function tryPractice(input, value) {
+async function tryPractice(input, value) {
+  const context = await corpData();
   const quest = currentQuest();
-  if (!quest || !isSolved(quest.id) || isPracticed(quest.id)) return null;
-  if (!input.includes(quest.fn)) return null;
 
-  const context = corpData();
+  if (!quest || !isSolved(quest.id) || isPracticed(quest.id) || !input.includes(quest.fn)) {
+    const stale = refreshableQuest(input);
+    if (!stale) return null;
+
+    const verdict = stale.practice.validate(value, context);
+    if (verdict !== true) return null;   // мусор просто не обновляет запись
+
+    const note = stale.practice.commit(value, commitApi, context);
+    addLog(note, 'info');
+    return { ok: true, message: note, quest: stale, refreshed: true };
+  }
+
   const verdict = quest.practice.validate(value, context);
   if (verdict !== true) return { ok: false, message: verdict };
 
@@ -313,7 +363,7 @@ function fillInput(text) {
 
 async function execute(input) {
   const source = playerSource();
-  const result = await runConsole(source, input, consolePayload());
+  const result = await runConsole(source, input, await consolePayload());
 
   // Операции над базой применяем к настоящему хранилищу
   const dbReport = applyDbOps(result.ops ?? []);
@@ -335,8 +385,9 @@ async function execute(input) {
   if (dbReport.errors.length) entry.warn = `База отказала: ${dbReport.errors.join('; ')}`;
 
   if (!result.error) {
-    const practice = tryPractice(input, result.value);
-    if (practice?.ok) entry.note = `✓ ${practice.message}`;
+    const practice = await tryPractice(input, result.value);
+    if (practice?.refreshed) entry.note = `Запись в реестре обновлена: ${practice.message}`;
+    else if (practice?.ok) entry.note = `✓ ${practice.message}`;
     else if (practice && !practice.ok) entry.warn = `Практика не засчитана: ${practice.message}`;
   }
 
