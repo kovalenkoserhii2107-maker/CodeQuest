@@ -1,537 +1,140 @@
-/**
- * Редактор кода: подсветка синтаксиса, номера строк, парные скобки,
- * умные отступы и автодополнение с окном описания.
- *
- * Собран на обычном textarea со слоем подсветки под ним — так сохраняются
- * системная каретка, выделение, буфер обмена и отмена (Ctrl+Z), а весь
- * «умный» ввод сводится к чистым функциям из js/editor/.
- */
-import {
-  handleEnter,
-  handleChar,
-  handleBackspace,
-  handleTab,
-  toggleComment,
-  dedentClosingBrace,
-} from '../editor/edit-ops.js';
-import { highlight } from '../editor/highlight.js';
-import { suggest } from '../editor/complete.js';
-import {
-  boxNearCaret, clampBox, defaultSize, forgetBox, loadBox, moveBox, resizeBoxEdge, saveBox,
-} from '../editor/hint-box.js';
+/** Desktop learning editor. Monaco is loaded locally; no remote CDN. */
+import { JS_API } from '../data/js-api.js';
+import { suggest, inferType } from '../editor/complete.js';
 import { escapeHtml } from './html.js';
-
-const MAX_ITEMS = 9;
-
-/** Минимальная правка текста: сохраняет историю отмены браузера. */
-function applyEdit(textarea, result) {
-  const oldValue = textarea.value;
-  const newValue = result.value;
-
-  if (newValue !== oldValue) {
-    let start = 0;
-    while (start < oldValue.length && start < newValue.length && oldValue[start] === newValue[start]) start += 1;
-
-    let endOld = oldValue.length;
-    let endNew = newValue.length;
-    while (endOld > start && endNew > start && oldValue[endOld - 1] === newValue[endNew - 1]) {
-      endOld -= 1;
-      endNew -= 1;
-    }
-
-    textarea.setSelectionRange(start, endOld);
-    const inserted = newValue.slice(start, endNew);
-    let ok = false;
-    try {
-      ok = document.execCommand('insertText', false, inserted);
-    } catch {
-      ok = false;
-    }
-    if (!ok) {
-      textarea.value = newValue;
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  }
-
-  const start = result.start ?? result.cursor;
-  const end = result.end ?? result.cursor;
-  textarea.setSelectionRange(start, end);
+import { liveFunctions } from '../state.js';
+let runtime;
+let serial = 0;
+function markdown(item) {
+  return { value: `**${item.signature}**\n\n${item.summary}\n\n${item.details}\n\n**Возвращает:** ${item.returns}${item.mutates ? '\n\n⚠ Изменяет исходные данные. Если нужна исходная версия, сделайте копию.' : ''}\n\n\`\`\`javascript\n${item.example}\n\`\`\``, isTrusted: false };
+}
+function loadRuntime() {
+  if (runtime) return runtime;
+  globalThis.MonacoEnvironment = { getWorker(_id, label) {
+    return new Worker(new URL(label === 'javascript' || label === 'typescript' ? '../../vendor/ts.worker.js' : '../../vendor/editor.worker.js', import.meta.url), { type: 'module' });
+  } };
+  runtime = import('../../vendor/editor.js').then(m => {
+    m.typescript.javascriptDefaults.setCompilerOptions({ allowJs: true, checkJs: true, target: m.typescript.ScriptTarget.ESNext, noEmit: true });
+    m.typescript.javascriptDefaults.setDiagnosticsOptions({ noSyntaxValidation: false, noSemanticValidation: false });
+    m.languages.registerCompletionItemProvider('javascript', {
+      triggerCharacters: ['.'],
+      provideCompletionItems(model, pos) {
+        const result = suggest(model.getValue(), model.getOffsetAt(pos), { minPrefix: 0 });
+        const start = model.getPositionAt(result.from);
+        return { suggestions: result.items.filter(item => item.owner !== 'ваш код').map(item => ({
+          label: { label: item.name, description: `${item.owner} · справочник` },
+          kind: m.languages.CompletionItemKind.Method,
+          insertText: item.insert.endsWith('(') ? `${item.insert}$0)` : item.insert,
+          insertTextRules: m.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: new m.Range(start.lineNumber,start.column,pos.lineNumber,pos.column),
+          detail: item.signature, documentation: markdown(item), sortText: '0'+item.name,
+        })) };
+      },
+    });
+    m.languages.registerHoverProvider('javascript', { provideHover(model,pos) {
+      const word = model.getWordAtPosition(pos);
+      if (!word) return null;
+      const line = model.getLineContent(pos.lineNumber).slice(0,word.startColumn-1);
+      const receiver = line.match(/([\w$]+)\.$/)?.[1];
+      const type = receiver ? inferType(model.getValue(),receiver) : null;
+      const item = JS_API.find(i => i.name === word.word && (!type || i.owner === type));
+      return item ? { range: new m.Range(pos.lineNumber,word.startColumn,pos.lineNumber,word.endColumn), contents:[markdown(item)] } : null;
+    } });
+    return m;
+  }).catch(error => { runtime = null; throw error; });
+  return runtime;
 }
 
-/** Координаты каретки внутри поля — по ним позиционируется подсказка. */
-function caretPosition(textarea, mirror, index) {
-  const styles = getComputedStyle(textarea);
-  for (const property of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'padding', 'border', 'boxSizing', 'whiteSpace', 'wordWrap', 'tabSize']) {
-    mirror.style[property] = styles[property];
-  }
-  mirror.style.width = `${textarea.clientWidth}px`;
-
-  mirror.textContent = textarea.value.slice(0, index);
-  const marker = document.createElement('span');
-  marker.textContent = '​';
-  mirror.append(marker);
-
-  const top = marker.offsetTop - textarea.scrollTop;
-  const left = marker.offsetLeft - textarea.scrollLeft;
-  mirror.textContent = '';
-  return { top, left, lineHeight: parseFloat(styles.lineHeight) || 20 };
-}
-
-/** Карточка описания справа от списка подсказок. */
-function docHtml(item) {
-  if (!item) return '';
-  return `
-    <p class="hintdoc__signature mono">${escapeHtml(item.signature)}</p>
-    <p class="hintdoc__kind">${escapeHtml(item.kind)}${item.owner && item.owner !== 'global' ? ` · ${escapeHtml(item.owner)}` : ''}</p>
-    <p class="hintdoc__summary">${escapeHtml(item.summary)}</p>
-    <p class="hintdoc__details">${escapeHtml(item.details)}</p>
-    ${item.mutates ? '<p class="hintdoc__warn">⚠ Меняет исходные данные — при необходимости работайте с копией.</p>' : ''}
-    <p class="hintdoc__returns"><span>Возвращает:</span> ${escapeHtml(item.returns)}</p>
-    <pre class="hintdoc__example mono">${escapeHtml(item.example)}</pre>
-  `;
-}
-
-/**
- * Создаёт редактор внутри контейнера.
- * @param {HTMLElement} container куда вставить
- * @param {{value: string, onInput: Function, onRun: Function}} options
- */
-export function createEditor(container, { value = '', onInput, onRun } = {}) {
-  container.innerHTML = `
-    <div class="editor">
-      <div class="editor__gutter" aria-hidden="true"></div>
-      <div class="editor__area">
-        <pre class="editor__highlight" aria-hidden="true"><code></code></pre>
-        <textarea id="code" class="editor__input" spellcheck="false" autocomplete="off"
-                  autocapitalize="off" autocorrect="off" wrap="off"
-                  aria-label="Код решения"></textarea>
-        <div class="editor__mirror" aria-hidden="true"></div>
-      </div>
-      <div class="hint" hidden>
-        <div class="hint__bar">
-          <span class="hint__title">Справочник</span>
-          <span class="hint__drag-hint">перетащите за заголовок</span>
-          <button class="hint__action" type="button" data-action="reset" title="Вернуть окно к курсору" aria-label="Вернуть окно к курсору">⤣</button>
-          <button class="hint__action" type="button" data-action="close" title="Закрыть подсказки" aria-label="Закрыть подсказки">×</button>
-        </div>
-        <div class="hint__body">
-          <ul class="hint__list" role="listbox" aria-label="Подсказки"></ul>
-          <div class="hintdoc"></div>
-        </div>
-        <span class="hint__resize hint__resize--n" data-edge="n"></span>
-        <span class="hint__resize hint__resize--s" data-edge="s"></span>
-        <span class="hint__resize hint__resize--e" data-edge="e"></span>
-        <span class="hint__resize hint__resize--w" data-edge="w"></span>
-        <span class="hint__resize hint__resize--ne" data-edge="ne"></span>
-        <span class="hint__resize hint__resize--nw" data-edge="nw"></span>
-        <span class="hint__resize hint__resize--sw" data-edge="sw"></span>
-        <span class="hint__resize hint__resize--se" data-edge="se" title="Потяните, чтобы изменить размер"></span>
-      </div>
+export function createEditor(container, { value='', onInput, onRun, filename='solution.js', functionName='' }={}) {
+  let editor, model, m, disposed = false, wrap = false;
+  const cleanups=[];
+  const track = disposable => cleanups.push(() => disposable.dispose());
+  container.innerHTML=`
+    <div class="workspace-toolbar">
+      <span class="mono">${escapeHtml(filename)}</span>
+      <button type="button" class="btn btn--ghost btn--sm" data-tool="format" disabled>Форматировать</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-tool="find" disabled>Найти</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-tool="wrap" disabled>Перенос строк</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-tool="focus">Развернуть</button>
     </div>
-    <div class="editor__resizer" role="separator" aria-label="Изменить высоту редактора"
-         title="Потяните, чтобы изменить высоту редактора"></div>
-    <p class="editor__legend">
-      <span><b>Ctrl + Space</b> — подсказки</span>
-      <span><b>Ctrl + Enter</b> — запустить тесты</span>
-      <span><b>Ctrl + /</b> — комментарий</span>
-      <span><b>Tab</b> — отступ</span>
-    </p>
-  `;
-
-  const textarea = container.querySelector('.editor__input');
-  const highlightLayer = container.querySelector('.editor__highlight code');
-  const gutter = container.querySelector('.editor__gutter');
-  const mirror = container.querySelector('.editor__mirror');
-  const hint = container.querySelector('.hint');
-  const hintBar = container.querySelector('.hint__bar');
-  const editorArea = container.querySelector('.editor__area');
-  const editorResizer = container.querySelector('.editor__resizer');
-  const list = container.querySelector('.hint__list');
-  const doc = container.querySelector('.hintdoc');
-  const editorEl = container.querySelector('.editor');
-
-  textarea.value = value;
-
-  let items = [];
-  let active = 0;
-  let replaceFrom = 0;
-  // Положение и размер окна подсказок: null — окно следует за кареткой
-  let box = loadBox();
-  // Пока тащим окно или жмём его кнопки, поле ввода теряет фокус — но окно
-  // закрывать нельзя, иначе перетащить его невозможно
-  let holdingHint = false;
-
-  /* --- отрисовка ------------------------------------------------------- */
-
-  function renderGutter() {
-    const lines = textarea.value.split('\n').length;
-    gutter.innerHTML = Array.from({ length: lines }, (_, index) => `<span>${index + 1}</span>`).join('');
-    gutter.scrollTop = textarea.scrollTop;
+    <div class="monaco-host"><textarea class="editor-loading" aria-label="Код решения" spellcheck="false"></textarea></div>
+    <div class="workspace-status" aria-live="polite">Подключаем редактор…</div>
+    <details class="workspace-problems"><summary>Диагностика JavaScript <span data-count></span></summary><div data-problems></div></details>
+    <details class="workspace-reference"><summary>Справочник JavaScript · объяснения и примеры</summary>
+      <label>Найти метод <input type="search" placeholder="Например: reduce, find, Math.ceil" aria-label="Поиск в справочнике"></label>
+      <div data-reference></div>
+    </details>
+    <p class="editor__legend"><span>Ctrl/Cmd + Space — подсказки</span><span>Ctrl/Cmd + Enter — тесты</span><span>Shift + Alt + F — форматирование</span><span>F1 — команды редактора</span></p>`;
+  const host=container.querySelector('.monaco-host');
+  const fallback=host.querySelector('textarea'); fallback.value=value;
+  fallback.addEventListener('input',()=>onInput?.(fallback.value));
+  const status=container.querySelector('.workspace-status');
+  const reference=container.querySelector('[data-reference]');
+  function referenceList(query='') {
+    const normalized=query.toLowerCase().trim();
+    const entries=JS_API.filter(item => !normalized || `${item.owner}.${item.name} ${item.summary}`.toLowerCase().includes(normalized));
+    reference.innerHTML=entries.slice(0,30).map(item=>`<article class="reference-entry"><h4 class="mono">${escapeHtml(item.signature)}</h4><p>${escapeHtml(item.summary)}</p><p>${escapeHtml(item.details)}</p><p>Возвращает: ${escapeHtml(item.returns)}</p>${item.mutates?'<p class="is-danger">Изменяет исходные данные.</p>':''}<pre>${escapeHtml(item.example)}</pre></article>`).join('') || '<p>Ничего не найдено.</p>';
   }
-
-  function render() {
-    highlightLayer.innerHTML = highlight(textarea.value);
-    renderGutter();
-    syncScroll();
-  }
-
-  function syncScroll() {
-    const layer = highlightLayer.parentElement;
-    layer.scrollTop = textarea.scrollTop;
-    layer.scrollLeft = textarea.scrollLeft;
-    gutter.scrollTop = textarea.scrollTop;
-  }
-
-  /* --- подсказки -------------------------------------------------------- */
-
-  function hideHint() {
-    hint.hidden = true;
-    items = [];
-  }
-
-  function bounds() {
-    return { width: editorEl.clientWidth, height: editorEl.clientHeight };
-  }
-
-  function applyBox(next) {
-    hint.style.left = `${next.left}px`;
-    hint.style.top = `${next.top}px`;
-    hint.style.width = `${next.width}px`;
-    hint.style.height = `${next.height}px`;
-  }
-
-  /** Окно либо стоит там, куда его поставили, либо идёт за кареткой. */
-  function placeHint() {
-    const area = bounds();
-    const size = box ? { width: box.width, height: box.height } : defaultSize(area);
-
-    if (box?.pinned) {
-      const placed = clampBox({ ...size, left: box.left, top: box.top }, area);
-      applyBox(placed);
-      hint.classList.add('is-pinned');
-      return;
+  referenceList();
+  container.querySelector('input[type=search]').addEventListener('input',event=>referenceList(event.target.value));
+  const wrapper=container.closest('.task__editor') ?? container;
+  container.querySelector('[data-tool=focus]').addEventListener('click',event=>{
+    wrapper.classList.toggle('is-expanded');
+    event.currentTarget.textContent=wrapper.classList.contains('is-expanded')?'Свернуть':'Развернуть';
+    editor?.layout();
+  });
+  const escape=event=>{if(event.key==='Escape'&&wrapper.classList.contains('is-expanded')){wrapper.classList.remove('is-expanded');container.querySelector('[data-tool=focus]').textContent='Развернуть';editor?.layout();}};
+  window.addEventListener('keydown',escape);cleanups.push(()=>window.removeEventListener('keydown',escape));
+  loadRuntime().then(monaco=>{
+    if(disposed) return;
+    m=monaco;
+    const dependencies=liveFunctions().filter(item=>item.fn!==functionName).map(item=>{
+      const parameters=item.stage.solution.match(/function\s+\w+\s*\(([^)]*)\)/)?.[1] ?? '...args';
+      return `/** ${item.stage.title}. ${item.stage.signature} */\ndeclare function ${item.fn}(${parameters.split(',').filter(Boolean).map(p=>`${p.trim()}: any`).join(',')}): any;`;
+    }).join('\n');
+    track(m.typescript.javascriptDefaults.addExtraLib(dependencies,`file:///dependencies-${++serial}.d.ts`));
+    model=m.editor.createModel(fallback.value,'javascript',m.Uri.parse(`file:///quests/${serial}/${filename}`));
+    host.replaceChildren();
+    editor=m.editor.create(host,{
+      model, automaticLayout:true, fontFamily:getComputedStyle(document.documentElement).getPropertyValue('--font-mono'),
+      fontSize:15, lineHeight:24, minimap:{enabled:false}, scrollBeyondLastLine:false,
+      tabSize:2, insertSpaces:true, folding:true, bracketPairColorization:{enabled:true},
+      padding:{top:16,bottom:16}, quickSuggestions:true, parameterHints:{enabled:true},
+      suggest:{showWords:false}, ariaLabel:'Код решения', fixedOverflowWidgets:true,
+    });
+    function theme(){
+      const css=getComputedStyle(document.documentElement);
+      const color=name=>css.getPropertyValue(name).trim();
+      const light=document.documentElement.dataset.theme==='light';
+      m.editor.defineTheme('codequest',{base:light?'vs':'vs-dark',inherit:true,rules:[],colors:{
+        'editor.background':color('--code-bg'),'editor.foreground':color('--code-text'),
+        'editorLineNumber.foreground':color('--color-dim'),'editorCursor.foreground':color('--color-accent'),
+        'editorWidget.background':color('--color-panel'),'editorWidget.border':color('--color-line'),
+      }});m.editor.setTheme('codequest');
     }
-
-    const caret = caretPosition(textarea, mirror, textarea.selectionStart);
-    const placed = boxNearCaret(
-      { top: caret.top, left: caret.left + gutter.offsetWidth, lineHeight: caret.lineHeight },
-      size,
-      area,
-    );
-    applyBox(placed);
-    hint.classList.remove('is-pinned');
-  }
-
-  /** Общая механика «зажали — тянем»: и для переноса, и для размера. */
-  function startPointerAction(event, onMove) {
-    event.preventDefault();          // не отбираем фокус у поля ввода
-    event.stopPropagation();
-    holdingHint = true;
-
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startBox = {
-      left: hint.offsetLeft,
-      top: hint.offsetTop,
-      width: hint.offsetWidth,
-      height: hint.offsetHeight,
-    };
-
-    const move = moveEvent => {
-      const next = onMove(startBox, moveEvent.clientX - startX, moveEvent.clientY - startY, bounds());
-      applyBox(next);
-      box = { ...next, pinned: true };
-    };
-
-    const stop = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', stop);
-      if (box) saveBox(box);
-      hint.classList.add('is-pinned');
-      holdingHint = false;
-      textarea.focus();
-    };
-
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', stop);
-  }
-
-  hintBar.addEventListener('pointerdown', event => {
-    if (event.target.closest('.hint__action')) return;
-    startPointerAction(event, (start, dx, dy, area) => moveBox(start, dx, dy, area));
-  });
-
-  // Клик по списку, описанию или краю — работа с окном, а не уход из него
-  hint.addEventListener('pointerdown', () => {
-    holdingHint = true;
-  }, true);
-
-  window.addEventListener('pointerup', () => {
-    // Отпускаем флаг после того, как отработают обработчики blur
-    setTimeout(() => {
-      holdingHint = false;
-    }, 200);
-  });
-
-  hint.addEventListener('pointerdown', event => {
-    const edge = event.target.closest('[data-edge]')?.dataset.edge;
-    if (!edge) return;
-    startPointerAction(event, (start, dx, dy, area) => resizeBoxEdge(start, edge, dx, dy, area));
-  });
-
-  /* --- высота редактора ------------------------------------------------- */
-
-  const HEIGHT_KEY = 'codequest.editor.height';
-  const MIN_EDITOR_HEIGHT = 200;
-  const MAX_EDITOR_HEIGHT = 900;
-
-  function applyEditorHeight(height) {
-    const next = Math.max(MIN_EDITOR_HEIGHT, Math.min(height, MAX_EDITOR_HEIGHT));
-    editorArea.style.height = `${next}px`;
-    return next;
-  }
-
-  try {
-    const saved = Number(localStorage.getItem(HEIGHT_KEY));
-    if (saved) applyEditorHeight(saved);
-  } catch {
-    /* хранилище недоступно — остаётся высота по умолчанию */
-  }
-
-  editorResizer.addEventListener('pointerdown', event => {
-    event.preventDefault();
-    const startY = event.clientY;
-    const startHeight = editorArea.offsetHeight;
-    editorResizer.classList.add('is-active');
-
-    const move = moveEvent => {
-      applyEditorHeight(startHeight + (moveEvent.clientY - startY));
-      if (!hint.hidden) placeHint();
-    };
-
-    const stop = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', stop);
-      editorResizer.classList.remove('is-active');
-      try {
-        localStorage.setItem(HEIGHT_KEY, String(editorArea.offsetHeight));
-      } catch {
-        /* не сохранилось — не страшно */
-      }
-      render();
-    };
-
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', stop);
-  });
-
-  hintBar.addEventListener('pointerdown', event => {
-    if (event.target.closest('.hint__action')) holdingHint = true;
-  });
-
-  hintBar.addEventListener('click', event => {
-    const action = event.target.closest('.hint__action')?.dataset.action;
-    if (!action) return;
-    event.preventDefault();
-    holdingHint = false;
-
-    if (action === 'close') {
-      hideHint();
-      return;
-    }
-
-    // Возврат к каретке: размер сохраняем, привязку к месту снимаем
-    box = box ? { ...box, pinned: false } : null;
-    if (box) saveBox(box);
-    else forgetBox();
-    placeHint();
-    textarea.focus();
-  });
-
-  function renderHint() {
-    list.innerHTML = items
-      .map(
-        (item, index) => `
-          <li class="hint__item${index === active ? ' is-active' : ''}" role="option"
-              aria-selected="${index === active}" data-index="${index}">
-            <span class="hint__name mono">${escapeHtml(item.name)}</span>
-            <span class="hint__owner">${escapeHtml(item.owner === 'global' ? item.kind : item.owner)}</span>
-          </li>`,
-      )
-      .join('');
-    doc.innerHTML = docHtml(items[active]);
-
-    hint.hidden = false;
-    placeHint();
-  }
-
-  function showHint({ force = false } = {}) {
-    const cursor = textarea.selectionStart;
-    if (cursor !== textarea.selectionEnd) return hideHint();
-
-    const result = suggest(textarea.value, cursor, { minPrefix: force ? 0 : 1 });
-    if (result.items.length === 0) return hideHint();
-
-    items = result.items.slice(0, MAX_ITEMS);
-    replaceFrom = result.from;
-    active = 0;
-    renderHint();
-  }
-
-  function acceptHint() {
-    const item = items[active];
-    if (!item) return;
-
-    const cursor = textarea.selectionStart;
-    const before = textarea.value.slice(0, replaceFrom);
-    const after = textarea.value.slice(cursor);
-    const insert = item.insert;
-
-    // Метод вставляется со скобками, курсор — внутри них
-    const needsClosing = insert.endsWith('(');
-    const text = needsClosing ? `${insert})` : insert;
-    const caret = replaceFrom + insert.length;
-
-    applyEdit(textarea, { value: before + text + after, start: caret, end: caret });
-    hideHint();
-    render();
-    onInput?.(textarea.value);
-  }
-
-  list.addEventListener('mousedown', event => {
-    const target = event.target.closest('.hint__item');
-    if (!target) return;
-    event.preventDefault();
-    active = Number(target.dataset.index);
-    acceptHint();
-  });
-
-  /* --- ввод ------------------------------------------------------------- */
-
-  textarea.addEventListener('input', () => {
-    render();
-    onInput?.(textarea.value);
-    showHint();
-  });
-
-  textarea.addEventListener('scroll', syncScroll);
-  textarea.addEventListener('blur', event => {
-    if (holdingHint || hint.contains(event.relatedTarget)) return;
-    setTimeout(() => {
-      if (!holdingHint) hideHint();
-    }, 120);
-  });
-  textarea.addEventListener('click', hideHint);
-
-  textarea.addEventListener('keydown', event => {
-    const { value: text, selectionStart: start, selectionEnd: end } = textarea;
-    const hintOpen = !hint.hidden && items.length > 0;
-
-    // Навигация по подсказкам
-    if (hintOpen) {
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        event.preventDefault();
-        active = (active + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
-        renderHint();
-        return;
-      }
-      if (event.key === 'Enter' || event.key === 'Tab') {
-        event.preventDefault();
-        acceptHint();
-        return;
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        hideHint();
-        return;
-      }
-    }
-
-    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      hideHint();
-      onRun?.();
-      return;
-    }
-
-    if (event.code === 'Space' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      showHint({ force: true });
-      return;
-    }
-
-    if (event.key === '/' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      applyEdit(textarea, toggleComment(text, start, end));
-      render();
-      onInput?.(textarea.value);
-      return;
-    }
-
-    if (event.key === 'Tab') {
-      event.preventDefault();
-      applyEdit(textarea, handleTab(text, start, end, event.shiftKey));
-      render();
-      onInput?.(textarea.value);
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      applyEdit(textarea, handleEnter(text, start, end));
-      render();
-      onInput?.(textarea.value);
-      return;
-    }
-
-    if (event.key === 'Backspace') {
-      const result = handleBackspace(text, start, end);
-      if (result) {
-        event.preventDefault();
-        applyEdit(textarea, result);
-        render();
-        onInput?.(textarea.value);
-        hideHint();
-      }
-      return;
-    }
-
-    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      const dedent = dedentClosingBrace(text, start, event.key);
-      if (dedent && start === end) {
-        event.preventDefault();
-        applyEdit(textarea, dedent);
-        render();
-        onInput?.(textarea.value);
-        return;
-      }
-
-      const result = handleChar(text, start, end, event.key);
-      if (result) {
-        event.preventDefault();
-        applyEdit(textarea, result);
-        render();
-        onInput?.(textarea.value);
-        if (event.key === '.') showHint();
-      }
-    }
-  });
-
-  // Точка открывает список методов сразу после ввода
-  textarea.addEventListener('keyup', event => {
-    if (event.key === '.') showHint({ force: true });
-  });
-
-  render();
-
+    theme();const observer=new MutationObserver(theme);observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});cleanups.push(()=>observer.disconnect());
+    const updateStatus=()=>{const p=editor.getPosition();status.textContent=`JavaScript · строка ${p?.lineNumber??1}, столбец ${p?.column??1} · черновик сохраняется автоматически`;};
+    track(editor.onDidChangeCursorPosition(updateStatus));
+    track(model.onDidChangeContent(()=>{onInput?.(model.getValue());updateStatus();}));
+    track(m.editor.onDidChangeMarkers(uris=>{
+      if(!uris.some(uri=>uri.toString()===model.uri.toString()))return;
+      const markers=m.editor.getModelMarkers({resource:model.uri});
+      container.querySelector('[data-count]').textContent=markers.length?`· ${markers.length}`:'· ошибок нет';
+      const target=container.querySelector('[data-problems]');
+      target.innerHTML=markers.map((item,i)=>`<button type="button" class="problem-link" data-marker="${i}">Строка ${item.startLineNumber}: ${escapeHtml(item.message)}</button>`).join('')||'<p>Синтаксических ошибок не найдено. Поведение проверяют тесты задания.</p>';
+      target.querySelectorAll('[data-marker]').forEach(button=>button.addEventListener('click',()=>{const item=markers[Number(button.dataset.marker)];editor.setPosition({lineNumber:item.startLineNumber,column:item.startColumn});editor.revealLineInCenter(item.startLineNumber);editor.focus();}));
+    }));
+    editor.addCommand(m.KeyMod.CtrlCmd|m.KeyCode.Enter,()=>onRun?.());
+    for(const button of container.querySelectorAll('[data-tool]'))button.disabled=false;
+    container.querySelector('[data-tool=format]').addEventListener('click',()=>editor.getAction('editor.action.formatDocument')?.run());
+    container.querySelector('[data-tool=find]').addEventListener('click',()=>editor.getAction('actions.find')?.run());
+    container.querySelector('[data-tool=wrap]').addEventListener('click',event=>{wrap=!wrap;editor.updateOptions({wordWrap:wrap?'on':'off'});event.currentTarget.setAttribute('aria-pressed',String(wrap));});
+    updateStatus();
+  }).catch(()=>{if(!disposed)status.textContent='Расширенный редактор не загрузился. Черновик доступен; обновите страницу для повторной загрузки.';});
   return {
-    getValue: () => textarea.value,
-    setValue: next => {
-      textarea.value = next;
-      render();
-      hideHint();
-    },
-    focus: () => textarea.focus(),
-    element: textarea,
+    getValue:()=>model?.getValue()??fallback.value,
+    setValue:next=>{if(editor){editor.pushUndoStop();editor.executeEdits('restore',[{range:model.getFullModelRange(),text:next}]);editor.pushUndoStop();}else{fallback.value=next;onInput?.(next);}},
+    focus:()=>editor?editor.focus():fallback.focus(),
+    dispose:()=>{disposed=true;for(const cleanup of cleanups)cleanup();editor?.dispose();model?.dispose();},
   };
 }

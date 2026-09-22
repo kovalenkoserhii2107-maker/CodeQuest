@@ -8,7 +8,7 @@
  */
 import { QUESTS } from '../data/quests.js';
 import {
-  state, isSolved, isPracticed, currentQuest, markPracticed,
+  state, transaction, isSolved, isPracticed, currentQuest, markPracticed,
   setCorpRecord, pushConsoleHistory, spendCredits, addCrewMember, addLog,
   db, applyDbOps, panels, resources, addResource, spendResource, CARGO_HOLD, appSource, fuelLog,
 } from '../state.js';
@@ -61,7 +61,8 @@ function expeditionInput() {
     plan: {
       ...plan,
       // Заливаем столько, сколько насчитал план: с резервом, если он есть
-      fuel: fuelNeeded(plan),
+      fuel: Number(plan.fuel) || 0,
+      total: fuelNeeded(plan),
       richness: underPower(route?.richness ?? 3, efficiency),
       name: route?.name ?? 'маршрут',
     },
@@ -171,7 +172,7 @@ const commitApi = {
     const candidate = laborExchange.getCandidates().find(item => item.id === candidateId);
     if (!candidate) return 'Кандидат не найден на бирже';
     if (!Number.isFinite(spent) || spent <= 0) return 'Ваша функция не списала кредиты — найм не засчитан';
-    if (!spendCredits(spent)) return 'На счету не хватило кредитов';
+    if (!spendCredits(spent)) throw new Error('На счету не хватило кредитов');
 
     addCrewMember(laborExchange.hire(candidateId) ?? candidate);
     return `${candidate.name} принят в экипаж за ${spent.toLocaleString()} ¢`;
@@ -188,7 +189,7 @@ const commitApi = {
     const mined = Math.max(0, Number(report.ore) || 0);
 
     if (burned > 0 && !spendResource('fuel', burned)) {
-      return 'Расход топлива не сошёлся с баком — рейс не засчитан';
+      throw new Error('Расход топлива не сошёлся с баком — рейс не засчитан');
     }
 
     const delivered = addResource('ore', mined);
@@ -221,7 +222,7 @@ const commitApi = {
     const revenue = Math.max(0, Number(report.revenue) || 0);
 
     if (sold <= 0 || revenue <= 0) return 'Продажа не состоялась: ваша функция ничего не продала';
-    if (!spendResource('ore', sold)) return 'В бункере меньше руды, чем в плане продажи';
+    if (!spendResource('ore', sold)) throw new Error('В бункере меньше руды, чем в плане продажи');
 
     state.credits += revenue;
     addLog(`Продано ${sold} т руды за ${revenue.toLocaleString()} ¢`, 'success');
@@ -251,8 +252,7 @@ function refreshableQuest(input) {
  * У уже закрытого задания повторный вызов не засчитывается второй раз,
  * но может обновить его карточку в реестре.
  */
-async function tryPractice(input, value) {
-  const context = await corpData();
+function tryPractice(input, value, context) {
   const quest = currentQuest();
 
   if (!quest || !isSolved(quest.id) || isPracticed(quest.id) || !input.includes(quest.fn)) {
@@ -387,7 +387,22 @@ async function execute(input) {
   const result = await runConsole(source, input, await consolePayload());
 
   // Операции над базой применяем к настоящему хранилищу
-  const dbReport = applyDbOps(result.ops ?? []);
+  const context = await corpData();
+  let practice = null;
+  let dbReport = { errors: [] };
+  if (!result.error) {
+    try {
+      transaction(() => {
+        dbReport = applyDbOps(result.ops ?? []);
+        if (dbReport.errors.length) throw new Error(dbReport.errors.join('; '));
+        practice = tryPractice(input, result.value, context);
+        if (practice && !practice.ok) throw new Error(practice.message);
+      });
+    } catch (error) {
+      result.error = error.message;
+      dbReport = { errors: [] };
+    }
+  }
 
   const entry = {
     input,
@@ -406,7 +421,7 @@ async function execute(input) {
   if (dbReport.errors.length) entry.warn = `База отказала: ${dbReport.errors.join('; ')}`;
 
   if (!result.error) {
-    const practice = await tryPractice(input, result.value);
+
     if (practice?.refreshed) entry.note = `Запись в реестре обновлена: ${practice.message}`;
     else if (practice?.ok) entry.note = `✓ ${practice.message}`;
     else if (practice && !practice.ok) entry.warn = `Практика не засчитана: ${practice.message}`;

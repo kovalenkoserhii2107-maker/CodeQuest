@@ -91,7 +91,7 @@ export async function renderAudit() {
                        <td class="table__num ${entry.kind === 'burn' ? 'is-danger' : 'is-ok'}">
                          ${entry.kind === 'burn' ? '−' : '+'}${escapeHtml(showValue(entry.amount))}
                        </td>
-                       <td class="mono">${escapeHtml(new Date(entry.at).toLocaleString('ru'))}</td>
+                       <td class="mono">${entry.at ? escapeHtml(new Date(entry.at).toLocaleString('ru')) : 'Начальный остаток'}</td>
                      </tr>`)
                    .join('')}
                </tbody>

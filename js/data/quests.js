@@ -103,7 +103,7 @@ export const QUESTS = [
       // Карточка обновляется повторным вызовом: практика ничего не тратит
       refresh: true,
       title: 'Занесите себя в реестр',
-      hint: 'Тесты — это теория. Теперь вызовите свою функцию в консоли и укажите своё имя: объект попадёт в базу корпорации.',
+      hint: 'Проверки пройдены — применим код к данным корпорации. Теперь вызовите свою функцию в консоли и укажите своё имя: объект попадёт в базу корпорации.',
       example: 'createCommander("Сергей Коваленко")',
       validate: value => {
         if (!value || typeof value !== 'object') return 'Команда должна вернуть объект командира';
@@ -1545,6 +1545,7 @@ export const QUESTS = [
       '• fuelLeft — остаток топлива в баке;\n' +
       '• full — забился ли трюм.',
     theory: [
+      'Для допуска нужно plan.total ?? plan.fuel. В обычном рейсе списывается только plan.fuel: резерв остаётся в баке.',
       'Счётчик: for (let hour = 1; hour <= plan.hours; hour += 1) { … }',
       'Накопитель объявляют до цикла: let ore = 0, внутри ore += добыча.',
       'break прерывает цикл досрочно — им и закрывают полный трюм.',
@@ -1598,7 +1599,7 @@ export const QUESTS = [
         text:
           'Проверку топлива делают до цикла. Если рейс не состоится, считать часы бессмысленно — проще сразу вернуть отказ и не заводить вложенных условий.',
         code:
-          'if (ship.fuel < plan.fuel) {\n' +
+          'if (ship.fuel < (plan.total ?? plan.fuel)) {\n' +
           '  return {\n' +
           '    ok: false, ore: 0, hours: 0,\n' +
           '    fuelLeft: ship.fuel, full: false,\n' +
@@ -1620,7 +1621,7 @@ export const QUESTS = [
     ],
     solution:
       'function runExpedition(ship, plan) {\n' +
-      '  if (ship.fuel < plan.fuel) {\n' +
+      '  if (ship.fuel < (plan.total ?? plan.fuel)) {\n' +
       '    return { ok: false, ore: 0, hours: 0, fuelLeft: ship.fuel, full: false };\n' +
       '  }\n' +
       '\n' +
@@ -1675,6 +1676,9 @@ export const QUESTS = [
       },
     },
     tests: [
+      { name: 'Резерв остаётся в баке', args: [{ drills: 1, fuel: 154, cargo: 150 }, { fuel: 140, total: 154, hours: 1, richness: 3 }], expected: { ok: true, ore: 3, hours: 1, fuelLeft: 14, full: false } },
+      { name: 'Без резерва вылет запрещён', args: [{ drills: 1, fuel: 140, cargo: 150 }, { fuel: 140, total: 154, hours: 1, richness: 3 }], expected: { ok: false, ore: 0, hours: 0, fuelLeft: 140, full: false } },
+
       {
         name: 'Обычный рейс',
         args: [{ drills: 1, fuel: 200, cargo: 150 }, { hours: 20, fuel: 104, richness: 3 }],
@@ -1823,6 +1827,7 @@ export const QUESTS = [
         if (typeof value.left !== 'number') return 'В ревизии нет числового поля left — передайте результат fuelBalance';
         const log = context?.corp?.fuelLog ?? [];
         if (log.length === 0) return 'Журнал пуст: заправьтесь и сходите в рейс, тогда будет что сверять';
+        if (value.left !== context?.corp?.fuel) return 'Остаток по журналу не совпадает с баком';
         if (value.out <= 0) return 'Расход нулевой: проверьте, что в журнале учитываются операции "burn"';
         if (typeof value.id !== 'number') return 'Ревизия не попала в базу: оберните результат в db.insert("audits", …)';
         return true;

@@ -450,7 +450,7 @@ export async function runConsoleInput(source, input, payload = {}) {
     try {
       run = build(`return (async () => { ${input} })();`);
     } catch (error) {
-      return { value: undefined, preview: null, logs, ops, error: `Синтаксическая ошибка: ${error.message}` };
+      return { value: undefined, preview: null, logs, ops: [], error: `Синтаксическая ошибка: ${error.message}` };
     }
   }
 
@@ -458,6 +458,6 @@ export async function runConsoleInput(source, input, payload = {}) {
     const value = await run(consoleShim, ...contextValues);
     return { value: toPlain(value), preview: previewValue(value), logs, ops, error: null };
   } catch (error) {
-    return { value: undefined, preview: null, logs, ops, error: `${error.name}: ${error.message}` };
+    return { value: undefined, preview: null, logs, ops: [], error: `${error.name}: ${error.message}` };
   }
 }

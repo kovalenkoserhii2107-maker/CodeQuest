@@ -216,7 +216,8 @@ async function expeditionInput() {
     plan: {
       ...planned.value,
       // Рейс тратит столько, сколько насчитал план: с резервом, если он есть
-      fuel: fuelNeeded(planned.value),
+      fuel: Number(planned.value?.fuel) || 0,
+      total: fuelNeeded(planned.value),
       onRoute: Number(planned.value?.fuel) || 0,
       reserve: Number(planned.value?.reserve) || 0,
       richness: underPower(route.richness, efficiency),
@@ -238,7 +239,7 @@ export async function renderExpedition() {
   }
 
   const { route, ship, plan, efficiency } = input;
-  const enough = ship.fuel >= plan.fuel;
+  const enough = ship.fuel >= fuelNeeded(plan);
   const ore = resources().ore;
   const percent = Math.round(efficiency * 100);
 
@@ -262,7 +263,7 @@ export async function renderExpedition() {
     <div class="widget__row"><span>Топливо в баке</span><b class="mono ${enough ? 'is-ok' : 'is-danger'}">${ship.fuel} т</b></div>
     <div class="widget__row">
       <span>Нужно залить</span>
-      <b class="mono">${escapeHtml(showValue(plan.fuel))} т${
+      <b class="mono">${escapeHtml(showValue(fuelNeeded(plan)))} т${
         plan.reserve > 0 ? ` <small>${plan.onRoute} на рейс + ${plan.reserve} резерв</small>` : ''
       }</b>
     </div>

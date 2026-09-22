@@ -13,7 +13,9 @@ const listeners = new Set();
 /** Состояние по умолчанию — с него начинается новая игра. */
 function emptyState() {
   return {
-    version: 1,
+    version: 2,
+    revisions: {},
+    fuelOpening: 0,
     credits: 0,
     xp: 0,
     solved: {},     // questId -> { at, withSolution }: тесты пройдены
@@ -56,6 +58,12 @@ function readStorage() {
       s.inventory = [];
     }
 
+    s.revisions ??= {};
+    if (parsed.version !== 2) {
+      const net = s.fuelLog.reduce((n, e) => n + (e.kind === 'fill' ? e.amount : -e.amount), 0);
+      s.fuelOpening = (s.resources.fuel || 0) - net;
+      s.version = 2;
+    }
     return s;
   } catch {
     // Повреждённое или недоступное хранилище не должно ломать игру.
@@ -97,9 +105,42 @@ export function subscribe(listener) {
   return () => listeners.delete(listener);
 }
 
+let transactionDepth = 0;
 function emit() {
+  if (transactionDepth) return;
   persist();
   listeners.forEach(listener => listener(state));
+}
+
+/** All changes commit together; callbacks must be synchronous. */
+export function transaction(action) {
+  if (transactionDepth) return action();
+  const before = structuredClone(state);
+  transactionDepth++;
+  try {
+    const result = action();
+    if (result?.then) throw new Error('Транзакция должна быть синхронной');
+    transactionDepth--;
+    emit();
+    return result;
+  } catch (error) {
+    for (const key of Object.keys(state.db)) delete state.db[key];
+    Object.assign(state.db, before.db);
+    Object.assign(state, { ...before, db: state.db });
+    transactionDepth = 0;
+    throw error;
+  }
+}
+
+export function revisionsOf(id) {
+  return (state.revisions[id] ?? []).map(item => ({ ...item }));
+}
+function saveSolution(id, source) {
+  if (state.solutions[id] === source) return;
+  const history = state.revisions[id] ??= [];
+  if (!history.length && state.solutions[id]) history.push({ source: state.solutions[id], at: null });
+  history.push({ source, at: new Date().toISOString() });
+  state.solutions[id] = source;
 }
 
 /* --- Производные значения ---------------------------------------------- */
@@ -257,13 +298,13 @@ export function previousStageOf(questId) {
  * оказалось бы два объявления, и какое из них победит, зависело бы от
  * порядка строк.
  */
-export function appSource() {
+export function appSource(candidate = null) {
   const names = [...new Set(questChain().map(quest => quest.fn))];
-
-  return names
-    .map(name => activeSourceOf(name))
-    .filter(Boolean)
-    .join('\n\n');
+  return names.map(name => {
+    const source = candidate?.fn === name ? candidate.source : activeSourceOf(name);
+    // Each solution owns its helpers; exported functions see one another.
+    return source ? `const ${name} = (() => {\n${source}\n;return ${name};\n})();` : '';
+  }).filter(Boolean).join('\n\n');
 }
 
 /** Функции, которые уже работают в приложении. */
@@ -286,7 +327,7 @@ export function completeQuest(questId, { withSolution = false, source = null } =
   if (isSolved(questId)) {
     // Награда не повторяется, но более свежий рабочий код приборам пригодится.
     if (source) {
-      state.solutions[questId] = source;
+      saveSolution(questId, source);
       emit();
     }
     return null;
@@ -298,7 +339,7 @@ export function completeQuest(questId, { withSolution = false, source = null } =
   const levelBefore = playerLevel();
 
   state.solved[questId] = { at: new Date().toISOString(), withSolution };
-  if (source) state.solutions[questId] = source;
+  if (source) saveSolution(questId, source);
   state.credits += credits;
   state.xp += xp;
 
@@ -569,7 +610,11 @@ export function resources() {
  * пройдя записи от начала до конца.
  */
 export function fuelLog() {
-  return (state.fuelLog ?? []).map(entry => ({ ...entry }));
+  const opening = state.fuelOpening || 0;
+  return [
+    ...(opening ? [{ kind: opening > 0 ? 'fill' : 'burn', amount: Math.abs(opening), note: 'Входящий остаток', at: null }] : []),
+    ...(state.fuelLog ?? []).map(entry => ({ ...entry })),
+  ];
 }
 
 function noteFuel(kind, amount, note) {
@@ -577,7 +622,10 @@ function noteFuel(kind, amount, note) {
   if (!Number.isFinite(amount) || amount <= 0) return;
 
   state.fuelLog.push({ kind, amount, note, at: new Date().toISOString() });
-  state.fuelLog = state.fuelLog.slice(-40);
+  while (state.fuelLog.length > 40) {
+    const old = state.fuelLog.shift();
+    state.fuelOpening += old.kind === 'fill' ? old.amount : -old.amount;
+  }
 }
 
 /**
