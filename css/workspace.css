@@ -1,0 +1,22 @@
+/* Desktop workspace uses the existing CodeQuest tokens in both themes. */
+.task {align-items:start;}
+.monaco-host{height:clamp(420px,60vh,760px);min-width:0;border:1px solid var(--color-line);border-radius:var(--radius-sm);overflow:hidden;resize:vertical;min-height:280px;}
+.editor-loading{width:100%;height:100%;padding:16px;background:var(--code-bg);color:var(--code-text);font:15px/24px var(--font-mono);resize:none;border:0;}
+.workspace-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.workspace-toolbar>.mono{margin-right:auto;color:var(--color-accent);}
+.workspace-status{font:var(--fs-xs) var(--font-mono);color:var(--color-muted);padding:10px 0;}
+.workspace-problems,.workspace-reference,.workspace-history{padding:12px 0;border-top:1px solid var(--color-line);color:var(--color-text);}
+.workspace-reference input{display:block;width:100%;padding:10px;margin:12px 0;background:var(--code-bg);color:var(--code-text);border:1px solid var(--color-line);border-radius:var(--radius-sm);}
+[data-reference]{max-height:350px;overflow:auto;}
+.reference-entry{padding:12px;border-bottom:1px solid var(--color-line);font-size:var(--fs-sm);}
+.reference-entry h4{color:var(--color-accent);margin-bottom:8px;}
+.reference-entry p{margin:6px 0;}
+.reference-entry pre{white-space:pre-wrap;padding:12px;background:var(--code-bg);color:var(--code-text);font-family:var(--font-mono);}
+.problem-link{display:block;text-align:left;width:100%;padding:8px;background:transparent;color:var(--color-danger);border:0;cursor:pointer;}
+.workspace-history select{max-width:100%;padding:8px;color:var(--color-text);background:var(--color-panel);border:1px solid var(--color-line);}
+.task__editor{min-width:0;}
+.task__editor.is-expanded{position:fixed;inset:16px;z-index:90;overflow:auto;background:var(--color-panel);padding:24px;}
+.task__editor.is-expanded .monaco-host{height:70vh;}
+.workspace-note{padding:12px;border-left:3px solid var(--color-accent);background:var(--surface-chip);font-size:var(--fs-sm);margin:12px 0;}
+@media(min-width:1100px){.task{grid-template-columns:minmax(300px,.8fr) minmax(540px,1.6fr);}.task__editor{position:sticky;top:84px;}.task__lesson{grid-column:1/-1;}}
+@media(max-width:1099px){.task{grid-template-columns:1fr;}.monaco-host{height:460px;}}

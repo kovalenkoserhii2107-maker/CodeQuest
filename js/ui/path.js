@@ -4,7 +4,7 @@
  * Решённые задания открыты для повторного просмотра, текущее выделено,
  * будущие закрыты — сюжет раскрывается по одному шагу.
  */
-import { QUESTS } from '../data/quests.js';
+import { QUESTS, stageChain } from '../data/quests.js';
 import { isSolved, isPracticed, isQuestClosed, currentQuest, questChain } from '../state.js';
 import { escapeHtml } from './html.js';
 import { mapMarkup, bindMap } from './map.js';
@@ -30,6 +30,8 @@ export function renderPath({ onOpenQuest }) {
           const story = done || active
             ? escapeHtml(quest.story)
             : 'Откроется после предыдущего шага.';
+          const stages = stageChain(quest.fn);
+          const stage = stages.findIndex(q => q.id === quest.id) + 1;
           const meta = done || active
             ? `${escapeHtml(quest.topic)} · ${'★'.repeat(quest.difficulty)}${'☆'.repeat(5 - quest.difficulty)}`
             : '';
@@ -45,7 +47,7 @@ export function renderPath({ onOpenQuest }) {
                   </span>
                 </div>
                 <p class="chain__story">${story}</p>
-                ${meta ? `<p class="chain__meta mono">${meta}</p>` : ''}
+                ${meta ? `<p class="chain__meta mono">${meta}</p><p class="widget__note">Ваш код: <code>${escapeHtml(quest.fn)}</code>${stages.length > 1 ? ` · этап ${stage} из ${stages.length}` : ''}</p>` : ''}
                 ${
                   done || active
                     ? `<div class="chain__foot">
@@ -70,7 +72,7 @@ export function renderPath({ onOpenQuest }) {
         .join('')}
     </ol>
     ${
-      chain.every(quest => isSolved(quest.id))
+      chain.every(quest => isQuestClosed(quest.id))
         ? '<p class="empty-state">Цепочка пройдена целиком. Следующие задания появятся с новыми механиками.</p>'
         : ''
     }

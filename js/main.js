@@ -12,8 +12,7 @@ import {
 import { renderPath } from './ui/path.js';
 import { renderConsole } from './ui/console.js';
 import { renderDatabase, renderPanels } from './ui/dbview.js';
-import { renderMyApp } from './ui/myapp.js';
-import { renderTask } from './ui/task.js';
+import { disposeTask, renderTask } from './ui/task.js';
 import { renderLog } from './ui/log.js';
 import { renderView, corporationName, toast } from './ui.js';
 import { isFallbackMode } from './runner.js';
@@ -36,7 +35,6 @@ const VIEW_TITLES = {
   range: 'Полигон',
   battle: 'Боевой вылет',
   audit: 'Ревизия топлива',
-  myapp: 'Моё приложение',
   database: 'Бортовая база данных',
   panels: 'Ваши панели',
   log: 'Журнал',
@@ -46,7 +44,8 @@ const el = id => document.getElementById(id);
 
 function parseRoute() {
   const raw = location.hash.replace(/^#\/?/, '');
-  const [name, param] = raw.split('/');
+  let [name, param] = raw.split('/');
+  if (name === 'myapp') name = 'path';
   return { name: VIEW_TITLES[name] ? name : 'path', param: param ?? null };
 }
 
@@ -100,6 +99,7 @@ function showView(name) {
 /* --- Маршрутизация ------------------------------------------------------- */
 
 function render() {
+  disposeTask();
   const { name, param } = parseRoute();
   renderNav();
   renderHud();
@@ -123,10 +123,6 @@ function render() {
     return;
   }
 
-  if (name === 'myapp') {
-    renderMyApp();
-    return;
-  }
 
   if (name === 'console') {
     renderConsole();

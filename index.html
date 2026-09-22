@@ -14,6 +14,8 @@
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/game.css">
   <link rel="stylesheet" href="css/editor.css">
+  <link rel="stylesheet" href="vendor/editor.css">
+  <link rel="stylesheet" href="css/workspace.css">
   <script>
     // Тема применяется до отрисовки, иначе при загрузке мигнёт чужой фон.
     try {
@@ -53,12 +55,6 @@
               <a class="nav__link" href="#/task" data-route="task">
                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 5l-2 14"/></svg>
                 <span>Задание</span>
-              </a>
-            </li>
-            <li>
-              <a class="nav__link" href="#/myapp" data-route="myapp">
-                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 13h8M8 16h5"/></svg>
-                <span>Моё приложение</span>
               </a>
             </li>
             <li hidden data-view-item="console">
@@ -232,8 +228,7 @@
       </header>
 
       <p class="banner banner--warn" id="fallback-banner" hidden>
-        Страница открыта без локального сервера, поэтому код выполняется в основном потоке:
-        бесконечный цикл придётся прерывать перезагрузкой вкладки. Запустите
+        Изолированный исполнитель недоступен. Выполнение кода приостановлено. Запустите
         <code>python3 -m http.server 8000</code> в папке проекта.
       </p>
 
@@ -524,20 +519,6 @@
 
           <div class="panel" id="audit-balance"></div>
           <div class="panel" id="audit-log"></div>
-        </section>
-
-        <!-- ------------------------- Моё приложение ------------------------- -->
-        <section class="view" id="view-myapp" hidden aria-labelledby="myapp-title">
-          <div class="section-head">
-            <div>
-              <h2 id="myapp-title">Моё приложение</h2>
-              <p>Что умеет ваша система управления корпорацией и какой код за это отвечает.</p>
-            </div>
-            <span class="panel__hint" id="myapp-progress">—</span>
-          </div>
-
-          <div class="panel" id="myapp-next"></div>
-          <div class="grid grid--cards" id="myapp-features"></div>
         </section>
 
         <!-- ------------------------- Журнал ------------------------- -->

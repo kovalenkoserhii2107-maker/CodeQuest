@@ -3,12 +3,21 @@
  */
 import { QUESTS, questById } from '../data/quests.js';
 import {
-  completeQuest, draftOf, isSolved, isPracticed, saveDraft, solutionOf, previousStageOf, stagesOf,
+  completeQuest, draftOf, isSolved, isPracticed, saveDraft, solutionOf, previousStageOf, stagesOf, revisionsOf, state,
 } from '../state.js';
 import { runSolution } from '../runner.js';
 import { escapeHtml } from './html.js';
 import { fillBar } from './charts.js';
+import { lineDiff } from '../editor/diff.js';
 import { createEditor } from './editor.js';
+
+let activeEditor = null;
+let renderGeneration = 0;
+export function disposeTask() {
+  renderGeneration++;
+  activeEditor?.dispose();
+  activeEditor = null;
+}
 
 /** Следующее задание цепочки — чтобы было куда идти после победы. */
 function nextQuest(current) {
@@ -152,6 +161,8 @@ function startingCode(quest) {
   const draft = draftOf(quest.id);
   if (draft !== null) return draft;
 
+  if (isSolved(quest.id) && solutionOf(quest.id)) return solutionOf(quest.id);
+
   if (quest.extends) {
     const inherited = solutionOf(quest.extends);
     if (inherited) return inherited;
@@ -197,26 +208,13 @@ function changesHtml(quest) {
 
 /** Построчное сравнение двух версий — что добавилось и что ушло. */
 function diffHtml(before, after) {
-  const oldLines = String(before).split('\n');
-  const newLines = String(after).split('\n');
-  const removed = new Set(oldLines.map(line => line.trim()).filter(Boolean));
-  const added = new Set(newLines.map(line => line.trim()).filter(Boolean));
-
-  const rows = [];
-  for (const line of oldLines) {
-    const key = line.trim();
-    if (key && !added.has(key)) rows.push({ sign: '−', line, kind: 'out' });
-  }
-  for (const line of newLines) {
-    const key = line.trim();
-    if (key && !removed.has(key)) rows.push({ sign: '+', line, kind: 'in' });
-  }
+  const rows = lineDiff(String(before), String(after));
 
   if (rows.length === 0) return '<p class="widget__note">Версии совпадают строка в строку.</p>';
 
   return `
     <pre class="diff mono">${rows
-      .map(row => `<span class="diff__line diff__line--${row.kind}">${row.sign} ${escapeHtml(row.line.trim())}</span>`)
+      .map(row => `<span class="diff__line diff__line--${row.kind}">${row.sign} ${escapeHtml(row.line)}</span>`)
       .join('\n')}</pre>`;
 }
 
@@ -226,6 +224,10 @@ function diffHtml(before, after) {
  * @param {{onOpenQuest: Function, onSolved: Function}} handlers
  */
 export function renderTask(quest, { onOpenQuest, onSolved }) {
+  disposeTask();
+  const generation = renderGeneration;
+  let running = false;
+  let revealed = Boolean(state.solved[quest.id]?.withSolution);
   const root = document.getElementById('task-root');
   const solved = isSolved(quest.id);
 
@@ -277,7 +279,13 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
         <span class="panel__hint">Ctrl + Enter — запустить тесты</span>
       </div>
 
+      <p class="workspace-note">Пишите и улучшайте свой модуль. Подсказки объясняют JavaScript; тесты проверяют задачу и совместимость с уже написанными функциями.</p>
       <div id="editor-host"></div>
+      <details class="workspace-history"><summary>История проверенных версий</summary>
+        <p class="widget__note">Восстановление открывает версию в черновике. Рабочий код обновится после успешных проверок.</p>
+        <select id="revision-select" aria-label="Проверенная версия"></select>
+        <button id="restore-revision" class="btn btn--ghost btn--sm" type="button">Открыть в редакторе</button>
+      </details>
 
       <div class="task__actions">
         <button class="btn btn--primary" type="button" id="run">Запустить тесты</button>
@@ -294,10 +302,23 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
   const editor = createEditor(root.querySelector('#editor-host'), {
     value: startingCode(quest),
+    filename: `${quest.fn}.js`, functionName: quest.fn,
     onInput: code => saveDraft(quest.id, code),
     onRun: () => run(),
   });
 
+  activeEditor = editor;
+  function renderHistory() {
+    const history = revisionsOf(quest.id);
+    const select = root.querySelector('#revision-select');
+    select.innerHTML = history.length ? history.map((item,index)=>`<option value="${index}">Версия ${index+1} · ${item.at ? escapeHtml(new Date(item.at).toLocaleString('ru')) : 'из сохранения'}</option>`).reverse().join('') : '<option>Проверенных версий пока нет</option>';
+    root.querySelector('#restore-revision').disabled = !history.length;
+  }
+  renderHistory();
+  root.querySelector('#restore-revision').addEventListener('click',()=>{
+    const revision = revisionsOf(quest.id)[Number(root.querySelector('#revision-select').value)];
+    if (revision) { editor.setValue(revision.source); saveDraft(quest.id,revision.source); }
+  });
   const report = root.querySelector('#report');
   const hints = root.querySelector('#task-hints');
 
@@ -306,8 +327,21 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
   }
 
   async function run() {
-    showReport('<p class="report__pending">Запускаем тесты…</p>');
-    const result = await runSolution(editor.getValue(), quest);
+    if (running) return;
+    running = true;
+    const source = editor.getValue();
+    const usedSolution = revealed;
+    root.querySelector('#run').disabled = true;
+    showReport('<p class="report__pending">Проверяем модуль и совместимость приложения…</p>');
+    let result;
+    try { result = await runSolution(source, quest); }
+    catch (error) { result = { error: error.message }; }
+    finally { running = false; if (generation === renderGeneration) root.querySelector('#run').disabled = false; }
+    if (generation !== renderGeneration) return;
+    if (editor.getValue() !== source) {
+      showReport('<p class="report__note">Пока шли проверки, код изменился. Рабочая версия сохранена без изменений. Запустите тесты текущего черновика.</p>');
+      return;
+    }
 
     if (result.error) {
       showReport(`<p class="report__error">${escapeHtml(result.error)}</p>`);
@@ -322,7 +356,8 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
     let banner = '';
     if (result.ok) {
       // Код передаём всегда: на нём работают разделы корпорации.
-      const outcome = completeQuest(quest.id, { source: editor.getValue() });
+      const outcome = completeQuest(quest.id, { source, withSolution: usedSolution });
+      renderHistory();
       const practiceDone = isPracticed(quest.id);
       const next = nextQuest(quest);
 
@@ -345,7 +380,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
               Откройте консоль и выполните команду${
                 quest.unlocks
                   ? ` — объект попадёт в базу корпорации, и раздел «${escapeHtml(quest.unlocks.label)}» откроется`
-                  : ' — новая версия функции вступит в силу во всём приложении'
+                  : ' — сохраните результат применения новой версии'
               }.
             </p>
             <code class="console__example mono">${escapeHtml(quest.practice.example)}</code>
@@ -412,17 +447,16 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
   root.querySelector('#reveal').addEventListener('click', () => {
     const confirmed = window.confirm(
-      'Показать эталонное решение? Задача засчитается с половинной наградой.',
+      'Открыть учебный пример? Разберите его и запустите проверки. Награда за этот этап будет половинной.',
     );
     if (!confirmed) return;
 
     editor.setValue(quest.solution);
     saveDraft(quest.id, quest.solution);
-    const outcome = completeQuest(quest.id, { withSolution: true, source: quest.solution });
-    if (outcome) onSolved(outcome);
+    revealed = true;
     showReport(
       `<p class="report__note">Решение подставлено в редактор. Разберите его построчно и запустите тесты — ` +
-      `так материал закрепится лучше.</p>`,
+      `после этого самостоятельно измените входные данные и объясните результат в консоли.</p>`,
     );
   });
 }

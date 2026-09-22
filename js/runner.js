@@ -1,8 +1,8 @@
 /**
- * Обёртка над воркером: следит за таймаутом и умеет работать в запасном
- * режиме (без воркера), если страницу открыли не через сервер.
+ * Изолированный исполнитель с таймаутом. Прямой запуск разрешён только в Node для тестов.
  */
 import { runQuestTests, runPlayerCode, runConsoleInput } from './runner-core.js';
+import { appSource, liveFunctions } from './state.js';
 import { testsOf } from './data/quests.js';
 
 const TIMEOUT_MS = 3000;
@@ -36,12 +36,29 @@ export function isFallbackMode() {
  * Прогоняет решение против тестов задачи.
  * @returns {Promise<{ok: boolean, results: Array, logs: string[], error: string|null}>}
  */
-export function runSolution(source, quest) {
+export async function runSolution(source, quest) {
+  const combined = appSource({ fn: quest.fn, source });
+  const suites = [quest, ...liveFunctions().filter(item => item.fn !== quest.fn).map(item => item.stage)];
+  const report = { ok: true, results: [], logs: [], error: null };
+  for (const suite of suites) {
+    const part = await runTestSuite(combined, suite);
+    if (part.error) return { ...part, error: `${suite.fn}: ${part.error}` };
+    report.results.push(...part.results.map(item => ({ ...item,
+      name: suite === quest ? item.name : `${suite.fn} · интеграция · ${item.name}`,
+      integration: suite !== quest,
+    })));
+    report.logs.push(...part.logs);
+    report.ok &&= part.ok;
+  }
+  return report;
+}
+
+function runTestSuite(source, quest) {
   const active = typeof Worker === 'undefined' ? null : ensureWorker();
 
   if (!active) {
-    // Запасной путь: выполняем в основном потоке. Бесконечный цикл здесь
-    // прервать нельзя, поэтому интерфейс предупреждает об этом отдельно.
+    // В браузере не запускаем пользовательский код без изоляции.
+    if (typeof window !== 'undefined') return Promise.resolve({ok:false, results:[], logs:[], error:'Изолированный исполнитель недоступен. Перезагрузите страницу.'});
     return runQuestTests(source, { fn: quest.fn, tests: testsOf(quest) });
   }
 
@@ -69,7 +86,7 @@ export function runSolution(source, quest) {
       cleanup();
       workerBroken = true;
       worker = null;
-      runQuestTests(source, { fn: quest.fn, tests: testsOf(quest) }).then(resolve);
+      resolve({ok:false,results:[],logs:[],error:'Исполнитель остановлен. Перезагрузите страницу.'});
     }
 
     function cleanup() {
@@ -97,6 +114,7 @@ export function evaluateWidgets(jobs) {
   const active = typeof Worker === 'undefined' ? null : ensureWorker();
 
   if (!active) {
+    if (typeof window !== 'undefined') return Promise.resolve(jobs.map(job => ({id:job.id,value:null,error:'Изолированный исполнитель недоступен'})));
     return Promise.all(
       jobs.map(job => runPlayerCode(job.source, job.fn, job.expr).then(outcome => ({ id: job.id, ...outcome }))),
     );
@@ -121,9 +139,7 @@ export function evaluateWidgets(jobs) {
       cleanup();
       workerBroken = true;
       worker = null;
-      Promise.all(
-        jobs.map(job => runPlayerCode(job.source, job.fn, job.expr).then(outcome => ({ id: job.id, ...outcome }))),
-      ).then(resolve);
+      resolve(jobs.map(job => ({id:job.id,value:null,error:'Исполнитель остановлен'})));
     }
 
     function cleanup() {
@@ -147,7 +163,7 @@ export function evaluateWidgets(jobs) {
 export function runConsole(source, input, payload = {}) {
   const active = typeof Worker === 'undefined' ? null : ensureWorker();
 
-  if (!active) return runConsoleInput(source, input, payload);
+  if (!active) return typeof window === 'undefined' ? runConsoleInput(source, input, payload) : Promise.resolve({value:null,logs:[],ops:[],error:'Изолированный исполнитель недоступен'});
 
   const id = nextId++;
   return new Promise(resolve => {
@@ -168,7 +184,7 @@ export function runConsole(source, input, payload = {}) {
       cleanup();
       workerBroken = true;
       worker = null;
-      runConsoleInput(source, input, payload).then(resolve);
+      resolve({value:null,logs:[],ops:[],error:'Исполнитель остановлен'});
     }
 
     function cleanup() {

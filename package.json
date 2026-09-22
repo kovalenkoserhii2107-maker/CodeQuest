@@ -1,0 +1,28 @@
+{
+  "name": "codequest",
+  "version": "1.0.0",
+  "description": "Учебная платформа JavaScript: создайте систему управления корпорацией.",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build:editor": "node tools/build-editor.mjs",
+    "test": "node tests/check-quests.mjs && node tests/check-editor.mjs && node tests/check-economy.mjs && node tests/check-assets.mjs && node tests/check-charts.mjs && node tests/check-foundation.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kovalenkoserhii2107-maker/CodeQuest.git"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/kovalenkoserhii2107-maker/CodeQuest/issues"
+  },
+  "homepage": "https://github.com/kovalenkoserhii2107-maker/CodeQuest#readme",
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "monaco-editor": "0.56.0"
+  },
+  "private": true
+}

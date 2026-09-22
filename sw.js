@@ -5,9 +5,21 @@
  * Стратегия — «сначала сеть, кэш про запас»: так обновления страниц и кода
  * видны сразу после деплоя, а офлайн по-прежнему работает из кэша.
  */
-const CACHE = 'codequest-v10';
+const CACHE = 'codequest-v11';
 
 const SHELL = [
+  // editor-assets-start
+  'vendor/MONACO-LICENSE.txt',
+  'vendor/codicon.ttf',
+  'vendor/editor.css',
+  'vendor/editor.js',
+  'vendor/editor.js.LEGAL.txt',
+  'vendor/editor.worker.js',
+  'vendor/ts.worker.js',
+  'vendor/ts.worker.js.LEGAL.txt',
+  // editor-assets-end
+  'css/workspace.css',
+  'js/editor/diff.js',
   './',
   'index.html',
   'manifest.webmanifest',
@@ -54,7 +66,6 @@ const SHELL = [
   'js/ui/mission.js',
   'js/ui/combat.js',
   'js/ui/audit.js',
-  'js/ui/myapp.js',
   'js/editor/edit-ops.js',
   'js/editor/highlight.js',
   'js/editor/complete.js',
