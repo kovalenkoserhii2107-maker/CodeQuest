@@ -234,7 +234,14 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
   let hintsShown = 0;
 
   root.innerHTML = `
-    <div class="panel task__intro">
+    <div class="workspace-sizing" aria-label="Размеры рабочего места">
+      <label>Ширина задания <input id="workspace-width" type="range" min="28" max="55" value="38" aria-label="Ширина задания в процентах"></label>
+      <label>Высота <input id="workspace-height" type="range" min="400" max="900" step="20" value="600" aria-label="Высота рабочего места в пикселях"></label>
+      <button class="btn btn--ghost btn--sm" id="workspace-reset" type="button">Сбросить размеры</button>
+    </div>
+    <div class="task-workspace">
+    <div class="panel task__intro" tabindex="0" aria-label="Описание задания">
+
       <div class="panel__head">
         <div>
           <p class="task__crumbs mono">Задание ${quest.order} · ${escapeHtml(quest.topic)}</p>
@@ -279,8 +286,17 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
         <span class="panel__hint">Ctrl + Enter — запустить тесты</span>
       </div>
 
-      <p class="workspace-note">Пишите и улучшайте свой модуль. Подсказки объясняют JavaScript; тесты проверяют задачу и совместимость с уже написанными функциями.</p>
+
       <div id="editor-host"></div>
+      <div class="task__actions task__actions--primary">
+        <button class="btn btn--primary" type="button" id="run">Запустить тесты</button>
+        <button class="btn btn--ghost" type="button" id="hint">Подсказка</button>
+      </div>
+    </div>
+    </div>
+    <section class="panel workspace-extras" aria-label="Дополнительные инструменты">
+      <h3 class="panel__title">Инструменты и результаты</h3>
+      <div id="editor-tools"></div>
       <details class="workspace-history"><summary>История проверенных версий</summary>
         <p class="widget__note">Восстановление открывает версию в черновике. Рабочий код обновится после успешных проверок.</p>
         <select id="revision-select" aria-label="Проверенная версия"></select>
@@ -288,20 +304,39 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
       </details>
 
       <div class="task__actions">
-        <button class="btn btn--primary" type="button" id="run">Запустить тесты</button>
-        <button class="btn btn--ghost" type="button" id="hint">Подсказка</button>
         <button class="btn btn--ghost" type="button" id="reset-code">Вернуть заготовку</button>
         <button class="btn btn--danger btn--sm" type="button" id="reveal">Показать решение</button>
       </div>
 
       <div class="task__report" id="report"></div>
-    </div>
+    </section>
 
     ${lessonHtml(quest)}
   `;
 
+  const workspace = root.querySelector('.task-workspace');
+  const widthControl = root.querySelector('#workspace-width');
+  const heightControl = root.querySelector('#workspace-height');
+  const defaultHeight = Math.max(400, Math.min(700, window.innerHeight - 220));
+  let size = { width: 38, height: defaultHeight };
+  try { size = { ...size, ...JSON.parse(localStorage.getItem('codequest.workspace') || '{}') }; } catch {}
+  widthControl.value = String(Math.max(28, Math.min(55, Number(size.width) || 38)));
+  heightControl.value = String(Math.max(400, Math.min(900, Number(size.height) || defaultHeight)));
+  function resizeWorkspace() {
+    workspace.style.setProperty('--task-width', `${widthControl.value}%`);
+    workspace.style.setProperty('--workspace-height', `${heightControl.value}px`);
+    try { localStorage.setItem('codequest.workspace', JSON.stringify({ width: +widthControl.value, height: +heightControl.value })); } catch {}
+  }
+  widthControl.addEventListener('input', resizeWorkspace);
+  heightControl.addEventListener('input', resizeWorkspace);
+  root.querySelector('#workspace-reset').addEventListener('click', () => {
+    widthControl.value = '38'; heightControl.value = String(defaultHeight); resizeWorkspace();
+  });
+  resizeWorkspace();
+
   const editor = createEditor(root.querySelector('#editor-host'), {
     value: startingCode(quest),
+    toolsContainer: root.querySelector('#editor-tools'),
     filename: `${quest.fn}.js`, functionName: quest.fn,
     onInput: code => saveDraft(quest.id, code),
     onRun: () => run(),
@@ -324,6 +359,10 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
   function showReport(html) {
     report.innerHTML = html;
+    if (html && !html.includes('report__pending')) {
+      editor.collapse();
+      report.scrollIntoView({ block: 'nearest' });
+    }
   }
 
   async function run() {
@@ -410,6 +449,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
       .slice(0, hintsShown)
       .map(hint => `<p class="task__hint">💡 ${escapeHtml(hint)}</p>`)
       .join('');
+    hints.scrollIntoView({ block: 'nearest' });
     if (hintsShown >= quest.hints.length) {
       root.querySelector('#hint').disabled = true;
     }

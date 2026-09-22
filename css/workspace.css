@@ -1,6 +1,6 @@
 /* Desktop workspace uses the existing CodeQuest tokens in both themes. */
 .task {align-items:start;}
-.monaco-host{height:clamp(420px,60vh,760px);min-width:0;border:1px solid var(--color-line);border-radius:var(--radius-sm);overflow:hidden;resize:vertical;min-height:280px;}
+.monaco-host{height:clamp(420px,60vh,760px);min-width:0;border:1px solid var(--color-line);border-radius:var(--radius-sm);overflow:hidden;min-height:280px;}
 .editor-loading{width:100%;height:100%;padding:16px;background:var(--code-bg);color:var(--code-text);font:15px/24px var(--font-mono);resize:none;border:0;}
 .workspace-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
 .workspace-toolbar>.mono{margin-right:auto;color:var(--color-accent);}
@@ -15,8 +15,37 @@
 .problem-link{display:block;text-align:left;width:100%;padding:8px;background:transparent;color:var(--color-danger);border:0;cursor:pointer;}
 .workspace-history select{max-width:100%;padding:8px;color:var(--color-text);background:var(--color-panel);border:1px solid var(--color-line);}
 .task__editor{min-width:0;}
-.task__editor.is-expanded{position:fixed;inset:16px;z-index:90;overflow:auto;background:var(--color-panel);padding:24px;}
-.task__editor.is-expanded .monaco-host{height:70vh;}
+.task-workspace.is-expanded{position:fixed;inset:16px;z-index:90;overflow:auto;background:var(--color-panel);padding:24px;}
+.task-workspace.is-expanded .monaco-host{height:70vh;}
 .workspace-note{padding:12px;border-left:3px solid var(--color-accent);background:var(--surface-chip);font-size:var(--fs-sm);margin:12px 0;}
-@media(min-width:1100px){.task{grid-template-columns:minmax(300px,.8fr) minmax(540px,1.6fr);}.task__editor{position:sticky;top:84px;}.task__lesson{grid-column:1/-1;}}
-@media(max-width:1099px){.task{grid-template-columns:1fr;}.monaco-host{height:460px;}}
+
+/* The workspace has a single bounded row. Tools stay in document flow below it. */
+.task{display:flex;flex-direction:column;gap:20px;}
+.task>*{width:100%;min-width:0;}
+.workspace-sizing{display:flex;align-items:center;gap:24px;flex-wrap:wrap;}
+.workspace-sizing label{display:flex;align-items:center;gap:12px;font-size:var(--fs-sm);color:var(--color-muted);}
+.workspace-sizing input{width:150px;accent-color:var(--color-accent);}
+.task-workspace{display:grid;grid-template-columns:minmax(280px,var(--task-width,38%)) minmax(0,1fr);gap:20px;height:var(--workspace-height,600px);}
+.task-workspace>.panel{margin:0;min-width:0;min-height:0;height:100%;}
+.task__intro{overflow:auto;scrollbar-gutter:stable;}
+.task__editor{position:static;display:flex;flex-direction:column;padding:20px;gap:12px;}
+.task__editor>.panel__head{margin:0;padding-bottom:12px;flex-shrink:0;}
+.task__editor>.panel__head .panel__hint{display:none;}
+#editor-host{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0;}
+.monaco-host{height:auto;min-height:0;flex:1;flex-shrink:1;}
+.workspace-toolbar{margin-bottom:10px;gap:6px;flex-shrink:0;}
+.workspace-status{padding:6px 0 0;font-size:11px;flex-shrink:0;}
+.task__actions--primary{margin:0;flex-shrink:0;}
+.workspace-extras{position:static;}
+.workspace-extras>.panel__title{margin-bottom:16px;}
+.task-workspace.is-expanded{display:grid;inset:12px;height:calc(100dvh - 24px);width:auto;max-width:none;overflow:visible;border:1px solid var(--color-line);border-radius:var(--radius-sm);padding:12px;box-shadow:0 0 0 100vmax rgba(0,0,0,.65);}
+.task-workspace.is-expanded .monaco-host{height:auto;}
+@media(max-width:1050px){
+  .task-workspace{grid-template-columns:1fr;height:auto;}
+  .task-workspace>.task__intro{max-height:360px;}
+  .task-workspace>.task__editor{height:var(--workspace-height,600px);}
+  .workspace-sizing label:first-child{display:none;}
+  .task-workspace.is-expanded{display:flex;flex-direction:column;overflow:auto;}
+  .task-workspace.is-expanded>.task__intro{height:240px;flex-shrink:0;}
+  .task-workspace.is-expanded>.task__editor{min-height:400px;flex:1;}
+}
