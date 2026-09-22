@@ -181,13 +181,13 @@ h1, h2, h3, h4 {
   min-height: 100vh;
 }
 
-.main {
+.layout > .main {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.content {
+.layout > .main > .content {
   width: 100%;
   max-width: var(--container);
   margin: 0 auto;
@@ -573,7 +573,7 @@ h1, h2, h3, h4 {
 
 /* Элементы сеток должны уметь сжиматься, иначе широкая таблица
    растягивает всю страницу и появляется горизонтальная прокрутка. */
-.content > *,
+.layout > .main > .content > *,
 .grid > * {
   min-width: 0;
 }
@@ -661,7 +661,7 @@ h1, h2, h3, h4 {
     padding: var(--space-3);
   }
 
-  .content {
+  .layout > .main > .content {
     padding: var(--space-5) var(--space-4) var(--space-7);
   }
 

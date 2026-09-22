@@ -45,7 +45,7 @@ function loadRuntime() {
   return runtime;
 }
 
-export function createEditor(container, { value='', onInput, onRun, filename='solution.js', functionName='' }={}) {
+export function createEditor(container, { value='', onInput, onRun, filename='solution.js', functionName='', toolsContainer=null }={}) {
   let editor, model, m, disposed = false, wrap = false;
   const cleanups=[];
   const track = disposable => cleanups.push(() => disposable.dispose());
@@ -77,7 +77,12 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
   }
   referenceList();
   container.querySelector('input[type=search]').addEventListener('input',event=>referenceList(event.target.value));
-  const wrapper=container.closest('.task__editor') ?? container;
+  const wrapper=container.closest('.task-workspace') ?? container;
+  const count=container.querySelector('[data-count]');
+  const problems=container.querySelector('[data-problems]');
+  if (toolsContainer) {
+    for (const node of container.querySelectorAll('.workspace-problems, .workspace-reference, .editor__legend')) toolsContainer.append(node);
+  }
   container.querySelector('[data-tool=focus]').addEventListener('click',event=>{
     wrapper.classList.toggle('is-expanded');
     event.currentTarget.textContent=wrapper.classList.contains('is-expanded')?'Свернуть':'Развернуть';
@@ -100,7 +105,9 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
       fontSize:15, lineHeight:24, minimap:{enabled:false}, scrollBeyondLastLine:false,
       tabSize:2, insertSpaces:true, folding:true, bracketPairColorization:{enabled:true},
       padding:{top:16,bottom:16}, quickSuggestions:true, parameterHints:{enabled:true},
-      suggest:{showWords:false}, ariaLabel:'Код решения', fixedOverflowWidgets:true,
+      suggest:{showWords:false}, suggestFontSize:14, suggestLineHeight:24,
+      scrollbar:{alwaysConsumeMouseWheel:false},
+      ariaLabel:'Код решения', fixedOverflowWidgets:true,
     });
     function theme(){
       const css=getComputedStyle(document.documentElement);
@@ -119,8 +126,8 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
     track(m.editor.onDidChangeMarkers(uris=>{
       if(!uris.some(uri=>uri.toString()===model.uri.toString()))return;
       const markers=m.editor.getModelMarkers({resource:model.uri});
-      container.querySelector('[data-count]').textContent=markers.length?`· ${markers.length}`:'· ошибок нет';
-      const target=container.querySelector('[data-problems]');
+      count.textContent=markers.length?`· ${markers.length}`:'· ошибок нет';
+      const target=problems;
       target.innerHTML=markers.map((item,i)=>`<button type="button" class="problem-link" data-marker="${i}">Строка ${item.startLineNumber}: ${escapeHtml(item.message)}</button>`).join('')||'<p>Синтаксических ошибок не найдено. Поведение проверяют тесты задания.</p>';
       target.querySelectorAll('[data-marker]').forEach(button=>button.addEventListener('click',()=>{const item=markers[Number(button.dataset.marker)];editor.setPosition({lineNumber:item.startLineNumber,column:item.startColumn});editor.revealLineInCenter(item.startLineNumber);editor.focus();}));
     }));
@@ -135,6 +142,11 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
     getValue:()=>model?.getValue()??fallback.value,
     setValue:next=>{if(editor){editor.pushUndoStop();editor.executeEdits('restore',[{range:model.getFullModelRange(),text:next}]);editor.pushUndoStop();}else{fallback.value=next;onInput?.(next);}},
     focus:()=>editor?editor.focus():fallback.focus(),
+    collapse:()=>{
+      wrapper.classList.remove('is-expanded');
+      container.querySelector('[data-tool=focus]').textContent='Развернуть';
+      editor?.layout();
+    },
     dispose:()=>{disposed=true;for(const cleanup of cleanups)cleanup();editor?.dispose();model?.dispose();},
   };
 }
