@@ -44,6 +44,27 @@ export function deepEqual(a, b) {
   return keysA.every(key => Object.prototype.hasOwnProperty.call(b, key) && deepEqual(a[key], b[key]));
 }
 
+/**
+ * Консоль для кода игрока: всё напечатанное складывается в массив,
+ * а уровень хранится отдельно от текста — по нему панель вывода
+ * раскрашивает строку и отличает предупреждение от ошибки.
+ *
+ * @param {Array<{level: string, text: string}>} sink куда складывать строки
+ */
+export function captureConsole(sink) {
+  // Строку печатаем как есть — в кавычках она выглядит как чужая, —
+  // а объекты и массивы разворачиваем, иначе получится [object Object]
+  const show = value => (typeof value === 'string' ? value : formatValue(value));
+  const write = (level, args) => sink.push({ level, text: args.map(show).join(' ') });
+
+  return {
+    log: (...args) => write('log', args),
+    info: (...args) => write('info', args),
+    warn: (...args) => write('warn', args),
+    error: (...args) => write('error', args),
+  };
+}
+
 /** Человекочитаемое представление значения для отчёта о тесте. */
 export function formatValue(value) {
   if (value === undefined) return 'undefined';
@@ -240,16 +261,11 @@ export async function runPlayerCode(source, fnName, expr) {
  *
  * @param {string} source исходный код пользователя
  * @param {{fn: string, tests: Array}} quest задача (нужны только имя функции и тесты)
- * @returns {Promise<{ok: boolean, results: Array, logs: string[], error: string|null}>}
+ * @returns {Promise<{ok: boolean, results: Array, logs: Array, setupLogs: Array, error: string|null}>}
  */
 export async function runQuestTests(source, quest) {
   const logs = [];
-  const consoleShim = {
-    log: (...args) => logs.push(args.map(formatValue).join(' ')),
-    info: (...args) => logs.push(args.map(formatValue).join(' ')),
-    warn: (...args) => logs.push('⚠ ' + args.map(formatValue).join(' ')),
-    error: (...args) => logs.push('✖ ' + args.map(formatValue).join(' ')),
-  };
+  const consoleShim = captureConsole(logs);
 
   let target;
   try {
@@ -267,9 +283,13 @@ export async function runQuestTests(source, quest) {
     };
   }
 
+  // Всё, что напечаталось до первой проверки, — вывод самого модуля
+  const setupLogs = logs.slice();
+
   const results = [];
   for (const test of quest.tests) {
     const label = describeCall(quest.fn, test);
+    const from = logs.length;
     try {
       let actual;
       if (test.expr) {
@@ -293,6 +313,8 @@ export async function runQuestTests(source, quest) {
         expectedPretty: prettyValue(test.expected, !pass),
         actualPretty: prettyValue(actual, !pass),
         diff: pass ? [] : describeDifference(test.expected, actual, '', Boolean(test.subset)),
+        // Вывод именно этого вызова: в панели он стоит под своим заголовком
+        logs: logs.slice(from),
         error: null,
       });
     } catch (error) {
@@ -307,12 +329,13 @@ export async function runQuestTests(source, quest) {
         expectedPretty: prettyValue(test.expected, true),
         actualPretty: null,
         diff: [],
+        logs: logs.slice(from),
         error: `${error.name}: ${error.message}`,
       });
     }
   }
 
-  return { ok: results.every(result => result.pass), results, logs, error: null };
+  return { ok: results.every(result => result.pass), results, logs, setupLogs, error: null };
 }
 
 /**
@@ -430,12 +453,7 @@ export async function runConsoleInput(source, input, payload = {}) {
   const { db, dashboard, ops } = createConsoleApi(dbStore, panels);
   const context = { ...data, db, dashboard };
   const logs = [];
-  const consoleShim = {
-    log: (...args) => logs.push(args.map(formatValue).join(' ')),
-    info: (...args) => logs.push(args.map(formatValue).join(' ')),
-    warn: (...args) => logs.push('⚠ ' + args.map(formatValue).join(' ')),
-    error: (...args) => logs.push('✖ ' + args.map(formatValue).join(' ')),
-  };
+  const consoleShim = captureConsole(logs);
 
   const contextKeys = Object.keys(context);
   const contextValues = contextKeys.map(key => context[key]);

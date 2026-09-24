@@ -218,6 +218,83 @@ function diffHtml(before, after) {
       .join('\n')}</pre>`;
 }
 
+/* --- Панель вывода -------------------------------------------------------- */
+
+/*
+ * Здесь видно, как работает код: строки console.log идут по группам —
+ * под каждым вызовом свои, — а ошибки и итог проверок ложатся в тот же
+ * поток. Отдельно от разбора тестов: разбор отвечает «что не так»,
+ * а вывод — «что происходило».
+ */
+
+/** Одна строка вывода. Уровень решает, как её подсветить. */
+function logLine(line, prefix = '') {
+  const level = typeof line === 'string' ? 'log' : (line?.level ?? 'log');
+  const text = typeof line === 'string' ? line : String(line?.text ?? '');
+  const mark = { warn: '⚠', error: '✖' }[level] ?? '›';
+
+  return `
+    <p class="log log--${escapeHtml(level)}">
+      <span class="log__mark" aria-hidden="true">${mark}</span>
+      <span class="log__text">${escapeHtml(prefix + text)}</span>
+    </p>`;
+}
+
+/** Заголовок группы: какой вызов напечатал следующие строки. */
+function logGroup(title, state = '') {
+  return `<p class="log log--group ${state}"><span class="log__text">${escapeHtml(title)}</span></p>`;
+}
+
+/** Строка-итог под всем выводом. */
+function logSummary(text, state) {
+  return `<p class="log log--summary ${state}"><span class="log__text">${escapeHtml(text)}</span></p>`;
+}
+
+/**
+ * Собрать вывод одного прогона: сперва то, что напечатал сам модуль,
+ * потом по группе на каждый вызов, у которого есть что показать.
+ */
+export function runOutput(result) {
+  const parts = [];
+
+  if (result.error) {
+    parts.push(logLine({ level: 'error', text: result.error }));
+    if (result.logs?.length) parts.push(...result.logs.map(line => logLine(line)));
+    return parts.join('');
+  }
+
+  if (result.setupLogs?.length) {
+    parts.push(logGroup('при загрузке модуля'));
+    parts.push(...result.setupLogs.map(line => logLine(line)));
+  }
+
+  for (const item of result.results) {
+    const own = item.logs ?? [];
+    // Молчаливая пройденная проверка в выводе не нужна: её место в разборе
+    if (own.length === 0 && item.pass && !item.error) continue;
+
+    // У проверок с выражением подпись и вызов совпадают — не дублируем
+    const title = item.call && item.call !== item.name ? `${item.name} · ${item.call}` : item.name;
+    parts.push(logGroup(`${item.pass ? '✓' : '✗'} ${title}`, item.pass ? '' : 'is-fail'));
+    parts.push(...own.map(line => logLine(line)));
+    if (item.error) parts.push(logLine({ level: 'error', text: item.error }));
+    else if (!item.pass) {
+      parts.push(logLine({ level: 'warn', text: `ждали ${item.expected}, получили ${item.actual}` }));
+    }
+  }
+
+  const passed = result.results.filter(item => item.pass).length;
+  const total = result.results.length;
+  parts.push(logSummary(
+    result.ok
+      ? `все проверки пройдены: ${passed} из ${total}`
+      : `пройдено ${passed} из ${total} — разбор ниже`,
+    result.ok ? 'is-ok' : 'is-fail',
+  ));
+
+  return parts.join('');
+}
+
 /**
  * Отрисовать экран задачи.
  * @param {object} quest задача
@@ -288,6 +365,16 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
 
 
       <div id="editor-host"></div>
+
+      <section class="task__console" id="run-console" aria-label="Вывод кода">
+        <header class="task__console-head">
+          <span class="task__console-title mono">Вывод</span>
+          <span class="task__console-hint mono" id="run-console-hint"></span>
+          <button class="btn btn--ghost btn--sm" type="button" id="run-console-clear">Очистить</button>
+        </header>
+        <div class="task__console-body" id="run-console-body" aria-live="polite"></div>
+      </section>
+
       <div class="task__actions task__actions--primary">
         <button class="btn btn--primary" type="button" id="run">Запустить тесты</button>
         <button class="btn btn--ghost" type="button" id="hint">Подсказка</button>
@@ -365,6 +452,27 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
     }
   }
 
+  const consoleBody = root.querySelector('#run-console-body');
+  const consoleHint = root.querySelector('#run-console-hint');
+
+  const EMPTY_OUTPUT = '<p class="log log--empty">Пусто. Всё, что напечатает console.log, появится здесь.</p>';
+
+  /** Показать вывод прогона. Пустая строка возвращает панель в исходное состояние. */
+  function showOutput(html, hint = '') {
+    consoleBody.innerHTML = html || EMPTY_OUTPUT;
+    consoleHint.textContent = hint;
+    // Читать вывод начинают сверху: это один прогон, а не бесконечная лента
+    consoleBody.scrollTop = 0;
+  }
+
+  showOutput('');
+  root.querySelector('#run-console-clear').addEventListener('click', () => showOutput(''));
+
+  // Консоль должна стоять вплотную к коду, а не под справочником,
+  // поэтому переносим её сразу под строку состояния редактора
+  const statusLine = root.querySelector('#editor-host .workspace-status');
+  if (statusLine) statusLine.after(root.querySelector('#run-console'));
+
   async function run() {
     if (running) return;
     running = true;
@@ -372,6 +480,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
     const usedSolution = revealed;
     root.querySelector('#run').disabled = true;
     showReport('<p class="report__pending">Проверяем модуль и совместимость приложения…</p>');
+    showOutput('<p class="log log--empty">Запуск…</p>', '');
     let result;
     try { result = await runSolution(source, quest); }
     catch (error) { result = { error: error.message }; }
@@ -379,18 +488,20 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
     if (generation !== renderGeneration) return;
     if (editor.getValue() !== source) {
       showReport('<p class="report__note">Пока шли проверки, код изменился. Рабочая версия сохранена без изменений. Запустите тесты текущего черновика.</p>');
+      showOutput('');
       return;
     }
 
+    const runTime = new Date().toLocaleTimeString('ru');
+
     if (result.error) {
       showReport(`<p class="report__error">${escapeHtml(result.error)}</p>`);
+      showOutput(runOutput(result), `запуск ${runTime} · код не выполнился`);
       return;
     }
 
     const passed = result.results.filter(item => item.pass).length;
-    const logs = result.logs.length
-      ? `<div class="report__console"><p class="report__console-title mono">console.log</p><pre>${escapeHtml(result.logs.join('\n'))}</pre></div>`
-      : '';
+    showOutput(runOutput(result), `запуск ${runTime} · ${passed} из ${result.results.length}`);
 
     let banner = '';
     if (result.ok) {
@@ -433,7 +544,6 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
       ${banner}
       ${fillBar({ value: passed, max: result.results.length, label: 'Пройдено тестов', unit: 'шт', tone: 'progress' })}
       ${traceStrip(result.results)}
-      ${logs}
     `);
 
     const nextButton = report.querySelector('#next-quest');

@@ -35,6 +35,7 @@
     import { ThreatLog } from '../js/enemy.js';
     import { Shipyard } from '../js/shipyard.js';
     import { powerEfficiency, underPower } from '../js/ui/corp.js';
+    import { runOutput } from '../js/ui/task.js';
     import { matchesSubset } from '../js/runner-core.js';
 
     const problems = [];
@@ -271,6 +272,45 @@
     const weakFight = await runConsole(battleQuest.solution, `runBattle(${JSON.stringify(weakShip)}, ${JSON.stringify(cruiser)})`, {});
     check(strongFight.value?.winner === 'ship', 'сытый корабль побеждает крейсер');
     check(weakFight.value?.rounds > strongFight.value?.rounds, 'голодному кораблю тот же бой даётся тяжелее');
+
+    // --- Панель вывода под редактором ---
+
+    const runShape = {
+      ok: false,
+      error: null,
+      setupLogs: [{ level: 'log', text: 'модуль загружен' }],
+      results: [
+        { name: 'тихая', call: 'f(1)', pass: true, logs: [], expected: '2', actual: '2' },
+        { name: 'болтливая', call: 'f(2)', pass: true, logs: [{ level: 'log', text: 'считаю 2' }], expected: '4', actual: '4' },
+        {
+          name: 'провальная', call: 'f(3)', pass: false,
+          logs: [{ level: 'warn', text: 'странный аргумент' }],
+          expected: '6', actual: '5',
+        },
+      ],
+    };
+
+    const output = runOutput(runShape);
+    check(output.includes('при загрузке модуля'), 'вывод отделяет то, что напечатал сам модуль');
+    check(output.includes('считаю 2'), 'строка console.log попадает в панель');
+    check(!output.includes('✓ тихая'), 'пройденная проверка без вывода панель не засоряет');
+    check(output.includes('✗ провальная · f(3)'), 'провалившаяся проверка названа вместе с вызовом');
+    check(output.includes('log--warn'), 'предупреждение помечено своим уровнем');
+    check(output.includes('ждали 6, получили 5'), 'рядом с выводом видно, чем ответ отличается от ожидания');
+    check(output.includes('пройдено 2 из 3'), 'итог прогона подписан');
+
+    const okOutput = runOutput({ ...runShape, ok: true, results: runShape.results.slice(0, 2) });
+    check(okOutput.includes('все проверки пройдены: 2 из 2'), 'успешный прогон подписан отдельно');
+
+    const brokenOutput = runOutput({ error: 'Код не запустился: Unexpected token', results: [], logs: [] });
+    check(brokenOutput.includes('log--error') && brokenOutput.includes('Unexpected token'),
+      'ошибка запуска показывается в панели красной строкой');
+
+    const dirty = runOutput({
+      ok: true,
+      results: [{ name: '<b>имя</b>', call: 'f()', pass: false, logs: [{ level: 'log', text: '<img src=x>' }], expected: '1', actual: '2' }],
+    });
+    check(!dirty.includes('<img src=x>') && !dirty.includes('<b>имя</b>'), 'вывод экранируется');
 
     // --- Одна функция, несколько этапов ---
 

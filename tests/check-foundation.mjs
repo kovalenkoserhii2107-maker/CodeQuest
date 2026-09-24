@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { state, db, resetProgress, completeQuest, revisionsOf, transaction, addResource, spendResource, fuelLog, resources, appSource } from '../js/state.js';
 import { QUESTS, questById } from '../js/data/quests.js';
 import { runSolution } from '../js/runner.js';
-import { runConsoleInput, runPlayerCode } from '../js/runner-core.js';
+import { runConsoleInput, runPlayerCode, runQuestTests, captureConsole } from '../js/runner-core.js';
 import { lineDiff } from '../js/editor/diff.js';
 
 resetProgress();
@@ -65,3 +65,48 @@ const migrated = await import('../js/state.js?legacy-fuel');
 assert.equal(migrated.fuelLog().reduce((n,e)=>n+(e.kind==='fill'?e.amount:-e.amount),0),80);
 delete globalThis.localStorage;
 console.log('✓ старое сохранение получает корректный входящий остаток');
+
+// Вывод кода: панель под редактором показывает console.log по вызовам,
+// поэтому строки должны приходить с уровнем и раскладываться по проверкам.
+const noisy = [
+  'console.log("модуль загружен");',
+  'function speak(n) {',
+  '  console.log("вызов", n, { n });',
+  '  if (n > 2) console.warn("многовато");',
+  '  if (n > 5) throw new Error("стоп");',
+  '  return n * 2;',
+  '}',
+].join('\n');
+
+const noisyRun = await runQuestTests(noisy, {
+  fn: 'speak',
+  tests: [
+    { name: 'двойка', args: [2], expected: 4 },
+    { name: 'тройка', args: [3], expected: 6 },
+    { name: 'падение', args: [9], expected: 18 },
+  ],
+});
+
+assert.deepEqual(noisyRun.setupLogs, [{ level: 'log', text: 'модуль загружен' }]);
+assert.equal(noisyRun.results[0].logs.length, 1);
+assert.equal(noisyRun.results[0].logs[0].text, 'вызов 2 {"n":2}');
+assert.deepEqual(noisyRun.results[1].logs.map(line => line.level), ['log', 'warn']);
+assert.ok(noisyRun.results[2].error, 'упавшая проверка объясняет причину');
+assert.equal(noisyRun.results[2].logs.length, 2, 'вывод до падения не теряется');
+assert.equal(noisyRun.logs.length, 6, 'общий поток содержит все строки прогона');
+console.log('✓ вывод кода разложен по вызовам, уровни сохранены');
+
+const sink = [];
+const shim = captureConsole(sink);
+shim.log('строка', 12, [1, 2]);
+shim.error('беда');
+assert.deepEqual(sink, [
+  { level: 'log', text: 'строка 12 [1,2]' },
+  { level: 'error', text: 'беда' },
+]);
+console.log('✓ строки печатаются без кавычек, объекты разворачиваются');
+
+const broken = await runQuestTests('function speak(', { fn: 'speak', tests: [] });
+assert.ok(broken.error.includes('Код не запустился'));
+assert.deepEqual(broken.results, []);
+console.log('✓ синтаксическая ошибка возвращается текстом для панели вывода');

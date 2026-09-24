@@ -283,13 +283,19 @@ function tryPractice(input, value, context) {
 
 /* --- Отрисовка ----------------------------------------------------------- */
 
+/** Текст строки вывода: новый формат — объект с уровнем, старый — строка. */
+function logText(line) {
+  return typeof line === 'string' ? line : String(line?.text ?? '');
+}
+
 function entryHtml(entry) {
   const output = entry.error
     ? `<p class="console__error">${escapeHtml(entry.error)}</p>`
     : `<p class="console__value mono">${escapeHtml(entry.preview ?? 'undefined')}</p>`;
 
+  // В истории могут лежать записи старого формата — там строка, а не объект
   const logs = entry.logs?.length
-    ? `<pre class="console__logs mono">${escapeHtml(entry.logs.join('\n'))}</pre>`
+    ? `<pre class="console__logs mono">${escapeHtml(entry.logs.map(logText).join('\n'))}</pre>`
     : '';
 
   const note = entry.note
