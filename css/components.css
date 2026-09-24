@@ -14,27 +14,27 @@
   border: 1px solid transparent;
   font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
   white-space: nowrap;
-  transition: transform 0.15s, box-shadow 0.2s, background-color 0.2s, border-color 0.2s;
+  transition: opacity 0.15s, background-color 0.2s, border-color 0.2s;
 }
 
 .btn:hover {
-  transform: translateY(-1px);
+  opacity: 0.85;
 }
 
 .btn:active {
-  transform: translateY(0);
+  opacity: 0.7;
 }
 
 .btn--primary {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-deep));
-  color: #04121a;
-  box-shadow: var(--shadow-glow);
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 .btn--primary:hover {
-  box-shadow: 0 0 30px -4px rgba(77, 227, 255, 0.75);
+  background-color: var(--color-text);
+  opacity: 0.88;
 }
 
 .btn--ghost {
@@ -44,8 +44,8 @@
 }
 
 .btn--ghost:hover {
-  border-color: var(--color-accent-deep);
-  color: var(--color-accent);
+  border-color: var(--color-text);
+  opacity: 1;
 }
 
 .btn--danger {
@@ -108,23 +108,22 @@
   padding: var(--space-5);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: linear-gradient(160deg, var(--surface-raised), var(--surface-sunken));
-  transition: border-color 0.2s, transform 0.2s;
+  background-color: var(--surface-panel);
+  transition: border-color 0.2s;
 }
 
 .metric:hover {
-  border-color: var(--color-accent-deep);
-  transform: translateY(-2px);
+  border-color: var(--color-line);
 }
 
+/* Мягкий блик в углу карточки — тот же купол, что и на фоне страницы */
 .metric::after {
   content: "";
   position: absolute;
-  inset: auto -30px -40px auto;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(77, 227, 255, 0.18), transparent 70%);
+  inset: -60% -40% auto -40%;
+  height: 160%;
+  background: radial-gradient(60% 50% at 50% 0%, rgba(var(--ink), 0.05), transparent 70%);
+  pointer-events: none;
 }
 
 .metric__label {
@@ -185,8 +184,8 @@
 .badge--ok { color: var(--color-ok); background-color: rgba(74, 222, 155, 0.1); }
 .badge--warn { color: var(--color-warn); background-color: rgba(255, 196, 77, 0.1); }
 .badge--danger { color: var(--color-danger); background-color: rgba(255, 107, 107, 0.1); }
-.badge--info { color: var(--color-accent); background-color: rgba(77, 227, 255, 0.1); }
-.badge--idle { color: var(--color-dim); background-color: rgba(97, 112, 143, 0.12); }
+.badge--info { color: var(--color-text); background-color: rgba(var(--ink), 0.08); }
+.badge--idle { color: var(--color-dim); background-color: rgba(var(--ink), 0.12); }
 
 .badge--pulse::before {
   animation: pulse 1.8s ease-in-out infinite;
@@ -209,15 +208,15 @@
 .progress__bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-accent-deep), var(--color-accent));
+  background-color: var(--color-accent);
 }
 
 .progress__bar--warn {
-  background: linear-gradient(90deg, #b57a13, var(--color-warn));
+  background-color: var(--color-warn);
 }
 
 .progress__bar--danger {
-  background: linear-gradient(90deg, #a33, var(--color-danger));
+  background-color: var(--color-danger);
 }
 
 .progress-row {
@@ -277,7 +276,7 @@
 }
 
 .table tbody tr:hover {
-  background-color: rgba(77, 227, 255, 0.05);
+  background-color: rgba(var(--ink), 0.05);
 }
 
 .table tbody tr:last-child td {
@@ -332,7 +331,7 @@
 
 .mission:hover {
   border-color: var(--color-violet);
-  box-shadow: 0 0 26px -12px rgba(166, 124, 255, 0.8);
+  box-shadow: 0 0 26px -12px rgba(var(--ink), 0.8);
 }
 
 .mission__top {
@@ -399,7 +398,7 @@
   font-weight: 700;
   color: #05070f;
   border: 2px solid var(--color-panel);
-  background: linear-gradient(135deg, var(--color-accent), var(--color-violet));
+  background-color: var(--surface-chip);
 }
 
 .avatar-stack__item + .avatar-stack__item {
@@ -428,7 +427,7 @@
   top: 6px;
   bottom: 6px;
   width: 1px;
-  background: linear-gradient(180deg, var(--color-accent), transparent);
+  background: linear-gradient(180deg, var(--color-line), transparent);
 }
 
 .timeline__item {
@@ -444,7 +443,7 @@
   height: 7px;
   border-radius: 50%;
   background-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(77, 227, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--ink), 0.15);
 }
 
 .timeline__item--warn::before { background-color: var(--color-warn); box-shadow: 0 0 0 3px rgba(255, 196, 77, 0.15); }
@@ -477,7 +476,7 @@
   text-align: center;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: linear-gradient(180deg, var(--surface-raised), var(--surface-sunken));
+  background-color: var(--surface-raised);
 }
 
 .crew-card__avatar {
@@ -489,7 +488,7 @@
   font-size: var(--fs-lg);
   font-weight: 700;
   color: #05070f;
-  background: linear-gradient(135deg, var(--color-accent), var(--color-violet));
+  background-color: var(--surface-chip);
   box-shadow: var(--shadow-glow);
 }
 
@@ -600,7 +599,7 @@
 .field textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(77, 227, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--ink), 0.15);
 }
 
 .field textarea {
@@ -629,7 +628,7 @@
   max-width: 260px;
   margin: 0 auto;
   border-radius: 50%;
-  border: 1px dashed rgba(77, 227, 255, 0.3);
+  border: 1px dashed rgba(var(--ink), 0.3);
   display: grid;
   place-items: center;
 }
@@ -639,15 +638,15 @@
   position: absolute;
   inset: 22%;
   border-radius: 50%;
-  border: 1px dashed rgba(166, 124, 255, 0.35);
+  border: 1px dashed rgba(var(--ink), 0.35);
 }
 
 .orbit__core {
   width: 34%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle at 32% 30%, #6fe6ff, #1b5f8c 60%, #0a1b2a);
-  box-shadow: 0 0 40px -6px rgba(77, 227, 255, 0.7);
+  background: radial-gradient(circle at 32% 30%, rgba(var(--ink), 0.35), rgba(var(--ink), 0.08) 70%);
+  box-shadow: 0 0 40px -6px rgba(var(--ink), 0.7);
 }
 
 .orbit__satellite {
@@ -659,7 +658,7 @@
   margin-left: -6px;
   border-radius: 50%;
   background-color: var(--color-plasma);
-  box-shadow: 0 0 14px rgba(255, 95, 162, 0.8);
+  box-shadow: 0 0 14px rgba(var(--ink), 0.8);
 }
 
 .legend {

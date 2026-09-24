@@ -113,10 +113,27 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
       const css=getComputedStyle(document.documentElement);
       const color=name=>css.getPropertyValue(name).trim();
       const light=document.documentElement.dataset.theme==='light';
-      m.editor.defineTheme('codequest',{base:light?'vs':'vs-dark',inherit:true,rules:[],colors:{
+      // Подсветка берётся из тех же токенов, что и остальной код на странице:
+      // Monaco ждёт hex без решётки, поэтому её снимаем
+      const tok=name=>color(name).replace('#','');
+      const rules=[
+        {token:'keyword',foreground:tok('--tok-keyword'),fontStyle:'bold'},
+        {token:'keyword.json',foreground:tok('--tok-keyword')},
+        {token:'comment',foreground:tok('--tok-comment'),fontStyle:'italic'},
+        {token:'string',foreground:tok('--tok-string')},
+        {token:'string.escape',foreground:tok('--tok-string')},
+        {token:'number',foreground:tok('--tok-number')},
+        {token:'regexp',foreground:tok('--tok-string')},
+        {token:'type',foreground:tok('--tok-call')},
+        {token:'delimiter',foreground:tok('--tok-literal')},
+        {token:'identifier',foreground:tok('--tok-word')},
+      ];
+      m.editor.defineTheme('codequest',{base:light?'vs':'vs-dark',inherit:true,rules,colors:{
         'editor.background':color('--code-bg'),'editor.foreground':color('--code-text'),
         'editorLineNumber.foreground':color('--color-dim'),'editorCursor.foreground':color('--color-accent'),
         'editorWidget.background':color('--color-panel'),'editorWidget.border':color('--color-line'),
+        'editor.lineHighlightBorder':color('--color-line-soft'),
+        'editorIndentGuide.background':color('--color-line-soft'),
       }});m.editor.setTheme('codequest');
     }
     theme();const observer=new MutationObserver(theme);observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});cleanups.push(()=>observer.disconnect());

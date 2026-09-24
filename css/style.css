@@ -6,37 +6,44 @@
 /* --- Дизайн-токены ------------------------------------------------------ */
 
 :root {
-  /* Палитра */
-  --color-void: #05070f;
-  --color-deep: #0a0f1d;
-  --color-panel: #101729;
-  --color-panel-soft: #16203a;
-  --color-line: #23304f;
-  --color-line-soft: #1a2440;
+  /* Палитра: монохром. Цвет остаётся только там, где он что-то значит */
+  --color-void: #000000;
+  --color-deep: #050505;
+  --color-panel: #0b0b0b;
+  --color-panel-soft: #121212;
+  /* Границы заданы плотным цветом, а не прозрачностью: их читает и Monaco */
+  --color-line: #1f1f1f;
+  --color-line-soft: #151515;
 
-  --color-text: #e8eeff;
-  --color-muted: #8fa0c4;
-  --color-dim: #61708f;
+  --color-text: #fafafa;
+  --color-muted: #a3a3a3;
+  --color-dim: #6d6d6d;
 
-  --color-accent: #4de3ff;
-  --color-accent-deep: #1b8bb5;
-  --color-violet: #a67cff;
-  --color-plasma: #ff5fa2;
-  --color-ok: #4ade9b;
-  --color-warn: #ffc44d;
-  --color-danger: #ff6b6b;
+  /* Основной акцент — сам белый: контраст вместо оттенка */
+  --color-accent: #ffffff;
+  --color-accent-deep: #d4d4d4;
+  --color-violet: #c4c4c4;
+  --color-plasma: #8c8c8c;
+
+  /* Сигнальные цвета: приглушены, но различимы — по ним читают состояние */
+  --color-ok: #5ed39a;
+  --color-warn: #e3b341;
+  --color-danger: #f26d6d;
+
+  /* Текст на светлой заливке (белая кнопка, белый бейдж) */
+  --color-on-accent: #000000;
 
   /* Типографика */
-  --font-main: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-main: "Inter", "Helvetica Neue", Helvetica, "Segoe UI", Arial, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", Consolas, "Courier New", monospace;
 
   --fs-xs: 0.72rem;
   --fs-sm: 0.82rem;
   --fs-base: 0.95rem;
   --fs-lg: 1.15rem;
-  --fs-xl: 1.6rem;
-  --fs-2xl: 2.4rem;
-  --fs-3xl: 3.4rem;
+  --fs-xl: 1.7rem;
+  --fs-2xl: 2.6rem;
+  --fs-3xl: 4rem;
 
   /* Метрики */
   --space-1: 4px;
@@ -48,72 +55,79 @@
   --space-7: 48px;
   --space-8: 72px;
 
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
   --radius-pill: 999px;
 
   --sidebar-width: 244px;
   --header-height: 68px;
   --container: 1440px;
 
-  --shadow-panel: 0 18px 40px -24px rgba(0, 0, 0, 0.9);
-  --shadow-glow: 0 0 24px -6px rgba(77, 227, 255, 0.55);
+  /* Тени плоские: объём даёт волосяная граница, а не свечение */
+  --shadow-panel: 0 24px 48px -36px rgba(0, 0, 0, 0.9);
+  --shadow-glow: 0 0 0 1px rgba(255, 255, 255, 0.14);
+
+  /*
+   * Цвет «чернил» для полупрозрачных подложек: в тёмной теме поверх фона
+   * кладётся белое, в светлой — чёрное. Один токен избавляет от парных правил.
+   */
+  --ink: 255, 255, 255;
+  --dome: rgba(255, 255, 255, 0.05);
+
+  /* Фоновая сетка */
+  --grid-line: rgba(255, 255, 255, 0.055);
+  --grid-size: 36px;
 
   /* Поверхности вынесены в отдельные роли: их подменяет светлая тема */
-  --surface-deep: rgba(5, 7, 15, 0.8);
-  --surface-sunken: rgba(10, 15, 29, 0.85);
-  --surface-panel: rgba(16, 23, 41, 0.88);
-  --surface-raised: rgba(22, 32, 58, 0.9);
-  --surface-chip: rgba(35, 48, 79, 0.75);
-  --code-bg: #070b16;
-  --code-text: #dbe7ff;
+  --surface-deep: #000000;
+  --surface-sunken: #060606;
+  --surface-panel: #0b0b0b;
+  --surface-raised: #141414;
+  --surface-chip: rgba(255, 255, 255, 0.07);
+  --code-bg: #0a0a0a;
+  --code-text: #ededed;
 }
 
 /* --- Светлая тема ------------------------------------------------------- */
 
 :root[data-theme="light"] {
-  --color-void: #eef2f9;
+  --color-void: #ffffff;
   --color-deep: #ffffff;
   --color-panel: #ffffff;
-  --color-panel-soft: #f2f5fb;
-  --color-line: #ccd6e8;
-  --color-line-soft: #e2e8f4;
+  --color-panel-soft: #fafafa;
+  --color-line: #e3e3e3;
+  --color-line-soft: #f0f0f0;
 
-  --color-text: #0f1728;
-  --color-muted: #47536d;
-  --color-dim: #6b7791;
+  --color-text: #0a0a0a;
+  --color-muted: #595959;
+  --color-dim: #8a8a8a;
 
-  --color-accent: #0f8fb8;
-  --color-accent-deep: #0b6d8e;
-  --color-violet: #7546dc;
-  --color-plasma: #cc2f74;
-  --color-ok: #17875a;
-  --color-warn: #96660a;
-  --color-danger: #c53434;
+  --color-accent: #0a0a0a;
+  --color-accent-deep: #333333;
+  --color-violet: #4d4d4d;
+  --color-plasma: #7a7a7a;
 
-  --surface-deep: rgba(255, 255, 255, 0.92);
-  --surface-sunken: rgba(243, 246, 252, 0.94);
-  --surface-panel: rgba(255, 255, 255, 0.96);
-  --surface-raised: rgba(248, 250, 255, 0.96);
-  --surface-chip: rgba(225, 233, 246, 0.92);
-  --code-bg: #f7f9fe;
-  --code-text: #16203a;
+  --color-ok: #17794d;
+  --color-warn: #8a6100;
+  --color-danger: #c03535;
 
-  --shadow-panel: 0 14px 30px -22px rgba(18, 32, 63, 0.45);
-  --shadow-glow: 0 0 18px -8px rgba(15, 143, 184, 0.55);
-}
+  --color-on-accent: #ffffff;
 
-:root[data-theme="light"] body {
-  background-image:
-    radial-gradient(circle at 12% 8%, rgba(15, 143, 184, 0.14), transparent 45%),
-    radial-gradient(circle at 88% 4%, rgba(117, 70, 220, 0.12), transparent 42%),
-    radial-gradient(circle at 60% 100%, rgba(204, 47, 116, 0.08), transparent 55%);
-}
+  --surface-deep: #ffffff;
+  --surface-sunken: #fafafa;
+  --surface-panel: #ffffff;
+  --surface-raised: #f5f5f5;
+  --surface-chip: rgba(0, 0, 0, 0.06);
+  --code-bg: #f6f6f6;
+  --code-text: #111111;
 
-/* Звёздное поле в светлой теме не нужно */
-:root[data-theme="light"] body::before {
-  display: none;
+  --shadow-panel: 0 20px 40px -34px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 0 1px rgba(0, 0, 0, 0.14);
+
+  --grid-line: rgba(0, 0, 0, 0.06);
+  --ink: 0, 0, 0;
+  --dome: rgba(0, 0, 0, 0.035);
 }
 
 /* --- Общая основа ------------------------------------------------------- */
@@ -123,42 +137,75 @@ body {
   font-family: var(--font-main);
   font-size: var(--fs-base);
   line-height: 1.55;
+  letter-spacing: -0.01em;
   color: var(--color-text);
   background-color: var(--color-void);
+
+  /* Инженерная сетка вместо туманностей: фон намекает на чертёж, а не на космос */
   background-image:
-    radial-gradient(circle at 12% 8%, rgba(77, 227, 255, 0.14), transparent 45%),
-    radial-gradient(circle at 88% 4%, rgba(166, 124, 255, 0.16), transparent 42%),
-    radial-gradient(circle at 60% 100%, rgba(255, 95, 162, 0.1), transparent 55%);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
   background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Звёздное поле — чисто декоративный слой */
+/* Мягкий световой купол сверху — единственный источник объёма на странице */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image:
-    radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(1px 1px at 70% 15%, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 40% 70%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(2px 2px at 85% 60%, rgba(180, 220, 255, 0.55), transparent),
-    radial-gradient(1px 1px at 10% 85%, rgba(255, 255, 255, 0.45), transparent),
-    radial-gradient(1px 1px at 55% 45%, rgba(255, 255, 255, 0.35), transparent);
-  background-size: 100% 100%;
-  opacity: 0.9;
+  background-image: radial-gradient(120% 60% at 50% -20%, var(--dome), transparent 60%);
+}
+
+/*
+ * Заголовки набираются плотно и тяжело: крупный кегль, минусовой трекинг,
+ * узкий интерлиньяж. Это основной приём стиля — текст как объект, а не как подпись.
+ */
+/* Полосы прокрутки не спорят с интерфейсом: тонкие и в цвет чернил */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--ink), 0.22) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--radius-pill);
+  background-color: rgba(var(--ink), 0.2);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--ink), 0.34);
+  background-clip: content-box;
 }
 
 h1, h2, h3, h4 {
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+h3, h4 {
   line-height: 1.2;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .mono {
   font-family: var(--font-mono);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .visually-hidden {
@@ -206,8 +253,15 @@ h1, h2, h3, h4 {
   margin-bottom: var(--space-4);
 }
 
+/* Заголовок раздела набран крупно: он задаёт ритм всей странице */
 .section-head h2 {
-  font-size: var(--fs-xl);
+  font-size: var(--fs-2xl);
+}
+
+@media (max-width: 720px) {
+  .section-head h2 {
+    font-size: var(--fs-xl);
+  }
 }
 
 .section-head p {
@@ -227,7 +281,7 @@ h1, h2, h3, h4 {
   flex-direction: column;
   gap: var(--space-5);
   padding: var(--space-5) var(--space-4);
-  background: linear-gradient(180deg, var(--surface-panel), var(--surface-deep));
+  background-color: var(--surface-deep);
   border-right: 1px solid var(--color-line);
   backdrop-filter: blur(6px);
 }
@@ -246,7 +300,8 @@ h1, h2, h3, h4 {
   display: grid;
   place-items: center;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--color-accent-deep), var(--color-violet));
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
   box-shadow: var(--shadow-glow);
 }
 
@@ -298,12 +353,12 @@ h1, h2, h3, h4 {
 }
 
 .nav__link:hover {
-  background-color: rgba(77, 227, 255, 0.08);
+  background-color: rgba(var(--ink), 0.08);
   color: var(--color-text);
 }
 
 .nav__link--active {
-  background-color: rgba(77, 227, 255, 0.12);
+  background-color: rgba(var(--ink), 0.12);
   border-left-color: var(--color-accent);
   color: var(--color-text);
   font-weight: 600;
@@ -322,7 +377,7 @@ h1, h2, h3, h4 {
   font-size: var(--fs-xs);
   padding: 1px var(--space-2);
   border-radius: var(--radius-pill);
-  background-color: rgba(255, 95, 162, 0.18);
+  background-color: rgba(var(--ink), 0.18);
   color: var(--color-plasma);
 }
 
@@ -463,7 +518,7 @@ h1, h2, h3, h4 {
   font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.05em;
-  background: linear-gradient(135deg, var(--color-violet), var(--color-plasma));
+  background-color: var(--surface-chip);
   color: #0a0f1d;
 }
 
@@ -491,8 +546,8 @@ h1, h2, h3, h4 {
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(120deg, rgba(27, 139, 181, 0.22), transparent 55%),
-    linear-gradient(300deg, rgba(166, 124, 255, 0.24), transparent 50%),
+    linear-gradient(120deg, rgba(var(--ink), 0.22), transparent 55%),
+    linear-gradient(300deg, rgba(var(--ink), 0.24), transparent 50%),
     var(--color-panel);
   box-shadow: var(--shadow-panel);
 }
@@ -505,8 +560,8 @@ h1, h2, h3, h4 {
   width: 380px;
   height: 380px;
   border-radius: 50%;
-  border: 1px solid rgba(77, 227, 255, 0.25);
-  box-shadow: inset 0 0 90px rgba(77, 227, 255, 0.18);
+  border: 1px solid rgba(var(--ink), 0.25);
+  box-shadow: inset 0 0 90px rgba(var(--ink), 0.18);
   pointer-events: none;
 }
 

@@ -88,7 +88,7 @@
 }
 
 .starmap__route--open {
-  stroke: rgba(77, 227, 255, 0.55);
+  stroke: rgba(var(--ink), 0.55);
   stroke-dasharray: none;
 }
 
@@ -119,8 +119,8 @@
 }
 
 .starmap__node.is-done .starmap__disc {
-  fill: rgba(74, 222, 155, 0.18);
-  stroke: var(--color-ok);
+  fill: rgba(var(--ink), 0.16);
+  stroke: var(--color-accent);
 }
 
 .starmap__node.is-selected .starmap__ring {
@@ -129,7 +129,7 @@
 }
 
 .starmap__node:hover .starmap__disc {
-  fill: rgba(77, 227, 255, 0.16);
+  fill: rgba(var(--ink), 0.16);
 }
 
 .starmap__icon {
@@ -177,7 +177,7 @@
 
 .quest-item__button:hover:not(:disabled) {
   border-color: var(--color-accent-deep);
-  background-color: rgba(77, 227, 255, 0.07);
+  background-color: rgba(var(--ink), 0.07);
   transform: translateY(-1px);
 }
 
@@ -187,7 +187,7 @@
 }
 
 .quest-item.is-done .quest-item__button {
-  border-color: rgba(74, 222, 155, 0.45);
+  border-color: var(--color-line);
 }
 
 .quest-item__top {
@@ -240,7 +240,7 @@
 
 .ship-shield {
   fill: none;
-  stroke: rgba(97, 112, 143, 0.35);
+  stroke: rgba(var(--ink), 0.35);
   stroke-width: 1.5;
   stroke-dasharray: 5 9;
 }
@@ -262,7 +262,7 @@
 }
 
 .ship-flame {
-  fill: rgba(97, 112, 143, 0.4);
+  fill: rgba(var(--ink), 0.4);
 }
 
 .ship-glow {
@@ -276,7 +276,7 @@
 .ship-module.is-level-2 .ship-part,
 .ship-module.is-level-3 .ship-part {
   stroke: var(--color-accent-deep);
-  fill: rgba(27, 139, 181, 0.22);
+  fill: rgba(var(--ink), 0.22);
 }
 
 .ship-module.is-level-1 .ship-glow { opacity: 0.45; }
@@ -295,21 +295,21 @@
   stroke: var(--color-accent);
 }
 
-.ship-module.is-level-1 .ship-flame { fill: rgba(77, 227, 255, 0.5); }
-.ship-module.is-level-2 .ship-flame { fill: rgba(77, 227, 255, 0.8); }
+.ship-module.is-level-1 .ship-flame { fill: rgba(var(--ink), 0.5); }
+.ship-module.is-level-2 .ship-flame { fill: rgba(var(--ink), 0.8); }
 
 .ship-module.is-level-1 .ship-shield,
 .ship-module.is-level-2 .ship-shield {
-  stroke: rgba(77, 227, 255, 0.55);
+  stroke: rgba(var(--ink), 0.55);
 }
 
 .ship-module.is-maxed .ship-part {
-  stroke: var(--color-ok);
-  fill: rgba(74, 222, 155, 0.16);
+  stroke: var(--color-accent);
+  fill: rgba(var(--ink), 0.14);
 }
 
 .ship-module.is-maxed .ship-shield {
-  stroke: rgba(74, 222, 155, 0.6);
+  stroke: rgba(var(--ink), 0.5);
 }
 
 /* --- Список модулей ------------------------------------------------------ */
@@ -330,7 +330,7 @@
 }
 
 .module-item.is-maxed {
-  border-color: rgba(74, 222, 155, 0.45);
+  border-color: rgba(var(--ink), 0.35);
 }
 
 .module-item__head {
@@ -394,8 +394,8 @@
 }
 
 .module-quest.is-done {
-  border-color: rgba(74, 222, 155, 0.45);
-  color: var(--color-ok);
+  border-color: rgba(var(--ink), 0.3);
+  color: var(--color-text);
 }
 
 /* --- Экран задачи -------------------------------------------------------- */
@@ -424,7 +424,7 @@
   margin-top: var(--space-4);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  background-color: rgba(77, 227, 255, 0.08);
+  background-color: rgba(var(--ink), 0.08);
   color: var(--color-accent);
   font-size: var(--fs-xs);
 }
@@ -476,7 +476,7 @@
 .code-editor:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(77, 227, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--ink), 0.15);
 }
 
 .task__actions {
@@ -621,7 +621,7 @@
   transition: border-color 0.2s;
 }
 
-.widget.is-live { border-color: rgba(74, 222, 155, 0.4); }
+.widget.is-live { border-color: rgba(var(--ink), 0.32); }
 .widget.is-error { border-color: rgba(255, 107, 107, 0.45); }
 .widget.is-locked { opacity: 0.75; }
 
@@ -772,7 +772,7 @@
   transition: border-color 0.2s, opacity 0.2s;
 }
 
-.chain__item.is-done { border-color: rgba(74, 222, 155, 0.45); }
+.chain__item.is-done { border-color: rgba(var(--ink), 0.28); }
 .chain__item.is-active { border-color: var(--color-accent); box-shadow: var(--shadow-glow); }
 .chain__item.is-locked { opacity: 0.55; }
 
@@ -788,7 +788,7 @@
   color: var(--color-muted);
 }
 
-.chain__item.is-done .chain__marker { color: var(--color-ok); border-color: rgba(74, 222, 155, 0.5); }
+.chain__item.is-done .chain__marker { color: var(--color-text); border-color: rgba(var(--ink), 0.35); }
 .chain__item.is-active .chain__marker { color: var(--color-accent); border-color: var(--color-accent-deep); }
 
 .chain__head {
@@ -939,7 +939,7 @@
 
 .console__form:focus-within {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(77, 227, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--ink), 0.15);
 }
 
 .console__input {
@@ -956,7 +956,7 @@
   padding: var(--space-3);
   border: 1px solid var(--color-accent-deep);
   border-radius: var(--radius-md);
-  background-color: rgba(77, 227, 255, 0.07);
+  background-color: rgba(var(--ink), 0.07);
 }
 
 .console__task-label {
@@ -1032,7 +1032,7 @@
   padding: var(--space-3);
   border-radius: var(--radius-md);
   border: 1px dashed var(--color-accent-deep);
-  background-color: rgba(77, 227, 255, 0.06);
+  background-color: rgba(var(--ink), 0.06);
   font-size: var(--fs-sm);
   color: var(--color-muted);
 }
@@ -1070,7 +1070,7 @@
 
 .db-collection.is-active {
   border-color: var(--color-accent);
-  background-color: rgba(77, 227, 255, 0.1);
+  background-color: rgba(var(--ink), 0.1);
 }
 
 .db-collection__name {
@@ -1157,9 +1157,10 @@
   transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.meter__bar--ok { background: linear-gradient(90deg, var(--color-accent-deep), var(--color-ok)); }
-.meter__bar--warn { background: linear-gradient(90deg, var(--color-accent-deep), var(--color-warn)); }
-.meter__bar--danger { background: linear-gradient(90deg, var(--color-warn), var(--color-danger)); }
+.meter__bar--neutral { background-color: var(--color-accent); }
+.meter__bar--ok { background-color: var(--color-ok); }
+.meter__bar--warn { background-color: var(--color-warn); }
+.meter__bar--danger { background-color: var(--color-danger); }
 
 /* --- Диверг-шкала --- */
 
@@ -1189,8 +1190,8 @@
   transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.balance__bar.is-positive { background: linear-gradient(90deg, var(--color-accent-deep), var(--color-ok)); }
-.balance__bar.is-negative { background: linear-gradient(270deg, var(--color-warn), var(--color-danger)); }
+.balance__bar.is-positive { background-color: var(--color-ok); }
+.balance__bar.is-negative { background-color: var(--color-danger); }
 
 /* --- Круговая шкала --- */
 
@@ -1203,6 +1204,7 @@
 
 .gauge__track { stroke: var(--surface-sunken); }
 .gauge__value { transition: stroke-dashoffset 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.gauge__value--neutral { stroke: var(--color-accent); }
 .gauge__value--ok { stroke: var(--color-ok); }
 .gauge__value--warn { stroke: var(--color-warn); }
 .gauge__value--danger { stroke: var(--color-danger); }
@@ -1244,7 +1246,7 @@
   display: block;
   height: 100%;
   border-radius: var(--radius-pill);
-  background: linear-gradient(90deg, var(--color-accent-deep), var(--color-accent));
+  background-color: var(--color-accent);
   transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -1265,7 +1267,7 @@
   stroke-linecap: round;
 }
 
-.spark__area { fill: color-mix(in srgb, var(--color-accent) 16%, transparent); }
+.spark__area { fill: rgba(var(--ink), 0.16); }
 
 /* ======================================================================
    Карта корпорации
@@ -1278,8 +1280,8 @@
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   background:
-    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--color-violet) 14%, transparent), transparent 60%),
-    radial-gradient(ellipse at 90% 100%, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 55%),
+    radial-gradient(ellipse at 20% 0%, rgba(var(--ink), 0.14), transparent 60%),
+    radial-gradient(ellipse at 90% 100%, rgba(var(--ink), 0.12), transparent 55%),
     var(--surface-sunken);
   overflow: hidden;
 }
@@ -1304,7 +1306,7 @@
   stroke: url(#map-route);
   stroke-width: 4;
   stroke-dasharray: none;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-accent) 60%, transparent));
+  filter: drop-shadow(0 0 6px rgba(var(--ink), 0.60));
 }
 
 .map__station { cursor: default; }
@@ -1343,8 +1345,8 @@
   pointer-events: none;
 }
 
-.map__station.is-done .map__dot { fill: var(--color-ok); }
-.map__station.is-done .map__halo { stroke: var(--color-ok); }
+.map__station.is-done .map__dot { fill: rgba(var(--ink), 0.75); }
+.map__station.is-done .map__halo { stroke: rgba(var(--ink), 0.35); }
 .map__station.is-done .map__label { fill: var(--color-text); }
 
 .map__station.is-active .map__dot { fill: var(--color-accent); r: 14; }
@@ -1393,7 +1395,7 @@
 }
 
 .map__key:first-child { margin-left: 0; }
-.map__key.is-done { background: var(--color-ok); }
+.map__key.is-done { background: rgba(var(--ink), 0.75); }
 .map__key.is-active { background: var(--color-accent); }
 .map__key.is-locked { background: var(--surface-chip); border: 1px solid var(--color-line); }
 
@@ -1430,7 +1432,7 @@
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   background:
-    radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 65%),
+    radial-gradient(ellipse at 50% 20%, rgba(var(--ink), 0.10), transparent 65%),
     var(--surface-sunken);
   min-width: 0;
 }
@@ -1457,62 +1459,155 @@
   overflow: visible;
 }
 
-.ship__hull {
-  fill: var(--surface-panel);
-  stroke: var(--color-line);
+/*
+ * Чертёж корабля. Линии тонкие и разной силы, как на конструкторском листе:
+ * контур корпуса — основная линия, рёбра и детали — вспомогательные,
+ * выноски и сетка — самые светлые. Объём даёт одна заливка-градиент.
+ */
+.blueprint {
+  overflow: visible;
+}
+
+.bp__sheet {
+  stroke: var(--color-line-soft);
+  stroke-width: 1;
+}
+
+.bp__grid {
+  stroke: rgba(var(--ink), 0.05);
+  stroke-width: 1;
+  fill: none;
+}
+
+.bp__axis {
+  stroke: rgba(var(--ink), 0.22);
+  stroke-width: 1;
+  stroke-dasharray: 18 5 3 5;
+  fill: none;
+}
+
+.bp__hull {
+  fill: none;
+  stroke: var(--color-text);
   stroke-width: 2;
   stroke-linejoin: round;
 }
 
-.ship__hull-inner {
+/* Блик вдоль верхней трети корпуса — он и читается как объём */
+.bp__gloss {
+  stroke: rgba(var(--ink), 0.28);
+  stroke-width: 3;
   fill: none;
-  stroke: var(--color-line-soft);
-  stroke-width: 1.5;
-  stroke-dasharray: 6 6;
 }
 
-.ship__thrust {
-  fill: var(--color-accent);
-  opacity: 0.55;
-}
-
-.ship__slot-ring {
+.bp__rib {
+  stroke: rgba(var(--ink), 0.12);
+  stroke-width: 1;
   fill: none;
-  stroke: var(--color-line);
-  stroke-width: 2;
-  stroke-dasharray: 5 5;
-  transition: stroke 0.3s ease;
 }
 
-.ship__slot-core {
-  fill: var(--surface-chip);
-  transition: fill 0.3s ease;
+/* Деталь установленного узла */
+.bp__part {
+  fill: rgba(var(--ink), 0.10);
+  stroke: var(--color-text);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
 }
 
-.ship__slot-label {
-  font-size: 13px;
-  fill: var(--color-muted);
+/* Вспомогательные линии внутри узла */
+.bp__hair {
+  fill: none;
+  stroke: rgba(var(--ink), 0.45);
+  stroke-width: 1;
 }
 
-.ship__slot-count,
-.ship__slot-miss {
+/* Поле щита: его видно только когда щит стоит */
+.bp__field {
+  fill: none;
+  stroke: rgba(var(--ink), 0.35);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 7;
+}
+
+.bp__lead {
+  fill: none;
+  stroke: rgba(var(--ink), 0.35);
+  stroke-width: 1;
+}
+
+.bp__lead-dot {
+  fill: var(--color-text);
+}
+
+.bp__label {
+  font-size: 14px;
+  fill: var(--color-text);
+}
+
+.bp__miss {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 11px;
   fill: var(--color-dim);
 }
 
-.ship__slot.is-filled .ship__slot-ring {
-  stroke: var(--color-accent);
-  stroke-dasharray: none;
+.bp__tick {
+  stroke: rgba(var(--ink), 0.3);
+  stroke-width: 1;
 }
 
-.ship__slot.is-filled .ship__slot-core {
-  fill: var(--color-accent);
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-accent) 70%, transparent));
+.bp__station {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-dim);
+  letter-spacing: 0.08em;
 }
 
-.ship__slot.is-filled .ship__slot-label { fill: var(--color-text); }
-.ship__slot.is-empty .ship__slot-label { fill: var(--color-dim); }
+.bp__title-box {
+  fill: none;
+  stroke: var(--color-line);
+  stroke-width: 1;
+}
+
+.bp__title-key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-dim);
+  letter-spacing: 0.12em;
+}
+
+.bp__title-val {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--color-text);
+}
+
+/*
+ * Пустой слот остаётся на листе призраком: те же формы, но штриховой
+ * линией и без заливки. Сразу видно, какое место свободно.
+ */
+.ship__slot.is-empty .bp__part {
+  fill: none;
+  stroke: rgba(var(--ink), 0.28);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 5;
+}
+
+.ship__slot.is-empty .bp__hair {
+  stroke: rgba(var(--ink), 0.14);
+}
+
+/* Поля щита не существует, пока щита нет: на листе его и не рисуют */
+.ship__slot.is-empty .bp__field {
+  display: none;
+}
+
+.ship__slot.is-empty .bp__label {
+  fill: var(--color-dim);
+}
+
+.ship__slot.is-empty .bp__lead-dot {
+  fill: rgba(var(--ink), 0.3);
+}
 
 .ship__caption {
   font-family: var(--font-mono);
@@ -1520,11 +1615,30 @@
   fill: var(--color-dim);
 }
 
+/*
+ * На телефоне лист не сжимаем до нечитаемости: он получает минимальную
+ * ширину и прокрутку вбок, а подписи набираются крупнее.
+ */
+.ship-scheme__sheet {
+  min-width: 0;
+}
+
 @media (max-width: 720px) {
-  .ship__slot-label { font-size: 24px; }
+  .ship-scheme__sheet {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .ship-scheme__sheet .ship {
+    min-width: 620px;
+  }
+
+  .bp__label { font-size: 26px; }
+  .bp__miss { font-size: 20px; }
+  .bp__station { font-size: 18px; }
+  .bp__title-key { font-size: 18px; }
+  .bp__title-val { font-size: 24px; }
   .ship__caption { font-size: 22px; }
-  .ship__slot-count,
-  .ship__slot-miss { font-size: 22px; }
 }
 
 /* ======================================================================
@@ -1789,7 +1903,7 @@
 }
 
 @keyframes record-in {
-  0% { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+  0% { background: rgba(var(--ink), 0.30); }
   100% { background: transparent; }
 }
 
@@ -1834,9 +1948,6 @@
   background: var(--module-plate);
   border: 1px solid var(--color-line-soft);
 }
-
-/* В кружке картинка мелкая — чуть поднимаем читаемость */
-.ship__slot-art { filter: brightness(1.18) saturate(1.1); }
 
 @media (max-width: 720px) {
   .module-art { height: 120px; }
@@ -1888,7 +1999,7 @@
 
 .route-card.is-active {
   border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 12%, var(--surface-sunken));
+  background-color: rgba(var(--ink), 0.07);
 }
 
 .route-card__name { font-weight: 600; }
@@ -1955,7 +2066,7 @@
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  background: rgba(var(--ink), 0.10);
   color: var(--color-text);
   font-size: var(--fs-sm);
 }
@@ -2042,6 +2153,106 @@
 }
 
 /* ======================================================================
+   Панель вывода под редактором
+   ====================================================================== */
+
+/*
+ * Здесь видно, как исполняется код: строки console.log, ошибки и итог
+ * проверок идут одним потоком, как в консоли браузера.
+ */
+
+.task__console {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background-color: var(--code-bg);
+  overflow: hidden;
+}
+
+.task__console-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.task__console-title {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-dim);
+}
+
+.task__console-hint {
+  margin-right: auto;
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+}
+
+.task__console-body {
+  flex: 1 1 auto;
+  min-height: 84px;
+  max-height: 260px;
+  overflow: auto;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--code-text);
+}
+
+.log {
+  display: flex;
+  gap: var(--space-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log__mark {
+  flex: 0 0 auto;
+  color: var(--color-dim);
+}
+
+.log--warn .log__mark,
+.log--warn .log__text { color: var(--color-warn); }
+
+.log--error .log__mark,
+.log--error .log__text { color: var(--color-danger); }
+
+/* Заголовок группы: под ним идёт вывод одного вызова */
+.log--group {
+  margin-top: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--color-line-soft);
+  color: var(--color-muted);
+}
+
+.log--group:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.log--group.is-fail { color: var(--color-danger); }
+
+.log--summary {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-line-soft);
+  color: var(--color-muted);
+}
+
+.log--summary.is-ok { color: var(--color-ok); }
+.log--summary.is-fail { color: var(--color-danger); }
+
+.log--empty {
+  color: var(--color-dim);
+}
+
+/* ======================================================================
    Доработка собственной функции
    ====================================================================== */
 
@@ -2050,7 +2261,7 @@
   padding: var(--space-3) var(--space-4);
   border: 1px dashed var(--color-violet);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-violet) 8%, transparent);
+  background: rgba(var(--ink), 0.08);
 }
 
 .task__evolution-label {

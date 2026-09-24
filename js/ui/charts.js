@@ -30,14 +30,17 @@ export function shortNumber(value) {
  *
  * `tone` решает, что считать плохим. Для запасов («usage») опасен полный
  * трюм, для прогресса («progress») полная полоса — наоборот, цель.
+ *
+ * Обычное состояние рисуется нейтрально: цвет включается только там, где
+ * он что-то сообщает — близко к пределу или цель достигнута.
  */
 export function fillBar({ value, max, label = '', unit = '', tone = 'usage' } = {}) {
   const limit = Math.max(1, num(max, 1));
   const used = clamp(num(value), 0, limit);
   const percent = Math.round((used / limit) * 100);
   const level = tone === 'progress'
-    ? (percent >= 100 ? 'ok' : percent >= 50 ? 'warn' : 'danger')
-    : (percent >= 90 ? 'danger' : percent >= 70 ? 'warn' : 'ok');
+    ? (percent >= 100 ? 'ok' : 'neutral')
+    : (percent >= 90 ? 'danger' : percent >= 70 ? 'warn' : 'neutral');
 
   return `
     <div class="chart chart--fill">
@@ -85,8 +88,8 @@ export function gauge({ value, max, label = '', unit = '', tone = 'usage' } = {}
   // Полукруг радиусом 52 — длина дуги π·r, её и «закрашиваем» штрихом
   const arc = Math.PI * 52;
   const level = tone === 'progress'
-    ? (share >= 1 ? 'ok' : share >= 0.5 ? 'warn' : 'danger')
-    : (share >= 0.9 ? 'danger' : share >= 0.7 ? 'warn' : 'ok');
+    ? (share >= 1 ? 'ok' : 'neutral')
+    : (share >= 0.9 ? 'danger' : share >= 0.7 ? 'warn' : 'neutral');
 
   return `
     <div class="chart chart--gauge">

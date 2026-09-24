@@ -38,7 +38,7 @@ check(shortNumber(42) === '42', 'малые числа остаются как �
 
 const half = fillBar({ value: 50, max: 100, label: 'Трюм' });
 check(half.includes('width: 50%'), 'полоса считает процент');
-check(half.includes('meter__bar--ok'), 'половина трюма — спокойный цвет');
+check(half.includes('meter__bar--neutral'), 'половина трюма — нейтральный цвет, без сигнала');
 check(fillBar({ value: 95, max: 100 }).includes('meter__bar--danger'), 'почти полный трюм — тревожный цвет');
 check(fillBar({ value: 500, max: 100 }).includes('width: 100%'), 'перебор обрезается по максимуму');
 check(fillBar({ value: -20, max: 100 }).includes('width: 0%'), 'отрицательное значение не уходит влево');
@@ -49,8 +49,8 @@ check(
   'полный прогресс — зелёный, а не тревожный',
 );
 check(
-  fillBar({ value: 0, max: 3, tone: 'progress' }).includes('meter__bar--danger'),
-  'нулевой прогресс подсвечен как проблема',
+  fillBar({ value: 0, max: 3, tone: 'progress' }).includes('meter__bar--neutral'),
+  'незаконченный прогресс не притворяется проблемой',
 );
 
 /* --- Диверг-шкала -------------------------------------------------------- */
@@ -113,7 +113,9 @@ check(SLOTS.some(slot => slot.type === 'weapon'), 'на чертеже есть 
 const fitted = shipSchematic([{ type: 'engine' }, { type: 'reactor' }, { type: 'reactor' }]);
 check((fitted.match(/is-filled/g) ?? []).length === 2, 'занятыми считаются только свои слоты');
 check(fitted.includes('×2'), 'два одинаковых модуля показаны количеством');
-check(fitted.includes('3 модулей на борту'), 'подпись считает все модули');
+check(fitted.includes('3 модуля на борту'), 'подпись считает все модули и склоняет число');
+check(shipSchematic([{ type: 'engine' }]).includes('1 модуль на борту'), 'один модуль — единственное число');
+check(shipSchematic([]).includes('0 модулей на борту'), 'пустой корабль тоже подписан по-русски');
 check(shipSchematic([{ type: 'тахион' }]).includes('Вне схемы'), 'незнакомый тип выносится отдельной строкой');
 check(shipSchematic('не массив').includes('<svg'), 'не массив не ломает чертёж');
 check(!shipSchematic([], { name: evil }).includes('<img'), 'имя корабля экранируется');

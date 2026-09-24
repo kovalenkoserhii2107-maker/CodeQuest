@@ -11,6 +11,7 @@ import {
   state, transaction, isSolved, isPracticed, currentQuest, markPracticed,
   setCorpRecord, pushConsoleHistory, spendCredits, addCrewMember, addLog,
   db, applyDbOps, panels, resources, addResource, spendResource, CARGO_HOLD, appSource, fuelLog,
+  liveFunctions,
 } from '../state.js';
 import { Shipyard } from '../shipyard.js';
 import { LaborExchange } from '../crew.js';
@@ -153,12 +154,17 @@ async function consolePayload() {
   return { data: await corpData(), dbStore: db.snapshot(), panels: panels() };
 }
 
-/** Что можно вызвать прямо сейчас — короткая справка сбоку. */
+/**
+ * Что можно вызвать прямо сейчас — короткая справка сбоку.
+ *
+ * Функция, написанная в несколько этапов, остаётся одной строкой списка:
+ * вызывается она одна, работает последняя проверенная версия.
+ */
 function availableFunctions() {
-  return QUESTS.filter(quest => isSolved(quest.id)).map(quest => ({
-    fn: quest.fn,
-    title: quest.title,
-    example: quest.practice.example,
+  return liveFunctions().map(({ fn, stage }) => ({
+    fn,
+    title: stage.title,
+    example: stage.practice.example,
   }));
 }
 
@@ -277,13 +283,19 @@ function tryPractice(input, value, context) {
 
 /* --- Отрисовка ----------------------------------------------------------- */
 
+/** Текст строки вывода: новый формат — объект с уровнем, старый — строка. */
+function logText(line) {
+  return typeof line === 'string' ? line : String(line?.text ?? '');
+}
+
 function entryHtml(entry) {
   const output = entry.error
     ? `<p class="console__error">${escapeHtml(entry.error)}</p>`
     : `<p class="console__value mono">${escapeHtml(entry.preview ?? 'undefined')}</p>`;
 
+  // В истории могут лежать записи старого формата — там строка, а не объект
   const logs = entry.logs?.length
-    ? `<pre class="console__logs mono">${escapeHtml(entry.logs.join('\n'))}</pre>`
+    ? `<pre class="console__logs mono">${escapeHtml(entry.logs.map(logText).join('\n'))}</pre>`
     : '';
 
   const note = entry.note
