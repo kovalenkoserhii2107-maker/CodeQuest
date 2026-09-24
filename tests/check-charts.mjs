@@ -113,7 +113,9 @@ check(SLOTS.some(slot => slot.type === 'weapon'), 'на чертеже есть 
 const fitted = shipSchematic([{ type: 'engine' }, { type: 'reactor' }, { type: 'reactor' }]);
 check((fitted.match(/is-filled/g) ?? []).length === 2, 'занятыми считаются только свои слоты');
 check(fitted.includes('×2'), 'два одинаковых модуля показаны количеством');
-check(fitted.includes('3 модулей на борту'), 'подпись считает все модули');
+check(fitted.includes('3 модуля на борту'), 'подпись считает все модули и склоняет число');
+check(shipSchematic([{ type: 'engine' }]).includes('1 модуль на борту'), 'один модуль — единственное число');
+check(shipSchematic([]).includes('0 модулей на борту'), 'пустой корабль тоже подписан по-русски');
 check(shipSchematic([{ type: 'тахион' }]).includes('Вне схемы'), 'незнакомый тип выносится отдельной строкой');
 check(shipSchematic('не массив').includes('<svg'), 'не массив не ломает чертёж');
 check(!shipSchematic([], { name: evil }).includes('<img'), 'имя корабля экранируется');

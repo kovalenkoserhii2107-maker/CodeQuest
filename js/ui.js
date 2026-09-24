@@ -504,7 +504,7 @@ export async function renderShip() {
         : ''
     }`;
 
-  if (scheme) scheme.innerHTML = shipSchematic(modules, { name: showValue(value?.name) });
+  if (scheme) scheme.innerHTML = shipSchematic(modules, { name: showValue(value?.name), mass });
 
   modulesHost.innerHTML = `
     <div class="panel__head"><h3 class="panel__title">Состав</h3></div>

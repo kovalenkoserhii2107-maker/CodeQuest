@@ -1459,62 +1459,155 @@
   overflow: visible;
 }
 
-.ship__hull {
-  fill: var(--surface-panel);
-  stroke: var(--color-line);
+/*
+ * Чертёж корабля. Линии тонкие и разной силы, как на конструкторском листе:
+ * контур корпуса — основная линия, рёбра и детали — вспомогательные,
+ * выноски и сетка — самые светлые. Объём даёт одна заливка-градиент.
+ */
+.blueprint {
+  overflow: visible;
+}
+
+.bp__sheet {
+  stroke: var(--color-line-soft);
+  stroke-width: 1;
+}
+
+.bp__grid {
+  stroke: rgba(var(--ink), 0.05);
+  stroke-width: 1;
+  fill: none;
+}
+
+.bp__axis {
+  stroke: rgba(var(--ink), 0.22);
+  stroke-width: 1;
+  stroke-dasharray: 18 5 3 5;
+  fill: none;
+}
+
+.bp__hull {
+  fill: none;
+  stroke: var(--color-text);
   stroke-width: 2;
   stroke-linejoin: round;
 }
 
-.ship__hull-inner {
+/* Блик вдоль верхней трети корпуса — он и читается как объём */
+.bp__gloss {
+  stroke: rgba(var(--ink), 0.28);
+  stroke-width: 3;
   fill: none;
-  stroke: var(--color-line-soft);
-  stroke-width: 1.5;
-  stroke-dasharray: 6 6;
 }
 
-.ship__thrust {
-  fill: var(--color-accent);
-  opacity: 0.55;
-}
-
-.ship__slot-ring {
+.bp__rib {
+  stroke: rgba(var(--ink), 0.12);
+  stroke-width: 1;
   fill: none;
-  stroke: var(--color-line);
-  stroke-width: 2;
-  stroke-dasharray: 5 5;
-  transition: stroke 0.3s ease;
 }
 
-.ship__slot-core {
-  fill: var(--surface-chip);
-  transition: fill 0.3s ease;
+/* Деталь установленного узла */
+.bp__part {
+  fill: rgba(var(--ink), 0.10);
+  stroke: var(--color-text);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
 }
 
-.ship__slot-label {
-  font-size: 13px;
-  fill: var(--color-muted);
+/* Вспомогательные линии внутри узла */
+.bp__hair {
+  fill: none;
+  stroke: rgba(var(--ink), 0.45);
+  stroke-width: 1;
 }
 
-.ship__slot-count,
-.ship__slot-miss {
+/* Поле щита: его видно только когда щит стоит */
+.bp__field {
+  fill: none;
+  stroke: rgba(var(--ink), 0.35);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 7;
+}
+
+.bp__lead {
+  fill: none;
+  stroke: rgba(var(--ink), 0.35);
+  stroke-width: 1;
+}
+
+.bp__lead-dot {
+  fill: var(--color-text);
+}
+
+.bp__label {
+  font-size: 14px;
+  fill: var(--color-text);
+}
+
+.bp__miss {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 11px;
   fill: var(--color-dim);
 }
 
-.ship__slot.is-filled .ship__slot-ring {
-  stroke: var(--color-accent);
-  stroke-dasharray: none;
+.bp__tick {
+  stroke: rgba(var(--ink), 0.3);
+  stroke-width: 1;
 }
 
-.ship__slot.is-filled .ship__slot-core {
-  fill: var(--color-accent);
-  filter: drop-shadow(0 0 8px rgba(var(--ink), 0.70));
+.bp__station {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-dim);
+  letter-spacing: 0.08em;
 }
 
-.ship__slot.is-filled .ship__slot-label { fill: var(--color-text); }
-.ship__slot.is-empty .ship__slot-label { fill: var(--color-dim); }
+.bp__title-box {
+  fill: none;
+  stroke: var(--color-line);
+  stroke-width: 1;
+}
+
+.bp__title-key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-dim);
+  letter-spacing: 0.12em;
+}
+
+.bp__title-val {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--color-text);
+}
+
+/*
+ * Пустой слот остаётся на листе призраком: те же формы, но штриховой
+ * линией и без заливки. Сразу видно, какое место свободно.
+ */
+.ship__slot.is-empty .bp__part {
+  fill: none;
+  stroke: rgba(var(--ink), 0.28);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 5;
+}
+
+.ship__slot.is-empty .bp__hair {
+  stroke: rgba(var(--ink), 0.14);
+}
+
+/* Поля щита не существует, пока щита нет: на листе его и не рисуют */
+.ship__slot.is-empty .bp__field {
+  display: none;
+}
+
+.ship__slot.is-empty .bp__label {
+  fill: var(--color-dim);
+}
+
+.ship__slot.is-empty .bp__lead-dot {
+  fill: rgba(var(--ink), 0.3);
+}
 
 .ship__caption {
   font-family: var(--font-mono);
@@ -1522,11 +1615,30 @@
   fill: var(--color-dim);
 }
 
+/*
+ * На телефоне лист не сжимаем до нечитаемости: он получает минимальную
+ * ширину и прокрутку вбок, а подписи набираются крупнее.
+ */
+.ship-scheme__sheet {
+  min-width: 0;
+}
+
 @media (max-width: 720px) {
-  .ship__slot-label { font-size: 24px; }
+  .ship-scheme__sheet {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .ship-scheme__sheet .ship {
+    min-width: 620px;
+  }
+
+  .bp__label { font-size: 26px; }
+  .bp__miss { font-size: 20px; }
+  .bp__station { font-size: 18px; }
+  .bp__title-key { font-size: 18px; }
+  .bp__title-val { font-size: 24px; }
   .ship__caption { font-size: 22px; }
-  .ship__slot-count,
-  .ship__slot-miss { font-size: 22px; }
 }
 
 /* ======================================================================
@@ -1836,9 +1948,6 @@
   background: var(--module-plate);
   border: 1px solid var(--color-line-soft);
 }
-
-/* В кружке картинка мелкая — чуть поднимаем читаемость */
-.ship__slot-art { filter: brightness(1.18) saturate(1.1); }
 
 @media (max-width: 720px) {
   .module-art { height: 120px; }
