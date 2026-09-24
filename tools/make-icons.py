@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """Генератор иконок PWA.
 
-Рисует фирменный знак CodeQuest (градиентный скруглённый квадрат с тёмной
-каплей-кораблём) без внешних зависимостей и сохраняет PNG в assets/.
+Рисует фирменный знак CodeQuest: белый скруглённый квадрат с чёрной
+каплей-кораблём на чёрном фоне — без внешних зависимостей. PNG в assets/.
 Запуск: python3 tools/make-icons.py
 """
 import struct
 import zlib
 from pathlib import Path
 
-BG = (5, 7, 15)
-GRAD_FROM = (27, 139, 181)   # --color-accent-deep
-GRAD_TO = (166, 124, 255)    # --color-violet
-MARK = (4, 18, 26)
+BG = (0, 0, 0)          # --color-void
+GRAD_FROM = (255, 255, 255)  # --color-accent
+GRAD_TO = (224, 224, 224)    # едва заметный перепад, чтобы знак не был плоским
+MARK = (0, 0, 0)             # --color-on-accent
 
 ROOT = Path(__file__).resolve().parent.parent
 

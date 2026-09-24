@@ -11,6 +11,7 @@ import {
   state, transaction, isSolved, isPracticed, currentQuest, markPracticed,
   setCorpRecord, pushConsoleHistory, spendCredits, addCrewMember, addLog,
   db, applyDbOps, panels, resources, addResource, spendResource, CARGO_HOLD, appSource, fuelLog,
+  liveFunctions,
 } from '../state.js';
 import { Shipyard } from '../shipyard.js';
 import { LaborExchange } from '../crew.js';
@@ -153,12 +154,17 @@ async function consolePayload() {
   return { data: await corpData(), dbStore: db.snapshot(), panels: panels() };
 }
 
-/** Что можно вызвать прямо сейчас — короткая справка сбоку. */
+/**
+ * Что можно вызвать прямо сейчас — короткая справка сбоку.
+ *
+ * Функция, написанная в несколько этапов, остаётся одной строкой списка:
+ * вызывается она одна, работает последняя проверенная версия.
+ */
 function availableFunctions() {
-  return QUESTS.filter(quest => isSolved(quest.id)).map(quest => ({
-    fn: quest.fn,
-    title: quest.title,
-    example: quest.practice.example,
+  return liveFunctions().map(({ fn, stage }) => ({
+    fn,
+    title: stage.title,
+    example: stage.practice.example,
   }));
 }
 

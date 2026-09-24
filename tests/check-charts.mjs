@@ -38,7 +38,7 @@ check(shortNumber(42) === '42', 'малые числа остаются как �
 
 const half = fillBar({ value: 50, max: 100, label: 'Трюм' });
 check(half.includes('width: 50%'), 'полоса считает процент');
-check(half.includes('meter__bar--ok'), 'половина трюма — спокойный цвет');
+check(half.includes('meter__bar--neutral'), 'половина трюма — нейтральный цвет, без сигнала');
 check(fillBar({ value: 95, max: 100 }).includes('meter__bar--danger'), 'почти полный трюм — тревожный цвет');
 check(fillBar({ value: 500, max: 100 }).includes('width: 100%'), 'перебор обрезается по максимуму');
 check(fillBar({ value: -20, max: 100 }).includes('width: 0%'), 'отрицательное значение не уходит влево');
@@ -49,8 +49,8 @@ check(
   'полный прогресс — зелёный, а не тревожный',
 );
 check(
-  fillBar({ value: 0, max: 3, tone: 'progress' }).includes('meter__bar--danger'),
-  'нулевой прогресс подсвечен как проблема',
+  fillBar({ value: 0, max: 3, tone: 'progress' }).includes('meter__bar--neutral'),
+  'незаконченный прогресс не притворяется проблемой',
 );
 
 /* --- Диверг-шкала -------------------------------------------------------- */
