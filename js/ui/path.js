@@ -71,11 +71,7 @@ export function renderPath({ onOpenQuest }) {
         })
         .join('')}
     </ol>
-    ${
-      chain.every(quest => isQuestClosed(quest.id))
-        ? '<p class="empty-state">Цепочка пройдена целиком. Следующие задания появятся с новыми механиками.</p>'
-        : ''
-    }
+    ${actTwoHtml(chain)}
   `;
 
   bindMap(host, onOpenQuest);
@@ -83,6 +79,34 @@ export function renderPath({ onOpenQuest }) {
   for (const button of host.querySelectorAll('button[data-quest]')) {
     button.addEventListener('click', () => onOpenQuest(button.dataset.quest));
   }
+}
+
+/**
+ * Вход во второй акт — последней карточкой пути.
+ *
+ * Пока цепочка не закрыта, он виден, но не открыт: эндгейм должен быть
+ * обещанием, а не сюрпризом в меню.
+ */
+function actTwoHtml(chain) {
+  const done = chain.filter(quest => isQuestClosed(quest.id)).length;
+  const ready = done === chain.length;
+
+  return `
+    <article class="chain__item act-two ${ready ? 'is-active' : 'is-locked'}">
+      <div class="chain__head">
+        <span class="chain__marker mono">II</span>
+        <h3 class="chain__title">Комбинат «Передел»</h3>
+        <span class="badge ${ready ? 'badge--ok' : 'badge--idle'}">${ready ? 'открыт' : 'второй акт'}</span>
+      </div>
+      <p class="chain__brief">
+        Второй акт: вы перестаёте писать отдельные функции и начинаете вести проект из файлов.
+        Приёмка лома, плавка, настройки среды — и смена, которая считается вашим кодом.
+      </p>
+      <div class="chain__foot">
+        <span class="chain__unlock">${ready ? 'Цепочка корпорации закрыта' : `Закрыто ${done} из ${chain.length} заданий`}</span>
+        ${ready ? '<a class="btn btn--primary btn--sm" href="#/plant">Открыть комбинат</a>' : ''}
+      </div>
+    </article>`;
 }
 
 /** Сколько заданий решено — для подписи в боковой панели. */

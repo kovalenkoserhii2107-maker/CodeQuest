@@ -36,6 +36,11 @@
     import { Shipyard } from '../js/shipyard.js';
     import { powerEfficiency, underPower } from '../js/ui/corp.js';
     import { runOutput } from '../js/ui/task.js';
+    import { buildProject, orderModules } from '../js/act2/loader.js';
+    import { runProject } from '../js/act2/runtime.js';
+    import { chapterChain } from '../js/act2/chapters.js';
+    import { runChapterChecks, isActOneDone } from '../js/ui/plant.js';
+    import { writeFile, removeFile, projectFiles, isChapterDone, isViewUnlocked as viewUnlocked } from '../js/state.js';
     import { matchesSubset } from '../js/runner-core.js';
 
     const problems = [];
@@ -272,6 +277,72 @@
     const weakFight = await runConsole(battleQuest.solution, `runBattle(${JSON.stringify(weakShip)}, ${JSON.stringify(cruiser)})`, {});
     check(strongFight.value?.winner === 'ship', 'сытый корабль побеждает крейсер');
     check(weakFight.value?.rounds > strongFight.value?.rounds, 'голодному кораблю тот же бой даётся тяжелее');
+
+    // --- Второй акт: проект из файлов ---
+
+    resetProgress();
+    check(!viewUnlocked('plant'), 'комбинат закрыт, пока цепочка не пройдена');
+    check(!isActOneDone(), 'первый акт не считается пройденным на старте');
+
+    // Проект собирается настоящими модулями: тело модуля выполняется один раз
+    const projectFilesMap = new Map([
+      ['index.js', 'import { двойка } from "./lib/util.js";\nlet стартов = 0;\nстартов += 1;\nexport function итог(n) { return двойка(n) + стартов; }'],
+      ['lib/util.js', 'export const двойка = n => n * 2;'],
+    ]);
+
+    check(orderModules(projectFilesMap, 'index.js').join(' ') === 'lib/util.js index.js',
+      'зависимость грузится раньше точки входа');
+
+    const urls = [];
+    const built = buildProject(projectFilesMap, 'index.js', source => {
+      const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+      urls.push(url);
+      return url;
+    });
+    const loaded = await import(built.url);
+    check(loaded.итог(4) === 9, 'проект игрока выполняется настоящими модулями');
+    check((await import(built.url)) === loaded, 'повторный импорт не перезапускает модуль');
+    urls.forEach(url => URL.revokeObjectURL(url));
+
+    // Тот же проект в отдельном процессе
+    const inWorker = await runProject({
+      files: [...projectFilesMap.entries()],
+      entry: 'index.js',
+      fn: 'итог',
+      args: [4],
+    });
+    check(inWorker.error === null && inWorker.value === 9, 'отдельный процесс считает то же самое');
+    check(inWorker.exports.includes('итог'), 'процесс докладывает, что экспортирует проект');
+
+    const brokenRun = await runProject({ files: [['index.js', 'import "./нет.js";']], entry: 'index.js', fn: 'итог', args: [] });
+    check(brokenRun.error?.includes('такого файла в проекте нет'), 'пропавший импорт объясняется словами');
+
+    const noExport = await runProject({ files: [['index.js', 'export const x = 1;']], entry: 'index.js', fn: 'итог', args: [] });
+    check(noExport.error?.includes('не экспортирует функцию'), 'отсутствие экспорта названо по имени');
+
+    // Главы: заготовка не проходит, решение проходит
+    const firstChapter = chapterChain()[0];
+    for (const [path, text] of Object.entries(firstChapter.starters ?? {})) writeFile(path, text);
+
+    const starterReport = await runChapterChecks(firstChapter, projectFiles());
+    check(!starterReport.ok, 'по заготовке глава не засчитывается');
+    check(starterReport.structure.some(rule => !rule.pass), 'структурная проверка объясняет, чего не хватает');
+    check(starterReport.checks.length === 0, 'пока файла нет, код не запускают');
+
+    for (const [path, text] of Object.entries(firstChapter.solution)) writeFile(path, text);
+    const solvedReport = await runChapterChecks(firstChapter, projectFiles());
+    check(solvedReport.ok, 'решение главы проходит все проверки');
+    check(solvedReport.structure.every(rule => rule.pass), 'структура проекта тоже в порядке');
+
+    // Файлы проекта: точку входа не удалить, имена проверяются
+    check(writeFile('../взлом.js', '') === null, 'подняться выше проекта нельзя');
+    check(writeFile('данные.txt', '') === null, 'в проекте только .js');
+    check(removeFile('index.js') === false, 'точку входа удалить нельзя');
+    check(removeFile('sort.js') === true && projectFiles()['sort.js'] === undefined, 'обычный файл удаляется');
+
+    resetProgress();
+    check(Object.keys(projectFiles()).length === 0, 'сброс очищает проект комбината');
+    check(!isChapterDone(firstChapter.id), 'сброс закрывает главы второго акта');
 
     // --- Панель вывода под редактором ---
 

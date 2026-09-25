@@ -31,6 +31,11 @@ function emptyState() {
     crew: [],       // нанятый на бирже экипаж
     resources: { fuel: 0, ore: 0 },  // бак и рудный бункер, в тоннах
     fuelLog: [],    // журнал операций с топливом: по нему сводят ревизию
+
+    // Второй акт: проект комбината живёт файлами, а не одной функцией
+    project: { files: {}, entry: 'index.js', open: 'index.js' },
+    chapters: {},   // chapterId -> { at }: глава второго акта закрыта
+    plant: { shifts: 0, metal: 0, earned: 0, log: [] },
   };
 }
 
@@ -48,6 +53,11 @@ function readStorage() {
     if (!s.consoleHistory) s.consoleHistory = [];
     if (!s.resources) s.resources = { fuel: 0, ore: 0 };
     if (!Array.isArray(s.fuelLog)) s.fuelLog = [];
+    if (!s.project || typeof s.project.files !== 'object') {
+      s.project = { files: {}, entry: 'index.js', open: 'index.js' };
+    }
+    if (!s.chapters) s.chapters = {};
+    if (!s.plant) s.plant = { shifts: 0, metal: 0, earned: 0, log: [] };
 
     // Раньше склад и корабль были одним списком: всё купленное считалось
     // стоящим на корабле. Старые сохранения переносим именно так.
@@ -189,6 +199,8 @@ export function isConsoleUnlocked() {
  */
 export function isViewUnlocked(viewId) {
   if (viewId === 'console') return isConsoleUnlocked();
+  // Второй акт — это эндгейм: он открывается за всей цепочкой сразу
+  if (viewId === 'plant') return QUESTS.every(quest => isQuestClosed(quest.id));
   const quest = QUESTS.find(item => item.unlocks?.view === viewId);
   if (!quest) return true;  // базовые разделы доступны всегда
   return isQuestClosed(quest.id);
@@ -668,4 +680,122 @@ export function addCrewMember(crewMember) {
     salary: crewMember.salary,
   });
   emit();
+}
+
+/* --- Второй акт: проект комбината --------------------------------------- */
+
+/*
+ * Здесь игрок работает не с одной функцией, а с проектом из файлов.
+ * Состояние хранит ровно исходники: как они соберутся в модули, решает
+ * загрузчик, а какой файл открыт — дело интерфейса.
+ */
+
+/** Файлы проекта: путь → исходник. Возвращается копия. */
+export function projectFiles() {
+  return { ...(state.project?.files ?? {}) };
+}
+
+/** Проект в виде пар, готовых уехать в воркер. */
+export function projectEntries() {
+  return Object.entries(state.project?.files ?? {});
+}
+
+export function projectEntry() {
+  return state.project?.entry ?? 'index.js';
+}
+
+export function openFile() {
+  const files = state.project?.files ?? {};
+  const current = state.project?.open;
+  if (current && files[current] !== undefined) return current;
+  return Object.keys(files)[0] ?? null;
+}
+
+/** Какой файл показывать в редакторе. */
+export function setOpenFile(path) {
+  if (!state.project.files[path]) return false;
+  state.project.open = path;
+  persist();
+  return true;
+}
+
+/**
+ * Записать файл проекта. Путь нормализуется: в проекте у файла одно имя.
+ * @returns {string|null} итоговый путь, либо null, если имя не годится
+ */
+export function writeFile(path, source = '') {
+  const clean = String(path).replace(/^\.\//, '').replace(/^\/+/, '').trim();
+  if (!clean || !/^[\w./-]+\.js$/.test(clean) || clean.includes('..')) return null;
+
+  state.project.files[clean] = String(source);
+  if (!state.project.open) state.project.open = clean;
+  emit();
+  return clean;
+}
+
+/** Сохранить черновик файла, не дёргая подписчиков: редактор пишет на каждый ввод. */
+export function saveFile(path, source) {
+  if (state.project.files[path] === undefined) return false;
+  state.project.files[path] = String(source);
+  persist();
+  return true;
+}
+
+/** Удалить файл. Точку входа удалить нельзя — с неё начинается проект. */
+export function removeFile(path) {
+  if (path === projectEntry() || state.project.files[path] === undefined) return false;
+
+  delete state.project.files[path];
+  if (state.project.open === path) state.project.open = projectEntry();
+  emit();
+  return true;
+}
+
+export function renameFile(from, to) {
+  const source = state.project.files[from];
+  if (source === undefined || from === projectEntry()) return null;
+
+  const clean = writeFile(to, source);
+  if (!clean || clean === from) return clean === from ? from : null;
+
+  delete state.project.files[from];
+  if (state.project.open === from) state.project.open = clean;
+  emit();
+  return clean;
+}
+
+/** Главы второго акта закрываются так же, как задания первого. */
+export function isChapterDone(chapterId) {
+  return Boolean(state.chapters[chapterId]);
+}
+
+export function completeChapter(chapterId, { credits = 0, xp = 0 } = {}) {
+  if (isChapterDone(chapterId)) return null;
+
+  state.chapters[chapterId] = { at: new Date().toISOString() };
+  state.credits += credits;
+  state.xp += xp;
+  addLog(`Глава комбината пройдена: +${credits} ¢`, 'success');
+  emit();
+  return { credits, xp };
+}
+
+/** Итог смены на комбинате: он же источник денег второго акта. */
+export function recordShift({ metal = 0, earned = 0, note = '' } = {}) {
+  const plant = state.plant;
+  plant.shifts += 1;
+  plant.metal = Math.round((plant.metal + Number(metal || 0)) * 100) / 100;
+  plant.earned += Math.round(Number(earned) || 0);
+  state.credits += Math.round(Number(earned) || 0);
+
+  plant.log.unshift({ at: new Date().toISOString(), metal: Number(metal) || 0, earned: Math.round(Number(earned) || 0), note });
+  plant.log = plant.log.slice(0, 20);
+
+  addLog(`Смена закрыта: ${metal} т металла, +${Math.round(Number(earned) || 0)} ¢`, 'success');
+  emit();
+  return { ...plant };
+}
+
+export function plantState() {
+  return { ...state.plant, log: state.plant.log.map(item => ({ ...item })) };
 }

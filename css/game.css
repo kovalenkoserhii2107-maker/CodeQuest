@@ -2312,3 +2312,141 @@
   .evolution { grid-template-columns: minmax(0, 1fr); }
   .evolution dt { margin-top: var(--space-2); }
 }
+
+/* ======================================================================
+   Второй акт: комбинат «Передел»
+   ====================================================================== */
+
+/*
+ * Экран собран из трёх частей: глава с разбором, рабочее место с файлами
+ * и смена, которая считается кодом игрока. На узком экране они выстраиваются
+ * в колонку — порядок тот же, что и в работе.
+ */
+
+.plant {
+  display: grid;
+  grid-template-columns: minmax(300px, 34%) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.plant__shift {
+  grid-column: 1 / -1;
+}
+
+.plant__workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/*
+ * Редактор второго акта живёт не в сетке рабочего места первого, где
+ * высоту задаёт контейнер. Здесь высоту назначаем сами, иначе поле кода
+ * схлопывается: общее правило оставляет ему height: auto.
+ */
+.plant__workspace .monaco-host {
+  height: clamp(320px, 42vh, 620px);
+  min-height: 320px;
+}
+
+.plant__locked {
+  max-width: 640px;
+}
+
+.plant__locked .btn {
+  margin-top: var(--space-4);
+}
+
+/* Дерево файлов проекта */
+.plant__files {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.filetree {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.filetree__item {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background-color: var(--surface-chip);
+  overflow: hidden;
+}
+
+.filetree__item.is-open {
+  border-color: var(--color-accent);
+  background-color: rgba(var(--ink), 0.1);
+}
+
+.filetree__name {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--color-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.filetree__item.is-open .filetree__name {
+  color: var(--color-text);
+}
+
+.filetree__tag {
+  font-size: var(--fs-xs);
+  color: var(--color-dim);
+  letter-spacing: 0.08em;
+}
+
+.filetree__drop {
+  padding: 0 var(--space-2);
+  align-self: stretch;
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--color-line);
+  color: var(--color-dim);
+  cursor: pointer;
+}
+
+.filetree__drop:hover {
+  color: var(--color-danger);
+}
+
+@media (max-width: 1100px) {
+  .plant {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Вход во второй акт — последняя карточка пути */
+.act-two {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface-panel);
+}
+
+.act-two.is-active {
+  border-style: solid;
+  border-color: var(--color-accent);
+}
+
+.act-two.is-locked {
+  opacity: 0.7;
+}
+
+.act-two .chain__brief {
+  margin: var(--space-3) 0;
+}

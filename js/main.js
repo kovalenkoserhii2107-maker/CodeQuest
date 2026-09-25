@@ -14,6 +14,7 @@ import { renderConsole } from './ui/console.js';
 import { renderDatabase, renderPanels } from './ui/dbview.js';
 import { disposeTask, renderTask } from './ui/task.js';
 import { renderLog } from './ui/log.js';
+import { renderPlant } from './ui/plant.js';
 import { renderView, corporationName, toast } from './ui.js';
 import { isFallbackMode } from './runner.js';
 import { refreshNotificationDot } from './shell.js';
@@ -35,6 +36,7 @@ const VIEW_TITLES = {
   range: 'Полигон',
   battle: 'Боевой вылет',
   audit: 'Ревизия топлива',
+  plant: 'Комбинат «Передел»',
   database: 'Бортовая база данных',
   panels: 'Ваши панели',
   log: 'Журнал',
@@ -107,11 +109,12 @@ function render() {
   // Закрытый раздел не открыть по прямой ссылке
   if (!isViewUnlocked(name)) {
     const quest = QUESTS.find(item => item.unlocks?.view === name);
-    toast(
-      name === 'console'
-        ? 'Консоль откроется после первых пройденных тестов'
-        : `Раздел откроется, когда задание «${quest?.title ?? ''}» будет закрыто практикой`,
-    );
+    const message = {
+      console: 'Консоль откроется после первых пройденных тестов',
+      plant: 'Комбинат откроется, когда цепочка корпорации будет закрыта целиком',
+    }[name] ?? `Раздел откроется, когда задание «${quest?.title ?? ''}» будет закрыто практикой`;
+
+    toast(message);
     navigate('#/path');
     return;
   }
@@ -123,6 +126,11 @@ function render() {
     return;
   }
 
+
+  if (name === 'plant') {
+    renderPlant();
+    return;
+  }
 
   if (name === 'console') {
     renderConsole();
