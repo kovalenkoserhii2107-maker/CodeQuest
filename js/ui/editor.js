@@ -45,8 +45,12 @@ function loadRuntime() {
   return runtime;
 }
 
-export function createEditor(container, { value='', onInput, onRun, filename='solution.js', functionName='', toolsContainer=null }={}) {
+export function createEditor(container, { value='', onInput, onRun, filename='solution.js', functionName='', toolsContainer=null, siblings=null }={}) {
   let editor, model, m, disposed = false, wrap = false;
+  // Соседние файлы проекта: без них редактор считает «./sort.js» ненайденным
+  // модулем и рисует ошибку на верном коде
+  const siblingModels = new Map();
+  let folder = '';
   const cleanups=[];
   const track = disposable => cleanups.push(() => disposable.dispose());
   container.innerHTML=`
@@ -97,8 +101,15 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
       const parameters=item.stage.solution.match(/function\s+\w+\s*\(([^)]*)\)/)?.[1] ?? '...args';
       return `/** ${item.stage.title}. ${item.stage.signature} */\ndeclare function ${item.fn}(${parameters.split(',').filter(Boolean).map(p=>`${p.trim()}: any`).join(',')}): any;`;
     }).join('\n');
+    // Проект на чистом JavaScript: жалобы на «неявный any» здесь только шум,
+    // и они мешают отличить их от настоящих ошибок
+    m.typescript.javascriptDefaults.setDiagnosticsOptions({
+      diagnosticCodesToIgnore:[7005,7006,7008,7016,7031,7034,7043,7044],
+    });
     track(m.typescript.javascriptDefaults.addExtraLib(dependencies,`file:///dependencies-${++serial}.d.ts`));
-    model=m.editor.createModel(fallback.value,'javascript',m.Uri.parse(`file:///quests/${serial}/${filename}`));
+    folder=`file:///quests/${serial}`;
+    model=m.editor.createModel(fallback.value,'javascript',m.Uri.parse(`${folder}/${filename}`));
+    if(siblings) syncSiblings(siblings);
     host.replaceChildren();
     editor=m.editor.create(host,{
       model, automaticLayout:true, fontFamily:getComputedStyle(document.documentElement).getPropertyValue('--font-mono'),
@@ -155,7 +166,29 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
     container.querySelector('[data-tool=wrap]').addEventListener('click',event=>{wrap=!wrap;editor.updateOptions({wordWrap:wrap?'on':'off'});event.currentTarget.setAttribute('aria-pressed',String(wrap));});
     updateStatus();
   }).catch(()=>{if(!disposed)status.textContent='Расширенный редактор не загрузился. Черновик доступен; обновите страницу для повторной загрузки.';});
+  /**
+   * Держать модели соседних файлов в том же каталоге, что и открытый.
+   * Тогда относительные импорты разрешаются, а подсказки видят чужие экспорты.
+   */
+  function syncSiblings(files){
+    if(!m||!folder) return;
+    const wanted=new Map(Object.entries(files||{}).filter(([path])=>path!==filename));
+
+    for(const [path,existing] of siblingModels){
+      if(wanted.has(path)) continue;
+      existing.dispose();
+      siblingModels.delete(path);
+    }
+
+    for(const [path,text] of wanted){
+      const existing=siblingModels.get(path);
+      if(existing){ if(existing.getValue()!==text) existing.setValue(text); continue; }
+      siblingModels.set(path,m.editor.createModel(text,'javascript',m.Uri.parse(`${folder}/${path}`)));
+    }
+  }
+
   return {
+    syncSiblings,
     getValue:()=>model?.getValue()??fallback.value,
     setValue:next=>{if(editor){editor.pushUndoStop();editor.executeEdits('restore',[{range:model.getFullModelRange(),text:next}]);editor.pushUndoStop();}else{fallback.value=next;onInput?.(next);}},
     focus:()=>editor?editor.focus():fallback.focus(),
@@ -164,6 +197,6 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
       container.querySelector('[data-tool=focus]').textContent='Развернуть';
       editor?.layout();
     },
-    dispose:()=>{disposed=true;for(const cleanup of cleanups)cleanup();editor?.dispose();model?.dispose();},
+    dispose:()=>{disposed=true;for(const cleanup of cleanups)cleanup();editor?.dispose();model?.dispose();for(const extra of siblingModels.values())extra.dispose();siblingModels.clear();},
   };
 }

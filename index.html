@@ -130,6 +130,12 @@
                 <span>Рынок</span>
               </a>
             </li>
+            <li hidden data-view-item="plant">
+              <a class="nav__link" href="#/plant" data-route="plant">
+                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 20h18M5 20V10l5 3V10l5 3V8l4-3v15"/></svg>
+                <span>Комбинат</span>
+              </a>
+            </li>
             <li hidden data-view-item="audit">
               <a class="nav__link" href="#/audit" data-route="audit">
                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M8 10h8M8 14h5"/></svg>
@@ -519,6 +525,18 @@
 
           <div class="panel" id="audit-balance"></div>
           <div class="panel" id="audit-log"></div>
+        </section>
+
+        <!-- ------------------------- Комбинат (второй акт) ------------------------- -->
+        <section class="view" id="view-plant" hidden aria-labelledby="plant-title">
+          <div class="section-head">
+            <div>
+              <h2 id="plant-title">Комбинат «Передел»</h2>
+              <p>Второй акт: проект из файлов, который принимает лом и возвращает металл.</p>
+            </div>
+          </div>
+
+          <div id="plant-root"></div>
         </section>
 
         <!-- ------------------------- Журнал ------------------------- -->
