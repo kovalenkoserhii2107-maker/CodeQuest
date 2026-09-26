@@ -112,24 +112,21 @@ export async function runChapterChecks(chapter, files) {
 
 /* --- Разметка ------------------------------------------------------------- */
 
-function lockedHtml() {
+/**
+ * Заметка о порядке: второй акт открыт сразу, но задуман как продолжение.
+ * Показывается, только пока цепочка первого акта не закрыта.
+ */
+function orderNoteHtml() {
+  if (isActOneDone()) return '';
+
   const closed = closedQuests();
 
   return `
-    <div class="panel plant__locked">
-      <div class="panel__head">
-        <h3 class="panel__title">Комбинат «Передел»</h3>
-        <span class="panel__hint">второй акт</span>
-      </div>
-      <p class="widget__note">
-        Комбинат принимает обломки чужих экспедиций и возвращает их в оборот металлом.
-        Здесь вы перестаёте писать отдельные функции и начинаете вести проект: файлы,
-        импорты, точка входа, отдельный процесс.
-      </p>
-      <p class="widget__note">Он откроется, когда цепочка корпорации будет закрыта целиком.</p>
-      ${fillBar({ value: closed, max: QUESTS.length, label: 'Заданий первого акта закрыто', unit: 'шт', tone: 'progress' })}
-      <a class="btn btn--primary btn--sm" href="#/path">Вернуться к пути корпорации</a>
-    </div>`;
+    <p class="widget__note">
+      Комбинат открыт заранее: первый акт пройден на ${closed} из ${QUESTS.length} заданий.
+      Задуман он как продолжение — здесь пригодится всё, что вы уже написали, — но
+      проходить его можно независимо.
+    </p>`;
 }
 
 function lessonHtml(chapter) {
@@ -273,11 +270,6 @@ export function renderPlant() {
     editor = null;
   }
 
-  if (!isActOneDone()) {
-    root.innerHTML = lockedHtml();
-    return;
-  }
-
   const chapter = currentChapter();
 
   // Заготовки главы кладутся в проект один раз — дальше это уже файлы игрока
@@ -298,6 +290,7 @@ export function renderPlant() {
           <h3 class="panel__title">${chapter ? escapeHtml(chapter.title) : 'Комбинат работает'}</h3>
           <span class="panel__hint">${chapter ? `глава ${chapter.order} из ${CHAPTERS.length}` : 'все главы пройдены'}</span>
         </div>
+        ${orderNoteHtml()}
         ${fillBar({ value: done, max: CHAPTERS.length, label: 'Глав пройдено', unit: 'шт', tone: 'progress' })}
         ${
           chapter

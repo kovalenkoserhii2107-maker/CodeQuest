@@ -199,8 +199,9 @@ export function isConsoleUnlocked() {
  */
 export function isViewUnlocked(viewId) {
   if (viewId === 'console') return isConsoleUnlocked();
-  // Второй акт — это эндгейм: он открывается за всей цепочкой сразу
-  if (viewId === 'plant') return QUESTS.every(quest => isQuestClosed(quest.id));
+  // Второй акт задуман как эндгейм за пройденной цепочкой, но пока открыт
+  // сразу: его проходят независимо от первого акта
+  if (viewId === 'plant') return true;
   const quest = QUESTS.find(item => item.unlocks?.view === viewId);
   if (!quest) return true;  // базовые разделы доступны всегда
   return isQuestClosed(quest.id);

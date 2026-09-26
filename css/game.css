@@ -2351,14 +2351,6 @@
   min-height: 320px;
 }
 
-.plant__locked {
-  max-width: 640px;
-}
-
-.plant__locked .btn {
-  margin-top: var(--space-4);
-}
-
 /* Дерево файлов проекта */
 .plant__files {
   display: flex;
@@ -2441,10 +2433,6 @@
 .act-two.is-active {
   border-style: solid;
   border-color: var(--color-accent);
-}
-
-.act-two.is-locked {
-  opacity: 0.7;
 }
 
 .act-two .chain__brief {
