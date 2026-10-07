@@ -208,9 +208,11 @@ export function mountCity(root) {
   notice(loaded.warning);
   lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
   reference = mountReference(el('[data-api]'));
-  root.addEventListener('city-api-back',()=>{if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();}); renderEditor(); renderFiles();mountProjectTools();update();
+  const backToCode = ()=>{if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();};
+  root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();update();
   log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {
+    root.removeEventListener('city-api-back',backToCode);
     disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();editor?.dispose();root.replaceChildren();
   };
 }

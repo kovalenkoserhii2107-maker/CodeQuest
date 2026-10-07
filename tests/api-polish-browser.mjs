@@ -57,6 +57,10 @@ try {
   await page.locator('[data-campaign="city"]').click();
   await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
   assert.equal(await page.locator('[data-dashboard-live]').isChecked(),false);
+  const restoredWorld=(await save()).world;
+  await page.locator('[data-task] [data-method]').first().click();
+  await page.locator('[data-api-back]').click();
+  assert.deepEqual((await save()).world,restoredWorld);
   await page.locator('[data-path="dashboards/overview.js"]').click();
   await code('export function render(){return {widgets:[{id:"debounce",type:"stat",value:1}]};}','dashboards/overview.js');
   await refresh();

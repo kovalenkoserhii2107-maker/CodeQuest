@@ -137,7 +137,7 @@ export const apiEffect = item => COMMAND_PATHS.has(item.path) ? 'command' : item
 
 export function mountReference(root) {
   root.innerHTML = '<h2>Справочник API мира</h2>' +
-    '<div class="city-api-guide"><strong>Чтение → проверка → команда → один шаг</strong><p>В main(cq) чтение видит результат предыдущих команд этого запуска. Время идёт только после успешного main. Ошибка отменяет все команды и изменения памяти.</p><p><b>Дашборд render(cq, view)</b> получает снимок мира: чтение разрешено, команды запрещены. Пробный запуск показывает прогноз без сохранения.</p></div>' +
+    '<div class="city-api-guide"><strong>Чтение → проверка → команда → один шаг</strong><p>В main(cq) чтение видит результат предыдущих команд этого запуска. Время идёт только после успешного main. Ошибка отменяет все команды и изменения памяти.</p><p><b>Дашборд render(cq, view)</b> получает снимок мира: чтение разрешено, команды запрещены. Пробный запуск показывает прогноз без сохранения. Примеры методов ниже предназначены для main(cq); в render используйте только чтение.</p></div>' +
     '<label class="city-api-search">Найти метод <input type="search" data-api-search placeholder="Например: свободное место, доставка, start" aria-label="Поиск API мира"></label>' +
     '<label class="city-api-kind">Тип метода <select data-api-kind aria-label="Тип метода API"><option value="all">Все методы</option><option value="read">Чтение · доступно в дашборде</option><option value="command">Команды · меняют мир</option><option value="code">Вывод и память</option></select></label>' +
     '<div class="city-api-groups" role="group" aria-label="Разделы API"><button type="button" data-group="all" aria-pressed="true">Все</button>' +
