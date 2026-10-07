@@ -120,7 +120,7 @@ export function mountCity(root) {
       '<h3>Производственные линии</h3><div class="city-line-list">' + w.lines.map(line =>
         '<p><strong>' + line.id + ' · уровень ' + line.level + '</strong><br>' +
         (line.job ? PRODUCTS[line.job.product] + ': ' + line.job.quantity + ' ед.; осталось шагов: ' + line.job.remaining : 'Свободна · партия до ' + line.level * 8 + ' ед.') + '</p>').join('') + '</div>' +
-      '<p>Поставщик yard: лом ' + money(w.supplier.price) + ' · в наличии ' + w.supplier.stock + '</p>' +
+      '<h3>Поставщики</h3>' + engine.getSuppliers().map(s => '<p><code>' + s.id + '</code> · ' + PRODUCTS[s.product] + ' ' + money(s.price) + ' · в наличии ' + s.stock + '<br><small>' + s.region + (s.locked ? ' · сначала откройте регион' : ' · доступен') + '</small></p>').join('') +
       '<div class="city-table-scroll"><table><caption>Покупатели</caption><thead><tr><th>Покупатель / ID</th><th>Товар</th><th>Цена</th><th>Спрос</th></tr></thead><tbody>' +
       w.buyers.map(b => '<tr><td>' + escapeHtml(b.name) + '<br><code>' + escapeHtml(b.id) + '</code>' + (b.remote ? '<br><small>Доставка</small>' : '')+'<br><small>'+b.region+(!w.regions.includes(b.region)?' · закрыт':'')+'</small>' +
         '</td><td>' + PRODUCTS[b.product] + '</td><td>' + money(b.price) + '</td><td>' + b.demand + '</td></tr>').join('') + '</tbody></table></div>';
@@ -131,7 +131,7 @@ export function mountCity(root) {
         order.status === 'cooldown' ? ' · обновится через ' + (order.refreshAt - w.tick) : '') + '</p></article>').join('');
     el('[data-expansion]').innerHTML = '<h3>Маршруты</h3>' + engine.getRoutes().map(route =>
       '<p><code>' + route.id + '</code>: ' + route.duration + ' шаг. · ' + money(route.fee) + ' · до ' + route.capacity +
-      ' ед. · ' + (route.busy ? 'занят' : 'свободен') + '</p>').join('') +
+      ' ед. · ' + (route.locked ? 'регион закрыт' : route.busy ? 'занят' : 'свободен') + '<br><small>Регионы: ' + route.regions.join(', ') + '</small></p>').join('') +
       '<h3>Грузы в пути</h3>' + (w.shipments.length ? w.shipments.map(s => '<p>№' + s.id + ' · ' + s.quantity + ' ' + PRODUCTS[s.product] +
         ' → <code>' + s.buyerId + '</code><br>Осталось ' + s.remaining + ' шаг. · ожидается ' + money(s.quantity * s.unitPrice) + '</p>').join('') : '<p class="city-muted">Нет грузов.</p>') +
       '<h3>Технологии</h3>' + engine.getResearch().map(t => '<p><strong>' + escapeHtml(t.name) + '</strong> <code>' + t.id + '</code><br>' +
