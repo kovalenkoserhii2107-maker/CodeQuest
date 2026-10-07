@@ -8,6 +8,8 @@ export const RECIPES = Object.freeze({
 export const RESEARCH = Object.freeze([
   Object.freeze({ id: 'wire', name: 'Кабельная линия', cost: 400, description: 'Новый рецепт wire и поставки в электронный квартал.' }),
   Object.freeze({ id: 'efficiency', name: 'Энергосбережение', cost: 600, description: 'Затраты энергии на единицу продукции уменьшаются на 1 ₽.' }),
+  Object.freeze({ id: 'throughput', name: 'Поточная организация', cost: 900, description: 'Новые партии производятся на 1 шаг быстрее, минимум 1 шаг.' }),
+  Object.freeze({ id: 'logistics', name: 'Диспетчерская', cost: 750, description: 'Новые доставки идут на 1 шаг быстрее, минимум 1 шаг.' }),
   Object.freeze({ id: 'circuits', name: 'Электронная сборка', cost: 800, description: 'Схемы: 3 провода + 8 ₽, 4 шага.' })
 ]);
 export const ROUTES = Object.freeze([
@@ -31,4 +33,4 @@ export const CONTRACTS = Object.freeze([
   Object.freeze({ id: 'parts-order', name: 'Оснащение депо', product: 'parts', quantity: 4, reward: 390, duration: 10 }),
   Object.freeze({ id: 'wire-order', name: 'Уличное освещение', product: 'wire', quantity: 6, reward: 235, duration: 8 })
 ]);
-export const COMMANDS = Object.freeze(['buy', 'produce', 'sell', 'upgrade', 'purchaseLine', 'unlock', 'acceptContract', 'deliverContract', 'dispatch', 'openRegion']);
+export const COMMANDS = Object.freeze(['buy', 'produce', 'sell', 'upgrade', 'purchaseLine', 'unlock', 'acceptContract', 'deliverContract', 'dispatch', 'openRegion', 'placeOrder', 'cancelOrder', 'discard']);

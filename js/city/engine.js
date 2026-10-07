@@ -1,3 +1,5 @@
+import { SaleOrders, validateOrders } from './orders.js';
+import { productionQuote, unitCosts, worldAlerts } from './insights.js';
 import { REGIONS, SUPPLIERS, regionEvents } from './regions.js';
 import { validateFiles, normalizeWorkspace } from './project.js';
 export { validateFiles } from './project.js';
@@ -9,7 +11,7 @@ const copy = value => JSON.parse(JSON.stringify(value));
 export const CITY_SAVE_KEY = 'codequest.city.v1';
 export function initialWorld() {
   return {
-    schema: 3, regions: ['city'], history: [], suppliers: SUPPLIERS.map(item => ({ ...item, stock: item.limit })),
+    schema: 4, orders: [], nextOrder: 1, regions: ['city'], history: [], suppliers: SUPPLIERS.map(item => ({ ...item, stock: item.limit })),
     tick: 0, balance: 1000, capacity: 100, machineLevel: 1, warehouseLevel: 1,
     inventory: { scrap: 0, metal: 0, parts: 0, wire: 0, circuit: 0 }, job: null,
     lines: [{ id: 'line-1', level: 1, job: null }], research: [], shipments: [], nextShipment: 1,
@@ -40,11 +42,12 @@ export function validateWorld(world) {
       !Number.isSafeInteger(world.supplier.stock) || world.supplier.stock < 0 || world.supplier.stock > 120) {
     throw new Error('Некорректный поставщик.');
   }
-  if(world.schema!==3||!Array.isArray(world.regions)||!world.regions.includes('city')||new Set(world.regions).size!==world.regions.length||world.regions.some(id=>!REGIONS.some(r=>r.id===id)))throw new Error('Некорректные регионы.');
+  if(world.schema!==4||!Array.isArray(world.regions)||!world.regions.includes('city')||new Set(world.regions).size!==world.regions.length||world.regions.some(id=>!REGIONS.some(r=>r.id===id)))throw new Error('Некорректные регионы.');
   if(!Array.isArray(world.suppliers)||world.suppliers.length!==SUPPLIERS.length)throw new Error('Некорректные поставщики.');
   world.suppliers.forEach((s,i)=>{const d=SUPPLIERS[i];if(s.id!==d.id||s.product!==d.product||s.region!==d.region||s.price!==d.price||!Number.isSafeInteger(s.stock)||s.stock<0||s.stock>d.limit)throw new Error('Некорректный поставщик.');});
   if(world.supplier.stock!==world.suppliers[0].stock)throw new Error('Несогласованный запас поставщика.');
   if(!Array.isArray(world.history)||world.history.length>120||world.history.some(p=>!p||!Number.isSafeInteger(p.tick)||p.tick<0||p.tick>world.tick||!Number.isSafeInteger(p.balance)||p.balance<0||!Number.isSafeInteger(p.revenue)||p.revenue<0||!Number.isSafeInteger(p.spent)||p.spent<0))throw new Error('Некорректная история.');
+  validateOrders(world);
   const defaults = BUYERS;
   if (!Array.isArray(world.buyers) || world.buyers.length !== defaults.length) throw new Error('Некорректный рынок.');
   for (let i = 0; i < defaults.length; i++) {
@@ -110,10 +113,24 @@ export class CityEngine {
   getBuyers(product){return this.#world.buyers.filter(b=>product===undefined||b.product===product).map(b=>({...copy(b),locked:!this.#world.regions.includes(b.region)}));}
   getHistory(limit=120){if(!Number.isSafeInteger(limit)||limit<1||limit>120)throw new Error('История: limit от 1 до 120.');return copy(this.#world.history.slice(-limit));}
   openRegion(id){const r=REGIONS.find(r=>r.id===id);if(!r)throw new Error('Регион не найден.');if(this.#world.regions.includes(id))throw new Error('Регион уже открыт.');this.#pay(r.cost);this.#world.regions.push(id);return id;}
+  getTime() { return this.#world.tick; }
+  getProductionQuote(product, quantity, lineId = 'line-1') { return productionQuote(this.#world, product, quantity, lineId, this.#space()); }
+  getUnitCosts() { return unitCosts(this.#world); }
+  getAlerts() { return worldAlerts(this.#world, this.#space()); }
+  #orders() { return new SaleOrders(this.#world, (...args) => this.getQuote(...args), (...args) => this.sell(...args), (...args) => this.dispatch(...args)); }
+  getOrders() { return this.#orders().list(); }
+  placeOrder(options) { return this.#orders().place(options); }
+  cancelOrder(id) { return this.#orders().cancel(id); }
+  discard(product, quantity) {
+    integer(quantity, 'Количество');
+    if (!Object.hasOwn(PRODUCTS, product) || this.#world.inventory[product] < quantity) throw new Error('Недостаточно товара для списания.');
+    this.#world.inventory[product] -= quantity;
+    return quantity;
+  }
   getFreeSpace() { return this.#space(); }
   getRecipes() {
     return Object.entries(RECIPES).filter(([, r]) => !r.research || this.#world.research.includes(r.research))
-      .map(([product, recipe]) => ({ product, ...recipe, energy: Math.max(0, recipe.energy - (this.#world.research.includes('efficiency') ? 1 : 0)) }));
+      .map(([product, recipe]) => ({ product, ...recipe, duration: Math.max(1, recipe.duration - (this.#world.research.includes('throughput') ? 1 : 0)), energy: Math.max(0, recipe.energy - (this.#world.research.includes('efficiency') ? 1 : 0)) }));
   }
   getContracts() {
     return CONTRACTS.map(def => ({ ...def, ...copy(this.#world.contracts.find(item => item.id === def.id)),
@@ -121,7 +138,7 @@ export class CityEngine {
   }
   getResearch() { return RESEARCH.map(item => ({ ...item, unlocked: this.#world.research.includes(item.id) })); }
   getRoutes() {
-    return ROUTES.map(item => ({ ...item, locked: !item.regions.some(id => this.#world.regions.includes(id)), busy: this.#world.shipments.some(shipment => shipment.routeId === item.id) }));
+    return ROUTES.map(item => ({ ...item, regions: [...item.regions], duration: Math.max(1, item.duration - (this.#world.research.includes('logistics') ? 1 : 0)), locked: !item.regions.some(id => this.#world.regions.includes(id)), busy: this.#world.shipments.some(shipment => shipment.routeId === item.id) }));
   }
   getQuote(product, quantity, buyerId, routeId = null) {
     integer(quantity, 'Количество');
@@ -129,11 +146,21 @@ export class CityEngine {
     if (!buyer || buyer.product !== product) throw new Error('Покупатель не принимает этот товар.');
     const route = routeId === null ? null : ROUTES.find(item => item.id === routeId);
     if (routeId !== null && !route) throw new Error('Маршрут не найден.');
-    const gross = buyer.price * quantity, fee = route?.fee || 0;
+    const gross = buyer.price * quantity, fee = route?.fee || 0, reasons = [];
+    if (!this.#world.regions.includes(buyer.region)) reasons.push('Регион закрыт: ' + buyer.region + '.');
+    if (route && !route.regions.includes(buyer.region)) reasons.push('Маршрут не обслуживает регион: ' + buyer.region + '.');
+    if (quantity > buyer.demand) reasons.push('Спрос: только ' + buyer.demand + ' ед.');
+    if (quantity > this.#world.inventory[product]) reasons.push('На складе только ' + this.#world.inventory[product] + ' ' + product + '.');
+    if (route) {
+      if (quantity > route.capacity) reasons.push('Вместимость маршрута: ' + route.capacity + ' ед.');
+      if (this.#world.shipments.some(item => item.routeId === route.id)) reasons.push('Маршрут занят.');
+      if (this.#world.balance < fee) reasons.push('На доставку нужно ' + fee + ' ₽.');
+    } else if (buyer.remote) reasons.push('Покупателю нужна доставка.');
+    const estimatedUnitCost = unitCosts(this.#world)[product];
     return { product, quantity, buyerId, unitPrice: buyer.price, gross, fee, net: gross - fee,
-      duration: route?.duration || 0, canTrade: this.#world.regions.includes(buyer.region) && (!route || route.regions.includes(buyer.region)) && quantity <= buyer.demand &&
-        quantity <= this.#world.inventory[product] && (route ? quantity <= route.capacity &&
-          !this.#world.shipments.some(item => item.routeId === route.id) && this.#world.balance >= fee : !buyer.remote) };
+      duration: route ? Math.max(1, route.duration - (this.#world.research.includes('logistics') ? 1 : 0)) : 0,
+      canTrade: !reasons.length, reasons, estimatedUnitCost,
+      estimatedMargin: estimatedUnitCost === null ? null : gross - fee - estimatedUnitCost * quantity };
   }
   #pay(amount) {
     if (this.#world.balance < amount) throw new Error('Недостаточно денег: нужно ' + amount + ' ₽.');
@@ -152,7 +179,7 @@ export class CityEngine {
   produce(product, quantity, lineId = 'line-1') {
     integer(quantity, 'Размер партии');
     const recipe = Object.hasOwn(RECIPES, product) ? RECIPES[product] : null, w = this.#world;
-    if (!recipe) throw new Error('Доступные рецепты: metal, parts.');
+    if (!recipe) throw new Error('Доступные рецепты: metal, parts, wire, circuit.');
     const line = w.lines.find(item => item.id === lineId);
     if (!line) throw new Error('Линия не найдена: ' + lineId);
     if (recipe.research && !w.research.includes(recipe.research)) throw new Error('Сначала исследуйте технологию: ' + recipe.research);
@@ -163,7 +190,7 @@ export class CityEngine {
     if (quantity > this.#space() + input) throw new Error('Недостаточно места для готовой партии.');
     this.#pay(quantity * Math.max(0, recipe.energy - (w.research.includes('efficiency') ? 1 : 0)));
     w.inventory[recipe.input] -= input;
-    line.job = { product, quantity, remaining: recipe.duration };
+    line.job = { product, quantity, remaining: Math.max(1, recipe.duration - (w.research.includes('throughput') ? 1 : 0)) };
     this.#sync();
     return copy(line.job);
   }
@@ -229,10 +256,10 @@ export class CityEngine {
   dispatch(product, quantity, buyerId, routeId = 'courier') {
     integer(quantity, 'Количество');
     const w = this.#world, quote = this.getQuote(product, quantity, buyerId, routeId);
-    if (!quote.canTrade) throw new Error('Доставка недоступна: проверьте товар, спрос, размер партии, маршрут и деньги на перевозку.');
+    if (!quote.canTrade) throw new Error('Доставка недоступна: ' + quote.reasons.join(' '));
     const route = ROUTES.find(item => item.id === routeId), buyer = w.buyers.find(item => item.id === buyerId);
     this.#pay(route.fee); w.inventory[product] -= quantity; buyer.demand -= quantity;
-    const shipment = { id: w.nextShipment++, product, quantity, buyerId, routeId, unitPrice: quote.unitPrice, remaining: route.duration };
+    const shipment = { id: w.nextShipment++, product, quantity, buyerId, routeId, unitPrice: quote.unitPrice, remaining: quote.duration };
     w.shipments.push(shipment); return copy(shipment);
   }
   advance() {
@@ -251,6 +278,7 @@ export class CityEngine {
       }
     }
     this.#sync();
+    this.#orders().advance();
     w.shipments = w.shipments.filter(shipment => {
       if (--shipment.remaining > 0) return true;
       const revenue = shipment.quantity * shipment.unitPrice;
@@ -304,6 +332,9 @@ export function migrateWorld(source) {
     const d=initialWorld();world.schema=3;world.regions=['city'];world.history=[];world.inventory={...world.inventory,circuit:0};
     world.suppliers=d.suppliers;world.suppliers[0].stock=world.supplier.stock;
     world.buyers=d.buyers.map(b=>{const old=world.buyers?.find(v=>v.id===b.id);return old?{...old,region:b.region}:b;});
+  }
+  if (world.schema === 3) {
+    world.schema = 4; world.orders = []; world.nextOrder = 1;
   }
   return world;
 }
