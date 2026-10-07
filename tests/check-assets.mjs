@@ -42,7 +42,7 @@ const icons = ['assets/icon-192.png', 'assets/icon-512.png'].filter(p => existsS
 /* --- 1. Офлайн-кэш ------------------------------------------------------- */
 
 const sw = readFileSync(join(ROOT, 'sw.js'), 'utf8');
-const cached = new Set([...sw.matchAll(/'([^']+\.(?:js|css|html|webmanifest|png|jpg))'/g)].map(m => m[1]));
+const cached = new Set([...sw.matchAll(/'([^']+\.(?:js|css|html|webmanifest|png|jpg|svg))'/g)].map(m => m[1]));
 
 const notCached = [...assets, ...icons].filter(p => !cached.has(p));
 check(notCached.length === 0, 'все файлы попадают в офлайн-кэш', notCached.join(', '));
@@ -123,4 +123,8 @@ check(readFileSync(join(ROOT, 'js/main.js'), 'utf8').includes("'./ui.js'"), 'т�
 check(existsSync(join(ROOT, 'manifest.webmanifest')), 'манифест PWA на месте');
 
 console.log(failures === 0 ? '\nСборка: все проверки пройдены' : `\nСборка: проблем ${failures}`);
+
+
+for(const id of ['city','port','highlands']){const path='assets/locations/'+id+'.svg';check(existsSync(join(ROOT,path))&&cached.has(path),'район '+id+' имеет иллюстрацию в офлайн-кэше');}
+
 process.exit(failures === 0 ? 0 : 1);

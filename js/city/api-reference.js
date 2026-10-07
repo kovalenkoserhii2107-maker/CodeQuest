@@ -1,3 +1,4 @@
+import { mountGuide } from './api-guide.js';
 import { escapeHtml } from '../ui/html.js';
 
 export const API_GROUPS = [
@@ -144,6 +145,8 @@ export function mountReference(root) {
     API_GROUPS.map(([id, name]) => '<button type="button" data-group="' + id + '" aria-pressed="false">' + name + '</button>').join('') +
     '</div><p data-api-count role="status" class="city-muted"></p><div data-api-list></div>' +
     '<button type="button" data-api-back>Вернуться к коду</button><details><summary>Код из первой версии</summary><p>cq.getState, cq.buy, cq.produce, cq.sell и cq.upgrade работают как раньше. В новых примерах используйте cq.world, cq.market, cq.factory и cq.warehouse.</p></details>';
+  const guide=document.createElement('section');guide.className='city-api-walkthrough';root.prepend(guide);
+  mountGuide(guide,path=>openMethod(path));
   let group = 'all', query = '', kind = 'all';
   const expanded = new Set(), search = root.querySelector('[data-api-search]');
   const effects = {read:'Чтение · дашборд ✓',command:'Команда · меняет мир',code:'Вывод / память'};
@@ -188,12 +191,14 @@ export function mountReference(root) {
   root.querySelectorAll('[data-group]').forEach(button=>button.onclick=()=>{group=button.dataset.group;render();});
   root.querySelector('[data-api-back]').onclick=()=>root.dispatchEvent(new CustomEvent('city-api-back',{bubbles:true}));
   render();
-  const help=document.createElement('details');help.innerHTML='<summary>Как написать собственный дашборд</summary><p>Создайте dashboards/my-dashboard.js и экспортируйте render(cq, view). Возвращайте widgets или html и css. Дашборд только читает мир, без перевода времени; изменяйте экономику в index.js.</p><pre>'+escapeHtml('export function render(cq, view) {\n const s=cq.world.getState();\n return {title:"Моя аналитика",columns:2,widgets:[\n {id:"cash",type:"stat",title:"Баланс",value:s.balance,unit:"₽"},\n {id:"trend",type:"chart",title:"Баланс",points:cq.analytics.getHistory().map(p=>p.balance)}]};\n}')+'</pre><p>Виджеты: stat (value/unit/tone), text (text), table (columns/rows), chart (points/labels). У каждого уникальный id и width (1–4). Порядок, ширина и видимость настраиваются на экране. Для свободного дизайна верните html, css и height (200–1200).</p><p>controls: массив {id,type,label,value,options}, type — select/text/number; варианты select — {value,label}. Значения доступны как view.inputs[id]. Скрипты внутри HTML не исполняются; логику пишите в render и импортируемых модулях.</p>';root.append(help);
-  return { open(path) {
+  const help=document.createElement('details');help.innerHTML='<summary>Как написать собственный дашборд</summary><p>Создайте dashboards/my-dashboard.js и экспортируйте render(cq, view). Возвращайте widgets или html и css. Дашборд только читает мир, без перевода времени; изменяйте экономику в index.js.</p><pre>'+escapeHtml('export function render(cq, view) {\n const s=cq.world.getState();\n return {title:"Моя аналитика",columns:2,widgets:[\n {id:"cash",type:"stat",title:"Баланс",value:s.balance,unit:"₽"},\n {id:"trend",type:"chart",title:"Баланс",points:cq.analytics.getHistory().map(p=>p.balance)}]};\n}')+'</pre><p>Виджеты: stat (value/unit/tone), text (text), table (columns/rows), chart (points/labels/style/unit), progress (value/max/unit). style: line, area или bar. value индикатора — от 0 до max; max больше 0. У каждого уникальный id и width (1–4). Порядок, ширина и видимость настраиваются на экране. Для свободного дизайна верните html, css и height (200–1200).</p><p>controls: массив {id,type,label,value,options}, type — select/text/number; варианты select — {value,label}. Значения доступны как view.inputs[id]. Скрипты внутри HTML не исполняются; логику пишите в render и импортируемых модулях.</p>';root.append(help);
+  function openMethod(path) {
     if(!API_METHODS.some(item=>item.path===path))return;
     expanded.add(path); reset(); search.value=path;query=path.toLowerCase();render();
     const detail=root.querySelector('[data-api-path="'+path+'"]');
     detail.open=true;detail.querySelector('summary').focus({preventScroll:true});
     detail.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
-  }};
+  }
+  return { open:openMethod };
+
 }
