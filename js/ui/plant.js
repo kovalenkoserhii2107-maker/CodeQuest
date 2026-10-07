@@ -247,6 +247,11 @@ function shiftHtml() {
 
 let editor = null;
 let generation = 0;
+export function disposePlant() {
+  generation++;
+  editor?.dispose();
+  editor = null;
+}
 
 /*
  * Успешная проверка перерисовывает экран — иначе следующая глава не появится.

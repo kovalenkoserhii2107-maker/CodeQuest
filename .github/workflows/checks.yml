@@ -1,0 +1,33 @@
+name: Campaign checks
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/campaign-menu-city-sandbox
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: node tests/check-plant.mjs
+      - name: Install browser test tools
+        run: npm install --no-save --package-lock=false @playwright/test@1.55.1
+      - run: npx playwright install --with-deps chromium
+      - name: Verify campaigns in Chromium
+        run: node tests/campaign-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: campaign-screenshots
+          path: tests/artifacts/
+          if-no-files-found: ignore
