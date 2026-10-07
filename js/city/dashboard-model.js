@@ -10,12 +10,13 @@ export function validateDashboard(value){
  if(typeof value.html==='string'){return {...out,html:value.html,css:text(value.css,40000),height:Math.min(1200,Math.max(200,Math.floor(Number(value.height)||430))),widgets:[]};}
  if(!Array.isArray(value.widgets)||value.widgets.length>30)throw new Error('Верните html или до 30 widgets.');
  const widgets=new Set();out.widgets=value.widgets.map(w=>{
-  if(!w||!validId(w.id)||widgets.has(w.id)||!['stat','text','table','chart'].includes(w.type))throw new Error('Виджетам нужны уникальный id и тип stat/text/table/chart.');widgets.add(w.id);
+  if(!w||!validId(w.id)||widgets.has(w.id)||!['stat','text','table','chart','progress'].includes(w.type))throw new Error('Виджетам нужны уникальный id и тип stat/text/table/chart/progress.');widgets.add(w.id);
   const item={id:w.id,type:w.type,title:text(w.title||w.id),width:Math.min(4,Math.max(1,Math.floor(Number(w.width)||1)))};
   if(w.type==='stat'){item.value=text(w.value,300);item.unit=text(w.unit,40);item.tone=['ok','warn','danger'].includes(w.tone)?w.tone:'default';}
   if(w.type==='text')item.text=text(w.text,10000);
   if(w.type==='table'){if(!Array.isArray(w.columns)||w.columns.length>12||!Array.isArray(w.rows)||w.rows.length>200)throw new Error('Таблица: 12 колонок, 200 строк.');item.columns=w.columns.map(v=>text(v,120));item.rows=w.rows.map(row=>{if(!Array.isArray(row)||row.length>12)throw new Error('Строка — массив.');return row.map(v=>text(v,500));});}
-  if(w.type==='chart'){if(!Array.isArray(w.points)||w.points.length>120||w.points.some(v=>typeof v!=='number'||!Number.isFinite(v)))throw new Error('График: до 120 конечных чисел.');item.points=[...w.points];item.labels=Array.isArray(w.labels)?w.labels.slice(0,120).map(v=>text(v,80)):[];}
+  if(w.type==='progress'){if(typeof w.value!=='number'||!Number.isFinite(w.value)||typeof w.max!=='number'||!Number.isFinite(w.max)||w.max<=0||w.value<0||w.value>w.max)throw new Error('Индикатор: 0 ≤ value ≤ max, max > 0.');item.value=w.value;item.max=w.max;item.unit=text(w.unit,40);}
+  if(w.type==='chart'){item.style=['line','area','bar'].includes(w.style)?w.style:'line';item.unit=text(w.unit,40);if(!Array.isArray(w.points)||w.points.length>120||w.points.some(v=>typeof v!=='number'||!Number.isFinite(v)))throw new Error('График: до 120 конечных чисел.');item.points=[...w.points];item.labels=Array.isArray(w.labels)?w.labels.slice(0,120).map(v=>text(v,80)):[];}
   return item;
  });return out;
 }
