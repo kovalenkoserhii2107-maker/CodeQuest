@@ -72,7 +72,7 @@ try {
   assert.equal((await citySave()).world.job.remaining, 1);
   await page.locator('[data-wait]').click();
   assert.equal((await citySave()).world.inventory.metal, 5);
-  await setCode('export function main(cq) { const buyer = cq.getState().buyers.filter(b => b.product === "metal").sort((a,b) => b.price-a.price)[0]; cq.sell("metal", 5, buyer.id); }');
+  await setCode('export function main(cq) { const buyer = cq.getState().buyers.filter(b => b.product === "metal" && !b.remote && b.region === "city").sort((a,b) => b.price-a.price)[0]; cq.sell("metal", 5, buyer.id); }');
   await runStep();
   assert.ok((await citySave()).world.balance > 1000);
   const before = (await citySave()).world;

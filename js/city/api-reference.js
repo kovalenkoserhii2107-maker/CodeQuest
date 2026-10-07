@@ -7,7 +7,7 @@ export const API_GROUPS = [
 ];
 const p = (name, type, description, optional = false) => ({ name, type, description, optional });
 const quantity = () => p('quantity', 'number', 'Положительное целое количество, до 1 000 000.');
-const production = () => p('product', '"metal" | "parts" | "wire" | "circuit"', 'ID готового товара. wire требует исследования.');
+const production = () => p('product', '"metal" | "parts" | "wire" | "circuit"', 'ID готового товара. wire требует wire; circuit — circuits.');
 const buyer = () => p('buyerId', 'string', 'ID из cq.market.getBuyers(), например foundry.');
 const line = () => p('lineId', 'string', 'ID линии из getLines(). По умолчанию line-1.', true);
 const method = (group, name, description, params, returns, example, errors = []) =>
@@ -30,11 +30,11 @@ export const API_METHODS = [
     'cq.print("Свободно:", cq.warehouse.getFreeSpace());'),
   method('warehouse', 'upgrade', 'Добавляет 100 мест. Стоимость: 500 ₽ × текущий уровень склада, максимум 6.', [], 'number',
     'const s = cq.world.getState();\nif (s.warehouseLevel < 6 && s.balance >= 500 * s.warehouseLevel) cq.warehouse.upgrade();', ['Недостаточно денег.', 'Максимальный уровень.']),
-  method('market', 'getSuppliers', 'Поставщики. yard продаёт лом scrap за 4 ₽; запас пополняется на 4 за шаг.', [], 'CitySupplier[]',
+  method('market', 'getSuppliers', 'Поставщики: id, product, price, stock, region, locked. yard продаёт лом за 4 ₽, port-yard — за 3 ₽, northern-metal — металл за 12 ₽. Закрытый регион сначала откройте.', [], 'CitySupplier[]',
     'const supplier = cq.market.getSuppliers()[0];\ncq.print(supplier.id, supplier.price, supplier.stock);'),
-  method('market', 'getBuyers', 'Покупатели, цены, спрос и remote. remote=true означает, что нужна доставка.',
+  method('market', 'getBuyers', 'Покупатели, цены, спрос, region, locked и remote. locked=true означает закрытый регион; remote=true требует доставки.',
     [p('product', 'string', 'Необязательный фильтр по товару.', true)], 'CityBuyer[]',
-    'const best = cq.market.getBuyers("metal")\n  .filter(b => !b.remote && b.demand > 0)\n  .sort((a, b) => b.price - a.price)[0];\ncq.print(best);'),
+    'const best = cq.market.getBuyers("metal")\n  .filter(b => !b.locked && !b.remote && b.demand > 0)\n  .sort((a, b) => b.price - a.price)[0];\ncq.print(best);'),
   method('market', 'quote', 'Расчёт продажи: gross — выручка, fee — доставка, net — выручка минус доставка; canTrade проверяет текущие ограничения. Ничего не списывает. net не учитывает затраты производства.',
     [production(), quantity(), buyer(), p('routeId', 'string | null', 'Маршрут доставки. Без него — прямая продажа.', true)], 'CityQuote',
     'const q = cq.market.quote("metal", 5, "foundry");\nif (q.canTrade) cq.market.sell("metal", 5, "foundry");', ['Неизвестный покупатель или маршрут.']),
@@ -63,14 +63,14 @@ export const API_METHODS = [
   method('contracts', 'deliver', 'Забирает требуемый товар и начисляет фиксированную награду. Через 5 шагов заказ доступен снова.',
     [p('id', 'string', 'ID активного заказа.')], 'number',
     'const c = cq.contracts.list().find(c => c.id === "metal-order");\nif (c.status === "active" && cq.warehouse.getStock(c.product) >= c.quantity) {\n  cq.print("Награда:", cq.contracts.deliver(c.id));\n}', ['Заказ не принят, просрочен или не хватает товара.']),
-  method('logistics', 'getRoutes', 'Маршруты: id, duration, fee, capacity, busy. Фургон: 1 шаг / 5 ₽ / 12 ед.; трамвай: 3 шага / 8 ₽ / 40 ед. Один груз на маршрут.', [], 'CityRoute[]',
+  method('logistics', 'getRoutes', 'Маршруты: id, duration, fee, capacity, busy, regions, locked. Фургон: 1 шаг / 5 ₽ / 12 ед.; трамвай: 3 шага / 8 ₽ / 40 ед. Один груз на маршрут.', [], 'CityRoute[]',
     'cq.print(cq.logistics.getRoutes());'),
   method('logistics', 'getShipments', 'Грузы в пути. unitPrice закреплена при отправке, remaining — шаги до оплаты.', [], 'CityShipment[]',
     'cq.logistics.getShipments().forEach(s => cq.print(s.id, s.product, s.remaining));'),
   method('logistics', 'dispatch', 'Товар, спрос и плата за маршрут списываются сейчас; выручка придёт при доставке по закреплённой цене.',
-    [production(), quantity(), buyer(), p('routeId', 'string', 'courier или rail. По умолчанию courier.', true)], 'CityShipment',
+    [production(), quantity(), buyer(), p('routeId', 'string', 'courier, rail или barge. Проверяйте regions маршрута и регион покупателя. По умолчанию courier.', true)], 'CityShipment',
     'const q = cq.market.quote("parts", 4, "district", "rail");\nif (q.canTrade) cq.logistics.dispatch("parts", 4, "district", "rail");', ['Маршрут занят или груз слишком велик.', 'Не хватает товара, спроса или денег.']),
-  method('research', 'list', 'Технологии: id, cost, description, unlocked. wire открывает провод; efficiency уменьшает энергию на 1 ₽ за единицу.', [], 'CityResearch[]',
+  method('research', 'list', 'Технологии: id, cost, description, unlocked. wire открывает провод; circuits — схемы из 3 wire за 4 шага; efficiency уменьшает энергию на 1 ₽ за единицу.', [], 'CityResearch[]',
     'cq.print(cq.research.list());'),
   method('research', 'unlock', 'Покупает технологию. Эффект действует для новых партий; запущенные партии не пересчитываются.',
     [p('id', '"wire" | "efficiency" | "circuits"', 'ID технологии.')], 'string',

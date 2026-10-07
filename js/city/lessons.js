@@ -46,8 +46,8 @@ export const LESSONS = [
     objective: 'Изучите покупателей металла. Выберите местного покупателя и продайте 5 metal.',
     concepts: 'filter, sort или find; Math.min; цена и спрос.',
     api: ['cq.market.getBuyers', 'cq.market.quote', 'cq.market.sell'],
-    scaffold: scaffold('const buyers = cq.market.getBuyers("metal");\ncq.print(buyers);\n// Выберите покупателя с !remote и demand >= 5.\n// Продайте 5 metal по его ID.'),
-    hints: ['Имя покупателя для человека, id для кода. foundry принимает металл сразу; district работает только с доставкой.', 'const buyer = buyers.filter(b => !b.remote && b.demand >= 5)\n  .sort((a, b) => b.price - a.price)[0];\nif (buyer && cq.warehouse.getStock("metal") >= 5) cq.market.sell("metal", 5, buyer.id);'],
+    scaffold: scaffold('const buyers = cq.market.getBuyers("metal");\ncq.print(buyers);\n// Выберите покупателя с !locked, !remote и demand >= 5.\n// Продайте 5 metal по его ID.'),
+    hints: ['Имя покупателя для человека, id для кода. foundry принимает металл сразу; district работает только с доставкой.', 'const buyer = buyers.filter(b => !b.locked && !b.remote && b.demand >= 5)\n  .sort((a, b) => b.price - a.price)[0];\nif (buyer && cq.warehouse.getStock("metal") >= 5) cq.market.sell("metal", 5, buyer.id);'],
     expectation: 'Прочитан getBuyers(); через sell продано минимум 5 metal в этом шаге.',
     check: ctx => ctx.reads.includes('market.getBuyers') &&
       ctx.operations.filter(op => op.method === 'sell' && op.args[0] === 'metal').reduce((sum, op) => sum + op.args[1], 0) >= 5
@@ -108,7 +108,7 @@ export const LESSONS = [
     concepts: 'import/export, функции, разделение ответственности.',
     api: ['cq.market.getBuyers', 'cq.memory'],
     scaffold: 'import { bestBuyer } from "./strategy.js";\n/** @param {CityAPI} cq */\nexport function main(cq) {\n  cq.print(bestBuyer(cq.market.getBuyers("metal")));\n}\n',
-    hints: ['Создайте strategy.js и напишите:\nexport function bestBuyer(buyers) {\n  return buyers.filter(b => !b.remote && b.demand > 0).sort((a, b) => b.price - a.price)[0];\n}', 'В памяти cq.memory храните данные, а не функции. Обычное состояние модулей не переносится в следующий шаг.'],
+    hints: ['Создайте strategy.js и напишите:\nexport function bestBuyer(buyers) {\n  return buyers.filter(b => !b.locked && !b.remote && b.demand > 0).sort((a, b) => b.price - a.price)[0];\n}', 'В памяти cq.memory храните данные, а не функции. Обычное состояние модулей не переносится в следующий шаг.'],
     expectation: 'Успешно выполнен проект, в графе импортов которого минимум два файла.',
     check: ctx => ctx.modules.length >= 2
   }
