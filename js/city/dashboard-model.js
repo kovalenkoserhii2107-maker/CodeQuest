@@ -3,7 +3,7 @@ const validId=id=>typeof id==='string'&&/^(?!__proto__$|constructor$|prototype$)
 export function validateDashboard(value){
  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('render(cq, view) должен вернуть объект дашборда.');
  let json;try{json=JSON.stringify(value);}catch{throw new Error('Используйте JSON-данные.');}if(json.length>150000)throw new Error('Дашборд превышает 150 КБ.');
- const out={title:text(value.title||'Мой дашборд'),columns:Math.min(4,Math.max(1,Number(value.columns)||3)),controls:[]};
+ const out={title:text(value.title||'Мой дашборд'),columns:Math.min(4,Math.max(1,Number(value.columns)||2)),controls:[]};
  if(!Number.isInteger(out.columns))throw new Error('columns должен быть целым.');
  if(value.controls!==undefined&&(!Array.isArray(value.controls)||value.controls.length>12))throw new Error('До 12 фильтров.');
  const ids=new Set();for(const c of value.controls||[]){if(!validId(c.id)||ids.has(c.id)||!['select','text','number'].includes(c.type))throw new Error('Некорректный фильтр.');ids.add(c.id);const item={id:c.id,type:c.type,label:text(c.label||c.id),value:text(c.value??'',300)};if(c.type==='select'){if(!Array.isArray(c.options)||!c.options.length||c.options.length>30)throw new Error('select требует 1–30 вариантов.');item.options=c.options.map(o=>({value:text(o.value,100),label:text(o.label,100)}));}out.controls.push(item);}

@@ -1,3 +1,5 @@
+import { CityWorldView } from './world-view.js';
+import { RunFeedback } from './run-feedback.js';
 import { ProjectFiles } from './project.js';
 import { ProjectExplorer } from './explorer.js';
 import { DashboardController } from './dashboard-controller.js';
@@ -21,14 +23,14 @@ export function mountCity(root) {
   try { storage = localStorage; } catch { /* readCitySave reports inaccessible storage */ }
   const loaded = readCitySave(storage);
   let save = loaded.save, engine = new CityEngine(save.world), lessons = new CityLessons(save.tutorial), project = new ProjectFiles(save.files,save.workspace), editor, file = project.active(), explorer, dashboards;
-  let disposed = false, busy = false, automatic = false, timer, generation = 0, lessonView;
+  let disposed = false, busy = false, automatic = false, timer, generation = 0, lessonView, savedEngine = engine;
   const runtime = new CityRuntime(), output = [];
   root.innerHTML = [
     '<header class="city-header"><div><p class="campaign-eyebrow">CodeQuest / песочница</p>',
     '<h1>Городской комбинат</h1><p>Ваша мастерская. Ваша стратегия. Ваш JavaScript.</p></div>',
     '<a href="#/campaigns" class="city-button">Выбор кампании</a></header>',
     '<p class="city-notice" data-notice role="status"></p>',
-    '<section class="city-orientation city-panel"><h2>Как устроен мир</h2>',
+    '<details class="city-orientation city-panel"><summary>Как устроен мир · краткая инструкция</summary>',
     '<p>Вы владелец городской мастерской. Покупайте лом, превращайте его в товары и выбирайте между продажей на рынке, заказами города и доставкой в другие районы.</p>',
     '<ol class="city-world-cycle"><li><strong>1. Прочитать</strong><span>Получите состояние через cq.world.getState().</span></li>',
     '<li><strong>2. Решить</strong><span>Проверьте деньги, сырьё, спрос и оборудование.</span></li>',
@@ -36,27 +38,31 @@ export function mountCity(root) {
     '<li><strong>4. Перевести время</strong><span>После успешного запуска мир проходит один шаг: партии и доставки продвигаются.</span></li></ol>',
     '<p class="city-muted">Пробный запуск ничего не сохраняет. Ошибка отменяет весь шаг. «Пропустить шаг» двигает время без выполнения кода.</p>',
     '<div class="city-shortcuts"><button type="button" data-jump="task">Текущее задание</button><button type="button" data-jump="api">Справочник API</button><button type="button" data-jump="world">Мастерская и рынок</button></div>',
-    '</section>',
-    '<div class="city-metrics" data-metrics></div>',
+    '</details>',
+    '<nav class="city-section-nav" aria-label="Разделы комбината"><button type="button" data-jump="workspace">Код и дашборды</button><button type="button" data-jump="task">Задания</button><button type="button" data-jump="world">Рынки</button><button type="button" data-jump="orders">Отложенные продажи</button><button type="button" data-jump="api">API</button></nav>',
+    '<div class="city-metrics" data-metrics></div><div class="city-alerts" data-alerts aria-label="Подсказки по состоянию мира"></div>',
     '<div class="city-grid"><div class="city-primary">',
-    '<section class="city-panel city-task" data-task aria-label="Учебное задание"></section>',
-    '<section class="city-workspace city-panel" aria-labelledby="city-code-title">',
+    '<section class="city-workspace city-panel" data-workspace aria-labelledby="city-code-title">',
+    '<p class="city-current-task"><span>Сейчас</span> <strong data-current-lesson></strong> <button type="button" data-jump="task">Открыть задание</button></p>',
     '<div class="city-panel-heading"><h2 id="city-code-title">Рабочее пространство</h2><div class="city-ide-modes"><button type="button" data-mode="code">Код</button><button type="button" data-mode="dashboard">Дашборд</button><button type="button" data-mode="split" aria-pressed="true">Вместе</button><button type="button" data-add>+ Файл</button></div></div>',
     '<div class="city-ide" data-ide data-mode="split"><aside class="city-explorer" data-explorer></aside><div class="city-ide-editor"><div class="city-files" data-files role="group" aria-label="Вкладки файлов"></div><div data-editor></div><p class="city-project-path" data-project-status></p></div><section class="city-dashboard-panel" data-dashboard aria-label="Мои дашборды"></section></div>',
     '<div class="city-actions"><button type="button" data-run>Запустить шаг</button>',
     '<button type="button" data-preview>Пробный запуск</button>',
     '<button type="button" data-auto aria-pressed="false">Автоматизация: выкл.</button>',
-    '<button type="button" data-wait>Пропустить шаг</button></div>',
+    '<button type="button" data-wait>Пропустить шаг</button><button type="button" data-cancel disabled>Отменить запуск</button></div>',
+    '<div class="city-run-status" data-run-status role="status" aria-live="polite"><strong>Готово к запуску</strong><span>index.js меняет мир · дашборд читает данные</span></div><p class="city-save-status" data-save-status role="status">Сохранение в этом браузере</p>',
     '<p class="city-muted">main(cq) вызывается один раз на шаг. Автоматизация повторяет проект через секунду после завершения предыдущего запуска. При выходе в меню мир останавливается.</p>',
     '<p class="city-lesson-feedback" data-feedback role="status"></p>',
     '<h3>Вывод скрипта</h3><pre class="city-output" data-output role="log" aria-label="Вывод скрипта" aria-live="polite"></pre>',
-    '</section></div><aside class="city-side">',
+    '</section><section class="city-panel city-task" data-task aria-label="Учебное задание"></section></div><aside class="city-side">',
     '<section class="city-panel" data-board></section>',
-    '<section class="city-panel" data-world-panel><h2>Мастерская и рынок</h2><div data-world></div></section>',
+    '<section class="city-panel" data-world-panel><h2>Мастерская и рынок</h2><div class="city-market-filters"><label>Товар<select data-market-product><option value="">Все товары</option>' + Object.entries(PRODUCTS).map(([id,name])=>'<option value="'+id+'">'+name+'</option>').join('') + '</select></label><label>Регион<select data-market-region><option value="">Все регионы</option><option value="city">Город</option><option value="port">Порт</option><option value="highlands">Северные высоты</option></select></label></div><div data-world></div></section>',
     '<section class="city-panel"><h2>Городские контракты</h2><div data-contracts></div>',
     '<p class="city-muted">Два заказа одновременно. Сдайте до deadline; просрочка не списывает деньги. После выполнения заказ обновляется через 5 шагов.</p></section>',
     '<section class="city-panel"><h2>Доставка и исследования</h2><div data-expansion></div></section>',
     '<section class="city-panel"><h2>Регионы мира</h2><div data-regions></div></section>',
+    '<section class="city-panel" data-orders-panel><h2>Отложенные продажи</h2><div data-orders></div></section>',
+    '<section class="city-panel"><h2>Аналитика и планирование</h2><div data-costs></div></section>',
     '</aside></div>',
     '<section class="city-panel"><h2>Что возвращает getState()</h2>',
     '<p class="city-muted">Это снимок для чтения: изменение его полей не меняет мир. Используйте команды API. Программные ID товаров: scrap (лом), metal (металл), parts (детали), wire (провод), circuit (схемы).</p>',
@@ -79,13 +85,15 @@ export function mountCity(root) {
     el('[data-output]').scrollTop = el('[data-output]').scrollHeight;
   }
   function persist() {
-    save.world = engine.snapshot(); save.tutorial = lessons.snapshot(); save.files=project.files();save.workspace=project.workspace();if(dashboards)save.dashboards=dashboards.snapshot();
+    if (savedEngine !== engine || save.world.tick !== engine.getTime()) save.world = engine.snapshot();
+    savedEngine = engine; save.tutorial = lessons.snapshot(); save.files=project.files();save.workspace=project.workspace();if(dashboards)save.dashboards=dashboards.snapshot();
     try {
       if (!storage) throw new Error('storage unavailable');
       storage.setItem(CITY_SAVE_KEY, JSON.stringify(save));
-    } catch { notice('Не удалось сохранить прогресс. Не закрывайте страницу, если хотите продолжить.'); }
+      el('[data-save-status]').textContent = 'Сохранено в этом браузере'; el('[data-save-status]').dataset.state = 'saved';
+    } catch { el('[data-save-status]').textContent = 'Не удалось сохранить'; el('[data-save-status]').dataset.state = 'error'; notice('Не удалось сохранить прогресс. Не закрывайте страницу, если хотите продолжить.'); }
   }
-  function openFile(path){if(busy||automatic)return;project.open(path);file=path;renderEditor();renderFiles();explorer?.select(path);persist();}
+  function openFile(path){if(busy||automatic)return;if(path===file){editor?.focus();return;}project.open(path);file=path;renderEditor();renderFiles();explorer?.select(path);persist();}
   function renderFiles(){
     const root=el('[data-files]');root.replaceChildren();
     for(const path of project.workspace().tabs){
@@ -93,56 +101,29 @@ export function mountCity(root) {
       if(path!=='index.js'){const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Закрыть вкладку '+path);close.onclick=()=>{if(busy||automatic)return;project.close(path);file=project.active();renderEditor();renderFiles();explorer?.select(file);persist();};tab.append(close);}
       root.append(tab);
     }
+    el('[data-run]').textContent = busy ? 'Выполняется…' : file.startsWith('dashboards/') ? 'Запустить index.js' : 'Запустить шаг';
     el('[data-project-status]').textContent='codequest / '+file+' · запуск мира: index.js · черновик сохраняется';
   }
   function renderEditor(){
     editor?.dispose();editor=createEditor(el('[data-editor]'),{filename:file,value:project.files()[file],siblings:project.files(),includeLiveFunctions:false,extraDeclarations:API_TYPES,
-      onInput:code=>{try{project.write(file,code);editor?.syncSiblings(project.files());persist();}catch(e){notice(e.message+' Черновик не сохранён.');}},
+      onInput:code=>{try{project.write(file,code);editor?.syncSiblings(project.files());persist();dashboards?.schedule();}catch(e){notice(e.message+' Черновик не сохранён.');}},
       onRun:()=>{if(!automatic){if(file.startsWith('dashboards/'))dashboards.refresh();else step(false);}}
     });
   }
   function mountProjectTools(){
-    explorer=new ProjectExplorer(el('[data-explorer]'),project,{isLocked:()=>busy||automatic,onError:notice,onSelect:openFile,onChange:change=>{file=project.active();dashboards?.sync(change);persist();renderFiles();dashboards?.refresh();}});
+    explorer=new ProjectExplorer(el('[data-explorer]'),project,{isLocked:()=>busy||automatic,onError:notice,onSelect:openFile,onChange:change=>{const next=project.active();if(file!==next||change.rename){file=next;renderEditor();}dashboards?.sync(change);persist();renderFiles();dashboards?.refresh();}});
     dashboards=new DashboardController(el('[data-dashboard]'),{preferences:save.dashboards,getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,
       onSave:prefs=>{save.dashboards=prefs;persist();},onOpen:openFile,onCreate:(path,code)=>{if(busy||automatic)throw new Error('Остановите запуск перед изменением файлов.');project.create(path,code);file=path;renderEditor();renderFiles();explorer.select(path);persist();}
     });
   }
-  function updateWorld() {
-    const w = engine.snapshot(), used = Object.values(w.inventory).reduce((a, b) => a + b, 0);
-    el('[data-metrics]').innerHTML = [
-      ['Баланс', money(w.balance)], ['Шаг мира', number(w.tick)],
-      ['Склад / свободно', used + '/' + w.capacity + ' · ' + engine.getFreeSpace()],
-      ['Доходы − все расходы', money(w.metrics.revenue - w.metrics.spent)]
-    ].map(([label, value]) => '<div><span>' + label + '</span><strong>' + value + '</strong></div>').join('');
-    el('[data-world]').innerHTML =
-      '<dl class="city-stock">' + Object.entries(w.inventory).map(([key, value]) =>
-        '<dt>' + PRODUCTS[key] + ' <code>' + key + '</code></dt><dd>' + number(value) + '</dd>').join('') + '</dl>' +
-      '<h3>Производственные линии</h3><div class="city-line-list">' + w.lines.map(line =>
-        '<p><strong>' + line.id + ' · уровень ' + line.level + '</strong><br>' +
-        (line.job ? PRODUCTS[line.job.product] + ': ' + line.job.quantity + ' ед.; осталось шагов: ' + line.job.remaining : 'Свободна · партия до ' + line.level * 8 + ' ед.') + '</p>').join('') + '</div>' +
-      '<h3>Поставщики</h3>' + engine.getSuppliers().map(s => '<p><code>' + s.id + '</code> · ' + PRODUCTS[s.product] + ' ' + money(s.price) + ' · в наличии ' + s.stock + '<br><small>' + s.region + (s.locked ? ' · сначала откройте регион' : ' · доступен') + '</small></p>').join('') +
-      '<div class="city-table-scroll"><table><caption>Покупатели</caption><thead><tr><th>Покупатель / ID</th><th>Товар</th><th>Цена</th><th>Спрос</th></tr></thead><tbody>' +
-      w.buyers.map(b => '<tr><td>' + escapeHtml(b.name) + '<br><code>' + escapeHtml(b.id) + '</code>' + (b.remote ? '<br><small>Доставка</small>' : '')+'<br><small>'+b.region+(!w.regions.includes(b.region)?' · закрыт':'')+'</small>' +
-        '</td><td>' + PRODUCTS[b.product] + '</td><td>' + money(b.price) + '</td><td>' + b.demand + '</td></tr>').join('') + '</tbody></table></div>';
-    el('[data-contracts]').innerHTML = engine.getContracts().map(order => '<article class="city-contract"><h3>' + escapeHtml(order.name) +
-      '</h3><p><code>' + order.id + '</code> · ' + order.quantity + ' ' + PRODUCTS[order.product] + '</p><p>Награда: ' + money(order.reward) +
-      ' · срок: ' + order.duration + ' шагов</p><p class="city-muted">' + (order.locked ? 'Нужна технология wire' : statuses[order.status]) +
-      (order.status === 'active' ? ' · deadline=' + order.deadline + ' · осталось ' + (order.deadline - w.tick) :
-        order.status === 'cooldown' ? ' · обновится через ' + (order.refreshAt - w.tick) : '') + '</p></article>').join('');
-    el('[data-expansion]').innerHTML = '<h3>Маршруты</h3>' + engine.getRoutes().map(route =>
-      '<p><code>' + route.id + '</code>: ' + route.duration + ' шаг. · ' + money(route.fee) + ' · до ' + route.capacity +
-      ' ед. · ' + (route.locked ? 'регион закрыт' : route.busy ? 'занят' : 'свободен') + '<br><small>Регионы: ' + route.regions.join(', ') + '</small></p>').join('') +
-      '<h3>Грузы в пути</h3>' + (w.shipments.length ? w.shipments.map(s => '<p>№' + s.id + ' · ' + s.quantity + ' ' + PRODUCTS[s.product] +
-        ' → <code>' + s.buyerId + '</code><br>Осталось ' + s.remaining + ' шаг. · ожидается ' + money(s.quantity * s.unitPrice) + '</p>').join('') : '<p class="city-muted">Нет грузов.</p>') +
-      '<h3>Технологии</h3>' + engine.getResearch().map(t => '<p><strong>' + escapeHtml(t.name) + '</strong> <code>' + t.id + '</code><br>' +
-        (t.unlocked ? 'Открыта' : money(t.cost)) + ' · ' + escapeHtml(t.description) + '</p>').join('') +
-      '<h3>Доступные рецепты</h3>' + engine.getRecipes().map(r => '<p><code>' + r.product + '</code> = ' + r.amount + ' ' + PRODUCTS[r.input] +
-        ' + ' + money(r.energy) + ' · ' + r.duration + ' шаг.</p>').join('');
-    el('[data-regions]').innerHTML=engine.getRegions().map(r=>'<article class="city-region"><h3>'+escapeHtml(r.name)+'</h3><p><code>'+r.id+'</code> · '+(r.unlocked?'Открыт':money(r.cost))+'</p><p class="city-muted">'+escapeHtml(r.description)+'</p></article>').join('')+'<h3>События рынков</h3>'+engine.getEvents().map(e=>'<p><code>'+e.region+'</code>: '+escapeHtml(e.name)+' · смена через '+e.changesIn+' шаг.</p>').join('')+'<p class="city-muted">Доступ: cq.world.explore(id). Выбирайте поставщика и совместимый маршрут; circuits открывает схемы.</p>';
-    el('[data-snapshot]').textContent = JSON.stringify(w, null, 2);
-  }
+  const worldView = new CityWorldView(root);
+  function updateWorld() { worldView.render(engine); }
   function update() {
     updateWorld(); lessonView.render();explorer?.render();
+    el('[data-current-lesson]').textContent = lessons.current()?.title || 'Свободная стратегия';
+    el('[data-workspace]').setAttribute('aria-busy', String(busy));
+    el('[data-cancel]').disabled = !busy;
+    el('[data-run]').textContent = busy ? 'Выполняется…' : file.startsWith('dashboards/') ? 'Запустить index.js' : 'Запустить шаг';
     for (const button of root.querySelectorAll('[data-run], [data-preview], [data-wait], [data-add], [data-reset], [data-files] button')) button.disabled = busy || automatic;
     el('[data-auto]').textContent = 'Автоматизация: ' + (automatic ? 'вкл.' : 'выкл.');
     el('[data-auto]').setAttribute('aria-pressed', String(automatic));
@@ -162,7 +143,8 @@ export function mountCity(root) {
   }
   async function step(preview = false) {
     if (busy || disposed) return;
-    busy = true; const mine = generation; update();
+    busy = true; const mine = generation, startedAt = performance.now(); update();
+    feedback.pending(preview);
     const files = { ...project.files(), [file]: editor.getValue() }, before = engine.snapshot();
     try {
       validateFiles(files);
@@ -174,17 +156,17 @@ export function mountCity(root) {
       if (preview) {
         const w = candidate.snapshot();
         log('[проба] Шаг ' + w.tick + ', баланс ' + money(w.balance) + '. Прогресс и память не изменены.');
-        evaluate(result, before, true);
+        evaluate(result, before, true); feedback.success(before, candidate.snapshot(), result.operations.length, performance.now()-startedAt, true);
       } else {
         engine = candidate; save.memory = memory;
-        evaluate(result, before, false); persist();dashboards.refresh();
+        evaluate(result, before, false); persist();dashboards.refresh(); feedback.success(before, engine.snapshot(), result.operations.length, performance.now()-startedAt, false);
         log('Шаг ' + engine.snapshot().tick + ': выполнено команд — ' + result.operations.length + '.');
       }
     } catch (error) {
       if (disposed || mine !== generation) return;
       log('Ошибка: ' + error.message + ' Изменения шага отменены.');
       el('[data-feedback]').textContent = 'Шаг отменён: задания не засчитаны. Исправьте ошибку из вывода скрипта.';
-      stop();
+      feedback.error(error.message); stop();
     } finally {
       if (!disposed && mine === generation) {
         busy = false; update();
@@ -192,13 +174,15 @@ export function mountCity(root) {
       }
     }
   }
+  const feedback = new RunFeedback(el('[data-run-status]'));
+  el('[data-cancel]').onclick = () => { stop(); runtime.cancel(); };
   el('[data-run]').addEventListener('click', () => step(false));
   el('[data-preview]').addEventListener('click', () => step(true));
   el('[data-wait]').addEventListener('click', () => {
     if (busy || automatic) return;
     const before = engine.snapshot(); engine.advance();
     evaluate({ reads: [], operations: [], logs: [], memory: save.memory, modules: [] }, before, false);
-    persist(); log('Шаг ' + engine.snapshot().tick + ': ожидание.'); update();dashboards.refresh();
+    persist(); feedback.success(before, engine.snapshot(), 0, 0, false); log('Шаг ' + engine.snapshot().tick + ': ожидание.'); update();dashboards.refresh();
   });
   el('[data-auto]').addEventListener('click', () => { if (automatic) stop(); else if (!busy) { automatic = true; update(); step(false); } });
   el('[data-add]').onclick=()=>{const path=prompt('Путь JavaScript-файла (например strategies/trade.js):','strategy.js');if(!path)return;try{project.create(path);file=path;persist();renderEditor();renderFiles();explorer.select(path);dashboards.sync();update();}catch(e){notice(e.message);}};
@@ -206,14 +190,18 @@ export function mountCity(root) {
     if (!window.confirm('Начать городской комбинат заново? Его деньги, файлы, память и задания будут очищены.')) return;
     stop(); generation++; runtime.cancel();dashboards.dispose();save=initialSave();engine=new CityEngine(save.world);lessons=new CityLessons(save.tutorial);project=new ProjectFiles(save.files,save.workspace);dashboards=null;
     lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons);
+    el('[data-ide]').dataset.mode = 'split'; root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode==='split')));
+    feedback.show('ready','Новая мастерская','Начните с первого задания.');
     file = 'index.js'; output.length = 0; el('[data-output]').textContent = ''; el('[data-feedback]').textContent = '';
     persist(); renderEditor(); renderFiles();mountProjectTools();update();
   });
   root.querySelectorAll('[data-jump]').forEach(button => button.addEventListener('click', () => {
-    const selector = { task: '[data-task]', api: '[data-api]', world: '[data-world-panel]' }[button.dataset.jump];
+    const selector = { workspace: '[data-workspace]', task: '[data-task]', api: '[data-api]', world: '[data-world-panel]', orders: '[data-orders-panel]' }[button.dataset.jump];
     const target = el(selector); target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
-  root.querySelectorAll('.city-ide-modes [data-mode]').forEach(button=>button.onclick=()=>{el('[data-ide]').dataset.mode=button.dataset.mode;root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));});
+  root.querySelectorAll('.city-ide-modes [data-mode]').forEach(button=>button.onclick=()=>{project.setMode(button.dataset.mode);persist();el('[data-ide]').dataset.mode=button.dataset.mode;root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));});
+  el('[data-ide]').dataset.mode = project.workspace().mode;
+  root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===project.workspace().mode)));
   notice(loaded.warning);
   lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons);
   mountReference(el('[data-api]')); renderEditor(); renderFiles();mountProjectTools();update();

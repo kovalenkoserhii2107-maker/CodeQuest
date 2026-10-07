@@ -1,7 +1,7 @@
 import { validateDashboard } from './dashboard-model.js';
 import { createCityAPI } from './api.js';
 import { CityEngine, validateFiles, validateMemory } from './engine.js';
-import { buildProject, findImports, resolveSpecifier } from '../act2/loader.js';
+import { buildProject, orderModules, findImports, resolveSpecifier } from '../act2/loader.js';
 
 self.addEventListener('message', async event => {
   const urls = [];
@@ -9,7 +9,9 @@ self.addEventListener('message', async event => {
     const { files, world, memory, mode='main', entry:entryPath='index.js', inputs={} } = event.data;
     const engine = new CityEngine(world), operations = [], logs = [], reads = [];
     const safeFiles = validateFiles(files);
-    for (const [name, code] of Object.entries(safeFiles)) {
+    const reachable = orderModules(new Map(Object.entries(safeFiles)), mode === 'dashboard' ? entryPath : 'index.js');
+    for (const name of reachable) {
+      const code = safeFiles[name];
       for (const item of findImports(code)) {
         if (resolveSpecifier(name, item.specifier) === null) throw new Error('Импортируйте файлы проекта: например "./strategy.js".');
       }

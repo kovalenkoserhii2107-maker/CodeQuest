@@ -7,12 +7,13 @@ export function validateFiles(files){
 }
 export function normalizeWorkspace(value,files){
  const active=Object.hasOwn(files,value?.active)?value.active:'index.js';
- return {active,tabs:[...new Set([...(Array.isArray(value?.tabs)?value.tabs.filter(p=>typeof p==='string'&&Object.hasOwn(files,p)):['index.js']),active])],folders:Array.isArray(value?.folders)?[...new Set(value.folders.filter(p=>validProjectPath(p,true)))].slice(0,20):[]};
+ return {active,mode:['code','dashboard','split'].includes(value?.mode)?value.mode:'split',tabs:[...new Set([...(Array.isArray(value?.tabs)?value.tabs.filter(p=>typeof p==='string'&&Object.hasOwn(files,p)):['index.js']),active])],folders:Array.isArray(value?.folders)?[...new Set(value.folders.filter(p=>validProjectPath(p,true)))].slice(0,20):[]};
 }
 function relative(from,to){const a=from.split('/').slice(0,-1),b=to.split('/');while(a.length&&b.length&&a[0]===b[0]){a.shift();b.shift();}const path='../'.repeat(a.length)+b.join('/');return path.startsWith('../')?path:'./'+path;}
 export class ProjectFiles{
  #files;#workspace;
  constructor(files,workspace){this.#files=validateFiles(files);this.#workspace=normalizeWorkspace(workspace,files);}
+ setMode(mode){if(!['code','dashboard','split'].includes(mode))throw new Error('Неизвестный режим.');this.#workspace.mode=mode;}
  files(){return {...this.#files};}workspace(){return JSON.parse(JSON.stringify(this.#workspace));}active(){return this.#workspace.active;}
  folders(){const all=new Set();for(const path of [...this.#workspace.folders,...Object.keys(this.#files).map(p=>p.split('/').slice(0,-1).join('/')).filter(Boolean)]){const parts=path.split('/');while(parts.length){all.add(parts.join('/'));parts.pop();}}return [...all].sort();}
  open(path){if(!Object.hasOwn(this.#files,path))throw new Error('Файл не найден.');this.#workspace.active=path;if(!this.#workspace.tabs.includes(path))this.#workspace.tabs.push(path);}
