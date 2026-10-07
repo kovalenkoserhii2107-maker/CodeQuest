@@ -1,3 +1,5 @@
+import { CityNavigation } from './navigation.js';
+import { RegionMap } from './region-map.js';
 import { CityWorldView } from './world-view.js';
 import { RunFeedback } from './run-feedback.js';
 import { ProjectFiles } from './project.js';
@@ -24,7 +26,7 @@ export function mountCity(root) {
   const loaded = readCitySave(storage);
   let save = loaded.save, engine = new CityEngine(save.world), lessons = new CityLessons(save.tutorial), project = new ProjectFiles(save.files,save.workspace), editor, file = project.active(), explorer, dashboards;
   let reference;
-  const openAPI = path => reference?.open(path);
+  const openAPI = path => { navigation.open('api');reference?.open(path); };
   let disposed = false, busy = false, automatic = false, timer, generation = 0, lessonView, savedEngine = engine;
   const runtime = new CityRuntime(), output = [];
   root.innerHTML = [
@@ -80,6 +82,7 @@ export function mountCity(root) {
     '<button type="button" class="city-reset" data-reset>Начать комбинат заново</button></section>'
   ].join('');
   const el = selector => root.querySelector(selector);
+  const navigation=new CityNavigation(root),regionMap=new RegionMap(el('[data-region-map]'),openAPI);
   function notice(message) { el('[data-notice]').textContent = message; el('[data-notice]').hidden = !message; }
   function log(message) {
     output.push(message); if (output.length > 100) output.splice(0, output.length - 100);
@@ -95,7 +98,7 @@ export function mountCity(root) {
       el('[data-save-status]').textContent = 'Сохранено в этом браузере'; el('[data-save-status]').dataset.state = 'saved';
     } catch { el('[data-save-status]').textContent = 'Не удалось сохранить'; el('[data-save-status]').dataset.state = 'error'; notice('Не удалось сохранить прогресс. Не закрывайте страницу, если хотите продолжить.'); }
   }
-  function openFile(path){if(busy||automatic)return;if(path===file){editor?.focus();return;}project.open(path);file=path;renderEditor();renderFiles();explorer?.select(path);persist();}
+  function openFile(path){if(busy||automatic)return;navigation.open('workspace');if(path===file){editor?.focus();return;}project.open(path);file=path;renderEditor();renderFiles();explorer?.select(path);persist();}
   function renderFiles(){
     const root=el('[data-files]');root.replaceChildren();
     for(const path of project.workspace().tabs){
@@ -119,7 +122,7 @@ export function mountCity(root) {
     });
   }
   const worldView = new CityWorldView(root);
-  function updateWorld() { worldView.render(engine); }
+  function updateWorld() { worldView.render(engine);regionMap.render(engine); }
   function update() {
     updateWorld(); lessonView.render();explorer?.render();
     el('[data-current-lesson]').textContent = lessons.current()?.title || 'Свободная стратегия';
@@ -198,7 +201,8 @@ export function mountCity(root) {
     persist(); renderEditor(); renderFiles();mountProjectTools();update();
   });
   root.querySelectorAll('[data-jump]').forEach(button => button.addEventListener('click', () => {
-    const selector = { workspace: '[data-workspace]', task: '[data-task]', api: '[data-api]', world: '[data-world-panel]', orders: '[data-orders-panel]' }[button.dataset.jump];
+    navigation.open(button.dataset.jump);
+    const selector = { workspace: '[data-workspace]', task: '[data-task]', api: '[data-api]', world: '[data-region-map]', orders: '[data-orders-panel]' }[button.dataset.jump];
     const target = el(selector); target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }));
   function setMode(mode){project.setMode(mode);persist();el('[data-ide]').dataset.mode=mode;root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));}
@@ -208,7 +212,7 @@ export function mountCity(root) {
   notice(loaded.warning);
   lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
   reference = mountReference(el('[data-api]'));
-  const backToCode = ()=>{if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();};
+  const backToCode = ()=>{navigation.open('workspace');if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();};
   root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();update();
   log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {

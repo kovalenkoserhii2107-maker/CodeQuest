@@ -1,5 +1,5 @@
 import { escapeHtml } from '../ui/html.js';
-const meta={city:{tag:'Производство',caption:'Ваш комбинат',x:20,y:43},port:{tag:'Морская торговля',caption:'Порт',x:72,y:62},highlands:{tag:'Электроника',caption:'Северные высоты',x:68,y:12}};
+const meta={city:{tag:'Производство',caption:'Ваш комбинат',x:23,y:48},port:{tag:'Морская торговля',caption:'Порт',x:76,y:66},highlands:{tag:'Электроника',caption:'Северные высоты',x:73,y:30}};
 export class RegionMap{
  #root;#engine;#selected='city';#detail;
  constructor(root,onAPI){
