@@ -3,22 +3,28 @@ import { escapeHtml } from '../ui/html.js';
 export const API_GROUPS = [
   ['world', 'Мир и время'], ['warehouse', 'Склад'], ['market', 'Рынок'],
   ['factory', 'Производство'], ['contracts', 'Контракты'], ['logistics', 'Доставка'],
-  ['research', 'Исследования'], ['code', 'Вывод и память']
+  ['research', 'Исследования'], ['analytics','Аналитика'], ['project','Проект'], ['code', 'Вывод и память']
 ];
 const p = (name, type, description, optional = false) => ({ name, type, description, optional });
 const quantity = () => p('quantity', 'number', 'Положительное целое количество, до 1 000 000.');
-const production = () => p('product', '"metal" | "parts" | "wire"', 'ID готового товара. wire требует исследования.');
+const production = () => p('product', '"metal" | "parts" | "wire" | "circuit"', 'ID готового товара. wire требует исследования.');
 const buyer = () => p('buyerId', 'string', 'ID из cq.market.getBuyers(), например foundry.');
 const line = () => p('lineId', 'string', 'ID линии из getLines(). По умолчанию line-1.', true);
 const method = (group, name, description, params, returns, example, errors = []) =>
   ({ group, name, description, params, returns, example, errors, path: group === 'code' ? 'cq.' + name : 'cq.' + group + '.' + name });
 export const API_METHODS = [
+  method('world','getRegions','Регионы: id, name, cost, description, unlocked. Порт стоит 600 ₽, Северные высоты — 1000 ₽.',[],'CityRegion[]','cq.print(cq.world.getRegions());'),
+  method('world','getEvents','Периодические события регионов: active, priceBonus и changesIn. Цена отправленного груза не меняется.',[],'CityEvent[]','cq.print(cq.world.getEvents());'),
+  method('world','explore','Оплачивает доступ к поставщикам, покупателям и маршрутам региона.',[p('id','"port" | "highlands"','ID региона.')],'string','if (!cq.world.getRegions().find(r=>r.id==="port").unlocked && cq.world.getState().balance>=600) cq.world.explore("port");',['Регион открыт или не хватает денег.']),
+  method('analytics','getHistory','До 120 снимков: tick, balance, revenue, spent, inventory, prices. Проба историю не меняет.',[p('limit','number','От 1 до 120, по умолчанию 120.',true)],'CityHistoryPoint[]','cq.print(cq.analytics.getHistory(30).map(p=>p.balance));'),
+  method('project','listFiles','Пути файлов проекта с папками.',[],'string[]','cq.print(cq.project.listFiles());'),
+  method('project','readFile','Исходник файла как строка. Не меняет проект.',[p('path','string','Точный путь.')],'string','cq.print(cq.project.readFile("index.js"));',['Файл не найден.']),
   method('world', 'getState', 'Полная копия мира. Чтение не тратит деньги и не переводит время.', [], 'CityState',
     'const s = cq.world.getState();\ncq.print("Баланс:", s.balance);\ncq.print("Склад:", s.inventory);'),
   method('world', 'getTime', 'Номер текущего шага. Все чтения внутри main видят один и тот же номер.', [], 'number',
     'cq.print("Шаг:", cq.world.getTime());'),
   method('warehouse', 'getStock', 'Количество одного товара на складе. Товары в пути и незавершённая партия сюда не входят.',
-    [p('product', '"scrap" | "metal" | "parts" | "wire"', 'ID товара, а не русское название.')], 'number',
+    [p('product', '"scrap" | "metal" | "parts" | "wire" | "circuit"', 'ID товара, а не русское название.')], 'number',
     'const scrap = cq.warehouse.getStock("scrap");\nif (scrap < 10) cq.market.buy("scrap", 10 - scrap);', ['Неизвестный товар.']),
   method('warehouse', 'getFreeSpace', 'Свободное место с учётом резерва под готовые партии всех линий.', [], 'number',
     'cq.print("Свободно:", cq.warehouse.getFreeSpace());'),
@@ -33,7 +39,7 @@ export const API_METHODS = [
     [production(), quantity(), buyer(), p('routeId', 'string | null', 'Маршрут доставки. Без него — прямая продажа.', true)], 'CityQuote',
     'const q = cq.market.quote("metal", 5, "foundry");\nif (q.canTrade) cq.market.sell("metal", 5, "foundry");', ['Неизвестный покупатель или маршрут.']),
   method('market', 'buy', 'Мгновенная покупка: баланс и запас поставщика уменьшаются, склад пополняется.',
-    [p('product', '"scrap"', 'Пока поставщик продаёт только лом.'), quantity()], 'number',
+    [p('product','"scrap" | "metal"','Товар выбранного поставщика.'),quantity(),p('supplierId','string','ID поставщика; по умолчанию yard.',true)], 'number',
     'cq.market.buy("scrap", 10);\n// +10 лома, -40 ₽.', ['Неверное количество.', 'Не хватает денег, места или сырья у поставщика.']),
   method('market', 'sell', 'Мгновенная продажа местному покупателю по текущей цене. Возвращает выручку.',
     [production(), quantity(), buyer()], 'number',
@@ -67,7 +73,7 @@ export const API_METHODS = [
   method('research', 'list', 'Технологии: id, cost, description, unlocked. wire открывает провод; efficiency уменьшает энергию на 1 ₽ за единицу.', [], 'CityResearch[]',
     'cq.print(cq.research.list());'),
   method('research', 'unlock', 'Покупает технологию. Эффект действует для новых партий; запущенные партии не пересчитываются.',
-    [p('id', '"wire" | "efficiency"', 'ID технологии.')], 'string',
+    [p('id', '"wire" | "efficiency" | "circuits"', 'ID технологии.')], 'string',
     'const t = cq.research.list().find(t => t.id === "wire");\nif (!t.unlocked && cq.world.getState().balance >= t.cost) cq.research.unlock("wire");', ['Технология уже открыта или не хватает денег.']),
   method('code', 'print', 'Печатает значения в журнал. Также работает console.log.',
     [p('values', 'any[]', 'Любые значения через запятую.')], 'void', 'cq.print("Баланс:", cq.world.getState().balance);'),
@@ -79,18 +85,23 @@ export const API_METHODS = [
 const TYPES = [
   'interface CityJob { product: string; quantity: number; remaining: number; }',
   'interface CityLine { id: string; level: number; job: CityJob | null; }',
-  'interface CityBuyer { id: string; name: string; product: string; price: number; demand: number; limit: number; remote: boolean; }',
-  'interface CitySupplier { id: string; product: string; price: number; stock: number; }',
+  'interface CityBuyer { id: string; name: string; product: string; price: number; demand: number; limit: number; remote: boolean; region: string; locked?: boolean; }',
+  'interface CitySupplier { id: string; product: string; price: number; stock: number; region: string; locked?: boolean; }',
   'interface CityRecipe { product: string; input: string; amount: number; energy: number; duration: number; research: string | null; }',
   'interface CityContract { id: string; name: string; product: string; quantity: number; reward: number; duration: number; status: "available" | "active" | "cooldown"; deadline: number | null; refreshAt: number | null; locked: boolean; }',
-  'interface CityRoute { id: string; name: string; duration: number; fee: number; capacity: number; busy: boolean; }',
+  'interface CityRoute { id: string; name: string; duration: number; fee: number; capacity: number; busy: boolean; regions: string[]; locked: boolean; }',
   'interface CityShipment { id: number; product: string; quantity: number; buyerId: string; routeId: string; unitPrice: number; remaining: number; }',
   'interface CityResearch { id: string; name: string; cost: number; description: string; unlocked: boolean; }',
   'interface CityQuote { product: string; quantity: number; buyerId: string; unitPrice: number; gross: number; fee: number; net: number; duration: number; canTrade: boolean; }',
+  'interface CityRegion { id: string; name: string; cost: number; description: string; unlocked: boolean; }',
+  'interface CityEvent { id: string; region: string; name: string; active: boolean; priceBonus: number; changesIn: number; }',
+  'interface CityHistoryPoint { tick: number; balance: number; revenue: number; spent: number; inventory: Record<string,number>; prices: Record<string,number>; }',
+  'interface DashboardViewContext { inputs: Record<string,string | number | boolean>; }',
+  'interface CustomDashboard { title?: string; columns?: number; widgets?: any[]; html?: string; css?: string; height?: number; controls?: any[]; }',
   'interface CityState { tick: number; balance: number; capacity: number; warehouseLevel: number; machineLevel: number;',
-  ' inventory: { scrap: number; metal: number; parts: number; wire: number }; job: CityJob | null;',
+  ' inventory: { scrap: number; metal: number; parts: number; wire: number; circuit: number }; job: CityJob | null;',
   ' supplier: { product: string; price: number; stock: number }; buyers: CityBuyer[]; metrics: Record<string, number>;',
-  ' lines: CityLine[]; research: string[]; shipments: CityShipment[]; nextShipment: number; contracts: Array<{ id: string; status: "available" | "active" | "cooldown"; deadline: number | null; refreshAt: number | null }>; }'
+  ' schema: number; regions: string[]; suppliers: CitySupplier[]; history: CityHistoryPoint[]; lines: CityLine[]; research: string[]; shipments: CityShipment[]; nextShipment: number; contracts: Array<{ id: string; status: "available" | "active" | "cooldown"; deadline: number | null; refreshAt: number | null }>; }'
 ].join('\n');
 function declaration(item) {
   const params = item.name === 'print' ? '...values: any[]' : item.params.map(p => p.name + (p.optional ? '?' : '') + ': ' + p.type).join(', ');
@@ -100,8 +111,8 @@ export const API_TYPES = TYPES + '\ninterface CityAPI {\n' +
   API_GROUPS.filter(([id]) => id !== 'code').map(([id]) =>
     id + ': {\n' + API_METHODS.filter(m => m.group === id).map(declaration).join('\n') + '\n};').join('\n') +
   '\n' + API_METHODS.filter(m => m.group === 'code').map(declaration).join('\n') +
-  '\n/** Первая версия API. */ getState(): CityState; buy(product: "scrap", quantity: number): number;' +
-  '\nproduce(product: "metal" | "parts" | "wire", quantity: number, lineId?: string): CityJob;' +
+  '\n/** Первая версия API. */ getState(): CityState; buy(product: "scrap" | "metal", quantity: number, supplierId?: string): number;' +
+  '\nproduce(product: "metal" | "parts" | "wire" | "circuit", quantity: number, lineId?: string): CityJob;' +
   '\nsell(product: string, quantity: number, buyerId: string): number; upgrade(target: "warehouse" | "machine", lineId?: string): number;\n}';
 
 export function mountReference(root) {
@@ -130,4 +141,5 @@ export function mountReference(root) {
     group = button.dataset.group; root.querySelectorAll('[data-group]').forEach(b => b.setAttribute('aria-pressed', String(b === button))); render();
   }));
   render();
+  const help=document.createElement('details');help.innerHTML='<summary>Как написать собственный дашборд</summary><p>Создайте dashboards/my-dashboard.js и экспортируйте render(cq, view). Возвращайте widgets или html и css. Дашборд только читает мир, без перевода времени; изменяйте экономику в index.js.</p><pre>'+escapeHtml('export function render(cq, view) {\n const s=cq.world.getState();\n return {title:"Моя аналитика",columns:2,widgets:[\n {id:"cash",type:"stat",title:"Баланс",value:s.balance,unit:"₽"},\n {id:"trend",type:"chart",title:"Баланс",points:cq.analytics.getHistory().map(p=>p.balance)}]};\n}')+'</pre><p>Виджеты: stat (value/unit/tone), text (text), table (columns/rows), chart (points/labels). У каждого уникальный id и width (1–4). Порядок, ширина и видимость настраиваются на экране. Для свободного дизайна верните html, css и height (200–1200).</p><p>controls: массив {id,type,label,value,options}, type — select/text/number; варианты select — {value,label}. Значения доступны как view.inputs[id]. Скрипты внутри HTML не исполняются; логику пишите в render и импортируемых модулях.</p>';root.append(help);
 }

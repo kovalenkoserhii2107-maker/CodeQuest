@@ -8,7 +8,7 @@ import { buildProject } from '../js/act2/loader.js';
 function richWorld() {
   const world = initialWorld();
   world.balance = 100000; world.capacity = 600; world.warehouseLevel = 6;
-  world.inventory = { scrap: 40, metal: 40, parts: 20, wire: 20 };
+  world.inventory = { scrap: 40, metal: 40, parts: 20, wire: 20, circuit: 0 };
   return world;
 }
 const legacy = initialWorld();

@@ -1,3 +1,6 @@
+import { ProjectFiles } from './project.js';
+import { ProjectExplorer } from './explorer.js';
+import { DashboardController } from './dashboard-controller.js';
 import {
   CityEngine, CITY_SAVE_KEY, initialSave, readCitySave, validateFiles, validateMemory
 } from './engine.js';
@@ -17,7 +20,7 @@ export function mountCity(root) {
   let storage;
   try { storage = localStorage; } catch { /* readCitySave reports inaccessible storage */ }
   const loaded = readCitySave(storage);
-  let save = loaded.save, engine = new CityEngine(save.world), lessons = new CityLessons(save.tutorial), editor, file = 'index.js';
+  let save = loaded.save, engine = new CityEngine(save.world), lessons = new CityLessons(save.tutorial), project = new ProjectFiles(save.files,save.workspace), editor, file = project.active(), explorer, dashboards;
   let disposed = false, busy = false, automatic = false, timer, generation = 0, lessonView;
   const runtime = new CityRuntime(), output = [];
   root.innerHTML = [
@@ -38,9 +41,8 @@ export function mountCity(root) {
     '<div class="city-grid"><div class="city-primary">',
     '<section class="city-panel city-task" data-task aria-label="Учебное задание"></section>',
     '<section class="city-workspace city-panel" aria-labelledby="city-code-title">',
-    '<div class="city-panel-heading"><h2 id="city-code-title">Проект мастерской</h2><button type="button" data-add>+ Файл</button></div>',
-    '<div class="city-files" data-files role="group" aria-label="Файлы проекта"></div>',
-    '<div data-editor></div>',
+    '<div class="city-panel-heading"><h2 id="city-code-title">Рабочее пространство</h2><div class="city-ide-modes"><button type="button" data-mode="code">Код</button><button type="button" data-mode="dashboard">Дашборд</button><button type="button" data-mode="split" aria-pressed="true">Вместе</button><button type="button" data-add>+ Файл</button></div></div>',
+    '<div class="city-ide" data-ide data-mode="split"><aside class="city-explorer" data-explorer></aside><div class="city-ide-editor"><div class="city-files" data-files role="group" aria-label="Вкладки файлов"></div><div data-editor></div><p class="city-project-path" data-project-status></p></div><section class="city-dashboard-panel" data-dashboard aria-label="Мои дашборды"></section></div>',
     '<div class="city-actions"><button type="button" data-run>Запустить шаг</button>',
     '<button type="button" data-preview>Пробный запуск</button>',
     '<button type="button" data-auto aria-pressed="false">Автоматизация: выкл.</button>',
@@ -54,9 +56,10 @@ export function mountCity(root) {
     '<section class="city-panel"><h2>Городские контракты</h2><div data-contracts></div>',
     '<p class="city-muted">Два заказа одновременно. Сдайте до deadline; просрочка не списывает деньги. После выполнения заказ обновляется через 5 шагов.</p></section>',
     '<section class="city-panel"><h2>Доставка и исследования</h2><div data-expansion></div></section>',
+    '<section class="city-panel"><h2>Регионы мира</h2><div data-regions></div></section>',
     '</aside></div>',
     '<section class="city-panel"><h2>Что возвращает getState()</h2>',
-    '<p class="city-muted">Это снимок для чтения: изменение его полей не меняет мир. Используйте команды API. Программные ID товаров: scrap (лом), metal (металл), parts (детали), wire (провод).</p>',
+    '<p class="city-muted">Это снимок для чтения: изменение его полей не меняет мир. Используйте команды API. Программные ID товаров: scrap (лом), metal (металл), parts (детали), wire (провод), circuit (схемы).</p>',
     '<dl class="city-state-fields"><dt>balance, tick</dt><dd>Баланс в рублях и текущий номер шага.</dd>',
     '<dt>inventory, capacity</dt><dd>Готовые товары на складе и его вместимость. getFreeSpace() также учитывает резерв незавершённых партий.</dd>',
     '<dt>lines</dt><dd>Массив независимых линий: id, level, job. Для свободной линии job=null.</dd>',
@@ -76,29 +79,32 @@ export function mountCity(root) {
     el('[data-output]').scrollTop = el('[data-output]').scrollHeight;
   }
   function persist() {
-    save.world = engine.snapshot(); save.tutorial = lessons.snapshot();
+    save.world = engine.snapshot(); save.tutorial = lessons.snapshot(); save.files=project.files();save.workspace=project.workspace();if(dashboards)save.dashboards=dashboards.snapshot();
     try {
       if (!storage) throw new Error('storage unavailable');
       storage.setItem(CITY_SAVE_KEY, JSON.stringify(save));
     } catch { notice('Не удалось сохранить прогресс. Не закрывайте страницу, если хотите продолжить.'); }
   }
-  function renderFiles() {
-    const container = el('[data-files]');
-    container.replaceChildren();
-    for (const name of Object.keys(save.files)) {
-      const button = document.createElement('button');
-      button.type = 'button'; button.textContent = name; button.setAttribute('aria-pressed', String(name === file));
-      button.addEventListener('click', () => { if (busy || automatic || file === name) return; file = name; renderEditor(); renderFiles(); });
-      container.append(button);
+  function openFile(path){if(busy||automatic)return;project.open(path);file=path;renderEditor();renderFiles();explorer?.select(path);persist();}
+  function renderFiles(){
+    const root=el('[data-files]');root.replaceChildren();
+    for(const path of project.workspace().tabs){
+      const tab=document.createElement('span');tab.className='city-file-tab';const button=document.createElement('button');button.type='button';button.textContent=path;button.setAttribute('aria-pressed',String(path===file));button.onclick=()=>openFile(path);tab.append(button);
+      if(path!=='index.js'){const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Закрыть вкладку '+path);close.onclick=()=>{if(busy||automatic)return;project.close(path);file=project.active();renderEditor();renderFiles();explorer?.select(file);persist();};tab.append(close);}
+      root.append(tab);
     }
+    el('[data-project-status]').textContent='codequest / '+file+' · запуск мира: index.js · черновик сохраняется';
   }
-  function renderEditor() {
-    editor?.dispose();
-    editor = createEditor(el('[data-editor]'), {
-      filename: file, value: save.files[file], siblings: { ...save.files },
-      includeLiveFunctions: false, extraDeclarations: API_TYPES,
-      onInput: code => { save.files[file] = code; editor?.syncSiblings(save.files); persist(); },
-      onRun: () => { if (!automatic) step(false); }
+  function renderEditor(){
+    editor?.dispose();editor=createEditor(el('[data-editor]'),{filename:file,value:project.files()[file],siblings:project.files(),includeLiveFunctions:false,extraDeclarations:API_TYPES,
+      onInput:code=>{try{project.write(file,code);editor?.syncSiblings(project.files());persist();}catch(e){notice(e.message+' Черновик не сохранён.');}},
+      onRun:()=>{if(!automatic){if(file.startsWith('dashboards/'))dashboards.refresh();else step(false);}}
+    });
+  }
+  function mountProjectTools(){
+    explorer=new ProjectExplorer(el('[data-explorer]'),project,{isLocked:()=>busy||automatic,onError:notice,onSelect:openFile,onChange:change=>{file=project.active();dashboards?.sync(change);persist();renderFiles();dashboards?.refresh();}});
+    dashboards=new DashboardController(el('[data-dashboard]'),{preferences:save.dashboards,getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,
+      onSave:prefs=>{save.dashboards=prefs;persist();},onOpen:openFile,onCreate:(path,code)=>{if(busy||automatic)throw new Error('Остановите запуск перед изменением файлов.');project.create(path,code);file=path;renderEditor();renderFiles();explorer.select(path);persist();}
     });
   }
   function updateWorld() {
@@ -116,7 +122,7 @@ export function mountCity(root) {
         (line.job ? PRODUCTS[line.job.product] + ': ' + line.job.quantity + ' ед.; осталось шагов: ' + line.job.remaining : 'Свободна · партия до ' + line.level * 8 + ' ед.') + '</p>').join('') + '</div>' +
       '<p>Поставщик yard: лом ' + money(w.supplier.price) + ' · в наличии ' + w.supplier.stock + '</p>' +
       '<div class="city-table-scroll"><table><caption>Покупатели</caption><thead><tr><th>Покупатель / ID</th><th>Товар</th><th>Цена</th><th>Спрос</th></tr></thead><tbody>' +
-      w.buyers.map(b => '<tr><td>' + escapeHtml(b.name) + '<br><code>' + escapeHtml(b.id) + '</code>' + (b.remote ? '<br><small>Доставка</small>' : '') +
+      w.buyers.map(b => '<tr><td>' + escapeHtml(b.name) + '<br><code>' + escapeHtml(b.id) + '</code>' + (b.remote ? '<br><small>Доставка</small>' : '')+'<br><small>'+b.region+(!w.regions.includes(b.region)?' · закрыт':'')+'</small>' +
         '</td><td>' + PRODUCTS[b.product] + '</td><td>' + money(b.price) + '</td><td>' + b.demand + '</td></tr>').join('') + '</tbody></table></div>';
     el('[data-contracts]').innerHTML = engine.getContracts().map(order => '<article class="city-contract"><h3>' + escapeHtml(order.name) +
       '</h3><p><code>' + order.id + '</code> · ' + order.quantity + ' ' + PRODUCTS[order.product] + '</p><p>Награда: ' + money(order.reward) +
@@ -132,10 +138,11 @@ export function mountCity(root) {
         (t.unlocked ? 'Открыта' : money(t.cost)) + ' · ' + escapeHtml(t.description) + '</p>').join('') +
       '<h3>Доступные рецепты</h3>' + engine.getRecipes().map(r => '<p><code>' + r.product + '</code> = ' + r.amount + ' ' + PRODUCTS[r.input] +
         ' + ' + money(r.energy) + ' · ' + r.duration + ' шаг.</p>').join('');
+    el('[data-regions]').innerHTML=engine.getRegions().map(r=>'<article class="city-region"><h3>'+escapeHtml(r.name)+'</h3><p><code>'+r.id+'</code> · '+(r.unlocked?'Открыт':money(r.cost))+'</p><p class="city-muted">'+escapeHtml(r.description)+'</p></article>').join('')+'<h3>События рынков</h3>'+engine.getEvents().map(e=>'<p><code>'+e.region+'</code>: '+escapeHtml(e.name)+' · смена через '+e.changesIn+' шаг.</p>').join('')+'<p class="city-muted">Доступ: cq.world.explore(id). Выбирайте поставщика и совместимый маршрут; circuits открывает схемы.</p>';
     el('[data-snapshot]').textContent = JSON.stringify(w, null, 2);
   }
   function update() {
-    updateWorld(); lessonView.render();
+    updateWorld(); lessonView.render();explorer?.render();
     for (const button of root.querySelectorAll('[data-run], [data-preview], [data-wait], [data-add], [data-reset], [data-files] button')) button.disabled = busy || automatic;
     el('[data-auto]').textContent = 'Автоматизация: ' + (automatic ? 'вкл.' : 'выкл.');
     el('[data-auto]').setAttribute('aria-pressed', String(automatic));
@@ -156,7 +163,7 @@ export function mountCity(root) {
   async function step(preview = false) {
     if (busy || disposed) return;
     busy = true; const mine = generation; update();
-    const files = { ...save.files }, before = engine.snapshot();
+    const files = { ...project.files(), [file]: editor.getValue() }, before = engine.snapshot();
     try {
       validateFiles(files);
       const result = await runtime.run(files, before, save.memory);
@@ -170,7 +177,7 @@ export function mountCity(root) {
         evaluate(result, before, true);
       } else {
         engine = candidate; save.memory = memory;
-        evaluate(result, before, false); persist();
+        evaluate(result, before, false); persist();dashboards.refresh();
         log('Шаг ' + engine.snapshot().tick + ': выполнено команд — ' + result.operations.length + '.');
       }
     } catch (error) {
@@ -191,34 +198,27 @@ export function mountCity(root) {
     if (busy || automatic) return;
     const before = engine.snapshot(); engine.advance();
     evaluate({ reads: [], operations: [], logs: [], memory: save.memory, modules: [] }, before, false);
-    persist(); log('Шаг ' + engine.snapshot().tick + ': ожидание.'); update();
+    persist(); log('Шаг ' + engine.snapshot().tick + ': ожидание.'); update();dashboards.refresh();
   });
   el('[data-auto]').addEventListener('click', () => { if (automatic) stop(); else if (!busy) { automatic = true; update(); step(false); } });
-  el('[data-add]').addEventListener('click', () => {
-    const name = window.prompt('Имя нового JavaScript-файла (например strategy.js):', 'strategy.js');
-    if (!name) return;
-    try {
-      if (Object.hasOwn(save.files, name)) throw new Error('Файл с таким именем уже существует.');
-      const files = { ...save.files, [name]: '// Вынесите сюда часть вашей стратегии.\n' };
-      validateFiles(files); save.files = files; file = name; persist(); renderEditor(); renderFiles(); update();
-    } catch (error) { notice(error.message); }
-  });
+  el('[data-add]').onclick=()=>{const path=prompt('Путь JavaScript-файла (например strategies/trade.js):','strategy.js');if(!path)return;try{project.create(path);file=path;persist();renderEditor();renderFiles();explorer.select(path);dashboards.sync();update();}catch(e){notice(e.message);}};
   el('[data-reset]').addEventListener('click', () => {
     if (!window.confirm('Начать городской комбинат заново? Его деньги, файлы, память и задания будут очищены.')) return;
-    stop(); generation++; runtime.cancel(); save = initialSave(); engine = new CityEngine(save.world); lessons = new CityLessons(save.tutorial);
+    stop(); generation++; runtime.cancel();dashboards.dispose();save=initialSave();engine=new CityEngine(save.world);lessons=new CityLessons(save.tutorial);project=new ProjectFiles(save.files,save.workspace);dashboards=null;
     lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons);
     file = 'index.js'; output.length = 0; el('[data-output]').textContent = ''; el('[data-feedback]').textContent = '';
-    persist(); renderEditor(); renderFiles(); update();
+    persist(); renderEditor(); renderFiles();mountProjectTools();update();
   });
   root.querySelectorAll('[data-jump]').forEach(button => button.addEventListener('click', () => {
     const selector = { task: '[data-task]', api: '[data-api]', world: '[data-world-panel]' }[button.dataset.jump];
     const target = el(selector); target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
+  root.querySelectorAll('.city-ide-modes [data-mode]').forEach(button=>button.onclick=()=>{el('[data-ide]').dataset.mode=button.dataset.mode;root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));});
   notice(loaded.warning);
   lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons);
-  mountReference(el('[data-api]')); renderEditor(); renderFiles(); update();
+  mountReference(el('[data-api]')); renderEditor(); renderFiles();mountProjectTools();update();
   log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {
-    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel(); editor?.dispose(); root.replaceChildren();
+    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();editor?.dispose();root.replaceChildren();
   };
 }
