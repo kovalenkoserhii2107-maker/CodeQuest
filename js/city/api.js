@@ -1,11 +1,12 @@
 import { PRODUCTS, COMMANDS } from './catalog.js';
 import { validateMemory } from './engine.js';
 
-export function createCityAPI(engine, memory, { onCommand = () => {}, onRead = () => {}, onPrint = () => {} } = {}) {
+export function createCityAPI(engine, memory, { onCommand = () => {}, onRead = () => {}, onPrint = () => {}, readOnly = false, files = {} } = {}) {
   const read = (name, operation) => { onRead(name); return operation(); };
   const product = value => { if (!Object.hasOwn(PRODUCTS, value)) throw new Error('Неизвестный товар: ' + value); return value; };
   let count = 0;
   const command = (method, args) => {
+    if(readOnly)throw new Error('Дашборд читает мир. Изменяйте экономику через main(cq), не render().');
     if (count >= 100) throw new Error('Допускается до 100 команд за шаг.');
     if (!COMMANDS.includes(method)) throw new Error('Неизвестная команда.');
     const value = engine[method](...args);
@@ -16,8 +17,11 @@ export function createCityAPI(engine, memory, { onCommand = () => {}, onRead = (
   return {
     memory: validateMemory(memory),
     print: (...values) => onPrint(...values),
+    analytics:Object.freeze({getHistory:(limit=120)=>read('analytics.getHistory',()=>engine.getHistory(limit))}),
+    project:Object.freeze({listFiles:()=>read('project.listFiles',()=>Object.keys(files)),readFile:path=>read('project.readFile',()=>{if(!Object.hasOwn(files,path))throw new Error('Файл не найден.');return files[path];})}),
     world: Object.freeze({
       getState: () => state('world.getState'),
+      getRegions:()=>read('world.getRegions',()=>engine.getRegions()),getEvents:()=>read('world.getEvents',()=>engine.getEvents()),explore:id=>command('openRegion',[id]),
       getTime: () => read('world.getTime', () => engine.snapshot().tick)
     }),
     warehouse: Object.freeze({
@@ -26,10 +30,10 @@ export function createCityAPI(engine, memory, { onCommand = () => {}, onRead = (
       upgrade: () => command('upgrade', ['warehouse'])
     }),
     market: Object.freeze({
-      getSuppliers: () => read('market.getSuppliers', () => [{ id: 'yard', ...engine.snapshot().supplier }]),
+      getSuppliers: () => read('market.getSuppliers', () => engine.getSuppliers()),
       getBuyers: id => read('market.getBuyers', () => {
         if (id !== undefined) product(id);
-        return engine.snapshot().buyers.filter(item => id === undefined || item.product === id);
+        return engine.getBuyers(id);
       }),
       quote: (...args) => read('market.quote', () => engine.getQuote(...args)),
       buy: (...args) => command('buy', args),
