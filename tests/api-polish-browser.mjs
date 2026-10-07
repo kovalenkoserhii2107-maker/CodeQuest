@@ -48,6 +48,7 @@ try {
   await page.locator('[data-api-back]').click();
   assert.equal(await page.locator('[data-editor]').isVisible(),true);
   assert.equal((await save()).workspace.mode,'code');
+  await page.locator('.city-ide-modes [data-mode="split"]').click();
   console.log('✓ lesson-to-API navigation, effect filters, counts, retained expansion, reset and clipboard template without source replacement');
 
   await page.locator('[data-dashboard-live]').uncheck();
