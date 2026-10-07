@@ -60,7 +60,7 @@ try {
   await page.locator('[data-wait]').click();
   await setCode('cq.print(cq.warehouse.getStock("metal")); cq.print(cq.world.getTime());');
   await step(); await completed('time');
-  await setCode('const buyer = cq.market.getBuyers("metal").filter(b => !b.remote && b.demand >= 5).sort((a,b) => b.price-a.price)[0]; cq.market.sell("metal", 5, buyer.id);');
+  await setCode('const buyer = cq.market.getBuyers("metal").filter(b => !b.locked && !b.remote && b.demand >= 5).sort((a,b) => b.price-a.price)[0]; cq.market.sell("metal", 5, buyer.id);');
   await step(); await completed('trade');
   await setCode('cq.memory.runs = (cq.memory.runs ?? 0) + 1; cq.print(cq.memory.runs);');
   await page.locator('[data-auto]').click();
@@ -124,7 +124,7 @@ try {
 
   page.once('dialog', dialog => dialog.accept('strategy.js'));
   await page.locator('[data-add]').click();
-  await setCode('export function bestBuyer(buyers) { return buyers.filter(b => !b.remote && b.demand > 0).sort((a,b) => b.price-a.price)[0]; }', { name: 'strategy.js', raw: true });
+  await setCode('export function bestBuyer(buyers) { return buyers.filter(b => !b.locked && !b.remote && b.demand > 0).sort((a,b) => b.price-a.price)[0]; }', { name: 'strategy.js', raw: true });
   await page.locator('[data-files] button', { hasText: 'index.js' }).click();
   await setCode('import { bestBuyer } from "./strategy.js";\n/** @param {CityAPI} cq */\nexport function main(cq) { cq.print(bestBuyer(cq.market.getBuyers("metal"))); }', { raw: true });
   await step(); await completed('modules');

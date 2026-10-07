@@ -1,0 +1,20 @@
+import { escapeHtml } from '../ui/html.js';
+export class ProjectExplorer{
+ #root;#project;#options;#selected='index.js';#closed=new Set();
+ constructor(root,project,options){this.#root=root;this.#project=project;this.#options=options;root.innerHTML='<div class="city-explorer-heading"><strong>EXPLORER</strong><button type="button" data-folder aria-label="Создать папку">+ ▱</button></div><div role="tree" aria-label="Файлы проекта" class="city-explorer-tree"></div><div class="city-explorer-actions"><button type="button" data-rename>Переименовать</button><button type="button" data-remove>Удалить</button></div>';
+ root.querySelector('[data-folder]').onclick=()=>this.#act(()=>{const path=prompt('Путь новой папки:','strategies');if(path){project.createFolder(path);this.#selected=path;this.#changed();}});
+ root.querySelector('[data-rename]').onclick=()=>this.#act(()=>{const from=this.#selected,folder=project.folders().includes(from),to=prompt('Новый путь. Импорты будут обновлены:',from);if(to&&to!==from){project.rename(from,to,folder);this.#selected=to;this.#changed({rename:{from,to,folder}});options.onSelect(project.active());}});
+ root.querySelector('[data-remove]').onclick=()=>this.#act(()=>{const path=this.#selected,folder=project.folders().includes(path);if(confirm('Удалить '+path+(folder?' и все файлы внутри?':'?')+' Импорты удалённого файла потребуется исправить.')){project.remove(path,folder);this.#selected=project.active();this.#changed();options.onSelect(project.active());}});
+ root.onkeydown=event=>{const buttons=[...root.querySelectorAll('[data-path]')],i=buttons.indexOf(document.activeElement);if(i<0)return;const n=event.key==='ArrowDown'?Math.min(i+1,buttons.length-1):event.key==='ArrowUp'?Math.max(0,i-1):event.key==='Home'?0:event.key==='End'?buttons.length-1:null;if(n!==null){event.preventDefault();buttons[n].focus();}};this.render();}
+ #act(fn){if(this.#options.isLocked())return;try{fn();}catch(e){this.#options.onError(e.message);}}
+ #changed(change={}){this.render();this.#options.onChange(change);}
+ select(path){this.#selected=path;const parts=path.split('/').slice(0,-1);while(parts.length){this.#closed.delete(parts.join('/'));parts.pop();}this.render();}
+ render(){
+ const focused=this.#root.contains(document.activeElement)?document.activeElement.dataset.path:null,files=this.#project.files(),folders=this.#project.folders();
+ const tree=(parent,depth=0)=>[...folders.filter(p=>p.split('/').slice(0,-1).join('/')===parent).map(path=>({path,folder:true})),...Object.keys(files).filter(p=>p.split('/').slice(0,-1).join('/')===parent).sort().map(path=>({path,folder:false}))].map(({path,folder})=>'<div role="treeitem" aria-selected="'+(path===this.#selected)+'"'+(folder?' aria-expanded="'+!this.#closed.has(path)+'"':'')+'><button type="button" data-path="'+escapeHtml(path)+'" data-is-folder="'+folder+'" class="'+(path===this.#project.active()?'is-active':'')+'" style="--tree-depth:'+depth+'"><span>'+(folder?this.#closed.has(path)?'▸ ▱':'▾ ▱':'JS')+'</span> '+escapeHtml(path.split('/').at(-1))+'</button>'+(folder&&!this.#closed.has(path)?'<div role="group">'+tree(path,depth+1)+'</div>':'')+'</div>').join('');
+ this.#root.querySelector('[role=tree]').innerHTML=tree('');
+ this.#root.querySelectorAll('[data-path]').forEach(button=>button.onclick=()=>{if(this.#options.isLocked())return;const path=button.dataset.path;this.#selected=path;if(button.dataset.isFolder==='true'){if(this.#closed.has(path))this.#closed.delete(path);else this.#closed.add(path);this.render();}else{this.#project.open(path);this.#options.onSelect(path);}});
+ this.#root.querySelector('[data-rename]').disabled=this.#selected==='index.js'||this.#options.isLocked();this.#root.querySelector('[data-remove]').disabled=this.#selected==='index.js'||this.#options.isLocked();this.#root.querySelector('[data-folder]').disabled=this.#options.isLocked();
+ if(focused)[...this.#root.querySelectorAll('[data-path]')].find(b=>b.dataset.path===focused)?.focus({preventScroll:true});
+ }
+}

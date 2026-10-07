@@ -1,11 +1,17 @@
+import { REGIONS, SUPPLIERS, regionEvents } from './regions.js';
+import { validateFiles, normalizeWorkspace } from './project.js';
+export { validateFiles } from './project.js';
+import { normalizeDashboardPrefs } from './dashboard-model.js';
+import { DASHBOARD_EXAMPLES } from './dashboard-examples.js';
 import { RECIPES, PRODUCTS, BUYERS, RESEARCH, ROUTES, CONTRACTS, COMMANDS } from './catalog.js';
 export { RECIPES } from './catalog.js';
 const copy = value => JSON.parse(JSON.stringify(value));
 export const CITY_SAVE_KEY = 'codequest.city.v1';
 export function initialWorld() {
   return {
+    schema: 3, regions: ['city'], history: [], suppliers: SUPPLIERS.map(item => ({ ...item, stock: item.limit })),
     tick: 0, balance: 1000, capacity: 100, machineLevel: 1, warehouseLevel: 1,
-    inventory: { scrap: 0, metal: 0, parts: 0, wire: 0 }, job: null,
+    inventory: { scrap: 0, metal: 0, parts: 0, wire: 0, circuit: 0 }, job: null,
     lines: [{ id: 'line-1', level: 1, job: null }], research: [], shipments: [], nextShipment: 1,
     contracts: CONTRACTS.map(item => ({ id: item.id, status: 'available', deadline: null, refreshAt: null })),
     supplier: { product: 'scrap', price: 4, stock: 120 },
@@ -34,12 +40,17 @@ export function validateWorld(world) {
       !Number.isSafeInteger(world.supplier.stock) || world.supplier.stock < 0 || world.supplier.stock > 120) {
     throw new Error('Некорректный поставщик.');
   }
+  if(world.schema!==3||!Array.isArray(world.regions)||!world.regions.includes('city')||new Set(world.regions).size!==world.regions.length||world.regions.some(id=>!REGIONS.some(r=>r.id===id)))throw new Error('Некорректные регионы.');
+  if(!Array.isArray(world.suppliers)||world.suppliers.length!==SUPPLIERS.length)throw new Error('Некорректные поставщики.');
+  world.suppliers.forEach((s,i)=>{const d=SUPPLIERS[i];if(s.id!==d.id||s.product!==d.product||s.region!==d.region||s.price!==d.price||!Number.isSafeInteger(s.stock)||s.stock<0||s.stock>d.limit)throw new Error('Некорректный поставщик.');});
+  if(world.supplier.stock!==world.suppliers[0].stock)throw new Error('Несогласованный запас поставщика.');
+  if(!Array.isArray(world.history)||world.history.length>120||world.history.some(p=>!p||!Number.isSafeInteger(p.tick)||p.tick<0||p.tick>world.tick||!Number.isSafeInteger(p.balance)||p.balance<0||!Number.isSafeInteger(p.revenue)||p.revenue<0||!Number.isSafeInteger(p.spent)||p.spent<0))throw new Error('Некорректная история.');
   const defaults = BUYERS;
   if (!Array.isArray(world.buyers) || world.buyers.length !== defaults.length) throw new Error('Некорректный рынок.');
   for (let i = 0; i < defaults.length; i++) {
     const buyer = world.buyers[i], expected = defaults[i];
-    if (buyer.id !== expected.id || buyer.product !== expected.product || buyer.limit !== expected.limit || buyer.remote !== expected.remote ||
-        !Number.isSafeInteger(buyer.price) || buyer.price < 1 || buyer.price > 100 ||
+    if (buyer.id !== expected.id || buyer.product !== expected.product || buyer.limit !== expected.limit || buyer.remote !== expected.remote || buyer.region !== expected.region ||
+        !Number.isSafeInteger(buyer.price) || buyer.price < 1 || buyer.price > 1000 ||
         !Number.isSafeInteger(buyer.demand) || buyer.demand < 0 || buyer.demand > buyer.limit) throw new Error('Некорректный покупатель.');
   }
   for (const key of Object.keys(initialWorld().metrics)) {
@@ -75,8 +86,8 @@ export function validateWorld(world) {
     if (!route || !buyer || routeIds.has(route.id) || shipment.product !== buyer.product ||
         !Number.isSafeInteger(shipment.id) || shipment.id < 1 || shipment.id >= world.nextShipment ||
         !Number.isSafeInteger(shipment.quantity) || shipment.quantity < 1 || shipment.quantity > route.capacity ||
-        !Number.isSafeInteger(shipment.remaining) || shipment.remaining < 1 || shipment.remaining > route.duration ||
-        !Number.isSafeInteger(shipment.unitPrice) || shipment.unitPrice < 1 || shipment.unitPrice > 100) throw new Error('Некорректная поставка.');
+        !Number.isSafeInteger(shipment.remaining) || shipment.remaining < 1 || shipment.remaining > route.duration || !route.regions.includes(buyer.region) || !world.regions.includes(buyer.region) ||
+        !Number.isSafeInteger(shipment.unitPrice) || shipment.unitPrice < 1 || shipment.unitPrice > 1000) throw new Error('Некорректная поставка.');
     routeIds.add(route.id);
   }
   return world;
@@ -93,6 +104,12 @@ export class CityEngine {
     this.#world.machineLevel = this.#world.lines[0].level;
     this.#world.job = copy(this.#world.lines[0].job);
   }
+  getRegions(){return REGIONS.map(r=>({...r,unlocked:this.#world.regions.includes(r.id)}));}
+  getEvents(){return regionEvents(this.#world.tick);}
+  getSuppliers(){return this.#world.suppliers.map(s=>({...copy(s),locked:!this.#world.regions.includes(s.region)}));}
+  getBuyers(product){return this.#world.buyers.filter(b=>product===undefined||b.product===product).map(b=>({...copy(b),locked:!this.#world.regions.includes(b.region)}));}
+  getHistory(limit=120){if(!Number.isSafeInteger(limit)||limit<1||limit>120)throw new Error('История: limit от 1 до 120.');return copy(this.#world.history.slice(-limit));}
+  openRegion(id){const r=REGIONS.find(r=>r.id===id);if(!r)throw new Error('Регион не найден.');if(this.#world.regions.includes(id))throw new Error('Регион уже открыт.');this.#pay(r.cost);this.#world.regions.push(id);return id;}
   getFreeSpace() { return this.#space(); }
   getRecipes() {
     return Object.entries(RECIPES).filter(([, r]) => !r.research || this.#world.research.includes(r.research))
@@ -104,7 +121,7 @@ export class CityEngine {
   }
   getResearch() { return RESEARCH.map(item => ({ ...item, unlocked: this.#world.research.includes(item.id) })); }
   getRoutes() {
-    return ROUTES.map(item => ({ ...item, busy: this.#world.shipments.some(shipment => shipment.routeId === item.id) }));
+    return ROUTES.map(item => ({ ...item, locked: !item.regions.some(id => this.#world.regions.includes(id)), busy: this.#world.shipments.some(shipment => shipment.routeId === item.id) }));
   }
   getQuote(product, quantity, buyerId, routeId = null) {
     integer(quantity, 'Количество');
@@ -114,7 +131,7 @@ export class CityEngine {
     if (routeId !== null && !route) throw new Error('Маршрут не найден.');
     const gross = buyer.price * quantity, fee = route?.fee || 0;
     return { product, quantity, buyerId, unitPrice: buyer.price, gross, fee, net: gross - fee,
-      duration: route?.duration || 0, canTrade: quantity <= buyer.demand &&
+      duration: route?.duration || 0, canTrade: this.#world.regions.includes(buyer.region) && (!route || route.regions.includes(buyer.region)) && quantity <= buyer.demand &&
         quantity <= this.#world.inventory[product] && (route ? quantity <= route.capacity &&
           !this.#world.shipments.some(item => item.routeId === route.id) && this.#world.balance >= fee : !buyer.remote) };
   }
@@ -123,15 +140,14 @@ export class CityEngine {
     this.#world.balance -= amount;
     this.#world.metrics.spent += amount;
   }
-  buy(product, quantity) {
-    integer(quantity, 'Количество');
-    const w = this.#world;
-    if (product !== 'scrap') throw new Error('Поставщик продаёт только scrap — лом.');
-    if (quantity > w.supplier.stock) throw new Error('У поставщика недостаточно лома.');
-    if (quantity > this.#space()) throw new Error('На складе недостаточно свободного места.');
-    this.#pay(quantity * w.supplier.price);
-    w.supplier.stock -= quantity; w.inventory.scrap += quantity; w.metrics.bought += quantity;
-    return quantity;
+  buy(product,quantity,supplierId='yard'){
+    integer(quantity,'Количество');const w=this.#world,s=w.suppliers.find(s=>s.id===supplierId);
+    if(!s)throw new Error('Поставщик не найден.');
+    if(s.product!==product)throw new Error('Поставщик продаёт только '+s.product+'.');
+    if(!w.regions.includes(s.region))throw new Error('Сначала откройте регион: '+s.region);
+    if(quantity>s.stock)throw new Error('У поставщика недостаточно товара.');
+    if(quantity>this.#space())throw new Error('На складе недостаточно свободного места.');
+    this.#pay(quantity*s.price);s.stock-=quantity;w.inventory[product]+=quantity;w.metrics.bought+=quantity;w.supplier.stock=w.suppliers[0].stock;return quantity;
   }
   produce(product, quantity, lineId = 'line-1') {
     integer(quantity, 'Размер партии');
@@ -155,6 +171,7 @@ export class CityEngine {
     integer(quantity, 'Количество');
     const w = this.#world, buyer = w.buyers.find(item => item.id === buyerId);
     if (!buyer || buyer.product !== product) throw new Error('Покупатель не принимает этот товар.');
+    if (!w.regions.includes(buyer.region)) throw new Error('Сначала откройте регион: ' + buyer.region);
     if (buyer.remote) throw new Error('Этот покупатель принимает доставку через cq.logistics.dispatch.');
     if (quantity > buyer.demand) throw new Error('Покупателю не требуется столько товара.');
     if (quantity > w.inventory[product]) throw new Error('На складе недостаточно товара.');
@@ -221,10 +238,11 @@ export class CityEngine {
   advance() {
     const w = this.#world;
     w.tick++;
-    w.supplier.stock = Math.min(120, w.supplier.stock + 4);
+    w.suppliers.forEach((s,i)=>{s.stock=Math.min(SUPPLIERS[i].limit,s.stock+SUPPLIERS[i].refill);});
+    w.supplier.stock=w.suppliers[0].stock;
     w.buyers.forEach((buyer, i) => {
       buyer.demand = Math.min(buyer.limit, buyer.demand + 1);
-      buyer.price = BUYERS[i].price + ((w.tick + i * 2) % 7) - 3;
+      buyer.price = BUYERS[i].price + ((w.tick + i * 2) % 7) - 3 + (regionEvents(w.tick).find(e=>e.region===buyer.region)?.priceBonus||0);
     });
     for (const line of w.lines) {
       if (line.job && --line.job.remaining === 0) {
@@ -247,6 +265,8 @@ export class CityEngine {
         item.status = 'available'; item.refreshAt = null;
       }
     });
+    w.history.push({tick:w.tick,balance:w.balance,revenue:w.metrics.revenue,spent:w.metrics.spent,inventory:copy(w.inventory),prices:Object.fromEntries(w.buyers.map(b=>[b.id,b.price]))});
+    if(w.history.length>120)w.history.splice(0,w.history.length-120);
     return this.snapshot();
   }
   apply(operations, { advance = true } = {}) {
@@ -280,11 +300,16 @@ export function migrateWorld(source) {
       return old ? { ...old, remote: buyer.remote } : buyer;
     });
   }
+  if(world.schema===undefined){
+    const d=initialWorld();world.schema=3;world.regions=['city'];world.history=[];world.inventory={...world.inventory,circuit:0};
+    world.suppliers=d.suppliers;world.suppliers[0].stock=world.supplier.stock;
+    world.buyers=d.buyers.map(b=>{const old=world.buyers?.find(v=>v.id===b.id);return old?{...old,region:b.region}:b;});
+  }
   return world;
 }
 export const STARTER_CODE = '/** @param {CityAPI} cq */\nexport function main(cq) {\n  // Первое задание: изучите состояние своей мастерской.\n  const world = cq.world.getState();\n  // cq.print("Баланс:", world.balance);\n  // cq.print("Склад:", world.inventory);\n}\n';
 export function initialSave() {
-  return { version: 1, world: initialWorld(), files: { 'index.js': STARTER_CODE }, memory: {}, tutorial: { completed: [] } };
+  return { version: 1, world: initialWorld(), files: { 'index.js': STARTER_CODE, ...DASHBOARD_EXAMPLES }, memory: {}, tutorial: { completed: [] }, workspace: { active: 'index.js', tabs: ['index.js'], folders: [] }, dashboards: normalizeDashboardPrefs({ entry: 'dashboards/overview.js' }) };
 }
 export function validateMemory(memory) {
   if (!memory || typeof memory !== 'object' || Array.isArray(memory)) throw new Error('cq.memory должен быть объектом.');
@@ -293,17 +318,6 @@ export function validateMemory(memory) {
   if (json.length > 16384) throw new Error('Память скрипта превышает 16 КБ.');
   return JSON.parse(json);
 }
-export function validateFiles(files) {
-  if (!files || typeof files !== 'object' || Array.isArray(files) ||
-      typeof files['index.js'] !== 'string' || Object.keys(files).length > 20) throw new Error('Некорректные файлы проекта.');
-  let total = 0;
-  for (const [name, code] of Object.entries(files)) {
-    if (!/^[a-zA-Z0-9_-]+\.js$/.test(name) || typeof code !== 'string') throw new Error('Используйте имена вида helpers.js.');
-    total += code.length;
-  }
-  if (total > 200000) throw new Error('Размер проекта превышает 200 КБ.');
-  return { ...files };
-}
 export function readCitySave(storage) {
   let text;
   try { if (!storage) throw new Error('storage unavailable'); text = storage.getItem(CITY_SAVE_KEY); } catch { return { save: initialSave(), warning: 'Хранилище недоступно. Прогресс останется только до закрытия страницы.' }; }
@@ -311,7 +325,7 @@ export function readCitySave(storage) {
   try {
     const data = JSON.parse(text);
     if (data.version !== 1) throw new Error('Версия сохранения не поддерживается.');
-    return { save: { version: 1, world: copy(validateWorld(migrateWorld(data.world))), files: validateFiles(data.files), memory: validateMemory(data.memory), tutorial: validateTutorial(data.tutorial) }, warning: '' };
+    return { save: { version: 1, world: copy(validateWorld(migrateWorld(data.world))), files: validateFiles(data.files), memory: validateMemory(data.memory), tutorial: validateTutorial(data.tutorial), workspace: normalizeWorkspace(data.workspace,data.files), dashboards: normalizeDashboardPrefs(data.dashboards) }, warning: '' };
   } catch {
     return { save: initialSave(), warning: 'Сохранение комбината повреждено. Оно сохранено в браузере; новая игра заменит его после первого действия.' };
   }

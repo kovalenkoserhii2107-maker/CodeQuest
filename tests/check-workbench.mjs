@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import { ProjectFiles } from '../js/city/project.js';
+import { DashboardPreferences, validateDashboard } from '../js/city/dashboard-model.js';
+import { DASHBOARD_EXAMPLES, HTML_DASHBOARD } from '../js/city/dashboard-examples.js';
+import { CityEngine, initialWorld, initialSave, readCitySave, CITY_SAVE_KEY } from '../js/city/engine.js';
+import { createCityAPI } from '../js/city/api.js';
+import { buildProject } from '../js/act2/loader.js';
+
+const project=new ProjectFiles(initialSave().files);
+project.createFolder('strategies/helpers');
+assert.ok(project.folders().includes('strategies'));
+project.create('strategies/helpers/trade.js','import { quantity } from "../../config.js"; export const amount=quantity;');
+project.create('config.js','export const quantity=2;');
+project.write('index.js','import { amount } from "./strategies/helpers/trade.js"; export function main(cq) { cq.buy("scrap",amount); }');
+project.rename('strategies','automation',true);project.rename('config.js','settings/config.js');
+assert.ok(project.files()['index.js'].includes('./automation/helpers/trade.js'));
+assert.ok(project.files()['automation/helpers/trade.js'].includes('../../settings/config.js'));
+const before=project.files();
+assert.throws(()=>project.rename('index.js','main.js'));
+assert.throws(()=>project.rename('automation','automation/inside',true));
+assert.throws(()=>project.create('../bad.js'));
+assert.deepEqual(project.files(),before);
+project.open('automation/helpers/trade.js');project.close('automation/helpers/trade.js');
+assert.equal(project.active(),'settings/config.js');
+assert.deepEqual(new ProjectFiles(project.files(),project.workspace()).workspace(),project.workspace());
+const graph=buildProject(new Map(Object.entries(project.files())),'index.js',s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64'));
+const module=await import(graph.url),economic=new CityEngine();module.main(createCityAPI(economic,{}));
+assert.equal(economic.snapshot().inventory.scrap,2);
+project.remove('automation',true);assert.equal(project.files()['automation/helpers/trade.js'],undefined);assert.throws(()=>project.remove('index.js'));
+console.log('✓ nested project, imports after rename, protected entry, tabs and persistence');
+
+assert.throws(()=>validateDashboard({widgets:[{id:'x',type:'chart',points:[Infinity]}]}));
+assert.throws(()=>validateDashboard({widgets:[{id:'x',type:'stat'},{id:'x',type:'text'}]}));
+assert.throws(()=>validateDashboard({widgets:[{id:'__proto__',type:'stat'}]}));
+assert.throws(()=>validateDashboard({html:'x'.repeat(150001)}));
+assert.equal(validateDashboard({html:'<h1>Mine</h1>',css:'h1{color:red}',height:650}).height,650);
+const prefs=new DashboardPreferences();prefs.select('dashboards/finance.js');prefs.change(prefs.entry(),{columns:2,order:['chart','cash'],widths:{cash:2},hidden:['note']});prefs.input(prefs.entry(),'product','wire');
+assert.deepEqual(new DashboardPreferences(prefs.snapshot()).snapshot(),prefs.snapshot());
+prefs.renamePaths('dashboards','dashboards/archive',true);assert.equal(prefs.entry(),'dashboards/archive/finance.js');assert.equal(prefs.inputs(prefs.entry()).product,'wire');
+console.log('✓ bounded dashboard schema, layout, filters and custom HTML/CSS');
+
+const world=new CityEngine(),api=createCityAPI(world,{count:1},{readOnly:true,files:initialSave().files}),saved=world.snapshot();
+assert.throws(()=>api.market.buy('scrap',1),/Дашборд читает мир/);assert.throws(()=>api.world.explore('port'));
+api.memory.count++;assert.deepEqual(world.snapshot(),saved);assert.ok(api.project.listFiles().includes('index.js'));
+for(let i=0;i<125;i++)world.advance();assert.equal(api.analytics.getHistory().length,120);
+const history=api.analytics.getHistory();history[0].balance=999;assert.equal(world.getHistory()[0].balance,1000);
+for(const [path,code]of [...Object.entries(DASHBOARD_EXAMPLES),['dashboards/custom.js',HTML_DASHBOARD]]){
+ const files=new Map(Object.entries({...initialSave().files,[path]:code}));
+ const built=buildProject(files,path,s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64'));
+ const entry=await import(built.url);assert.ok(validateDashboard(await entry.render(api,{inputs:{product:'metal'}})).title);
+ assert.equal(world.snapshot().tick,125);
+}
+console.log('✓ real dashboard modules, readonly economy, cloned memory and bounded history');
+
+const regional=new CityEngine({...initialWorld(),balance:10000});
+assert.throws(()=>regional.buy('scrap',1,'port-yard'),/регион/);
+regional.openRegion('port');regional.buy('scrap',10,'port-yard');assert.equal(regional.snapshot().balance,9370);
+regional.produce('metal',5);regional.advance();regional.advance();
+assert.equal(regional.getQuote('metal',5,'harbor-metal','rail').canTrade,false);
+const quote=regional.getQuote('metal',5,'harbor-metal','barge');assert.equal(quote.canTrade,true);
+const cash=regional.snapshot().balance;regional.dispatch('metal',5,'harbor-metal','barge');
+for(let i=0;i<4;i++)regional.advance();assert.equal(regional.snapshot().balance,cash-20);regional.advance();assert.equal(regional.snapshot().balance,cash+quote.net);
+const unchanged=regional.snapshot();assert.throws(()=>regional.apply([{method:'buy',args:['scrap',1]},{method:'openRegion',args:['port']}]));assert.deepEqual(regional.snapshot(),unchanged);
+regional.openRegion('highlands');regional.buy('metal',10,'northern-metal');regional.unlock('wire');regional.unlock('circuits');regional.produce('wire',6);regional.advance();regional.produce('circuit',2);for(let i=0;i<4;i++)regional.advance();
+assert.equal(regional.snapshot().inventory.circuit,2);assert.equal(regional.getQuote('circuit',2,'northern-circuit','rail').canTrade,true);
+while(regional.snapshot().tick%24!==16)regional.advance();assert.equal(regional.getEvents()[1].priceBonus,8);
+const legacy=initialWorld();delete legacy.schema;delete legacy.regions;delete legacy.suppliers;delete legacy.history;delete legacy.inventory.circuit;legacy.buyers=legacy.buyers.slice(0,5).map(b=>{delete b.region;return b;});
+const old={version:1,world:legacy,files:{'index.js':'export function main() {}'},memory:{kept:true},tutorial:{completed:['inspect']}};
+const restored=readCitySave({getItem:key=>key===CITY_SAVE_KEY?JSON.stringify(old):null});assert.equal(restored.warning,'');assert.deepEqual(restored.save.files,old.files);assert.deepEqual(restored.save.memory,old.memory);assert.equal(restored.save.world.schema,3);
+console.log('✓ regions, permits, suppliers, compatible routes, events, circuits and save migration');

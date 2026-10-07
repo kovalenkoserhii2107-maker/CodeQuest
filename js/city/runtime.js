@@ -1,9 +1,10 @@
+import { validateDashboard } from './dashboard-model.js';
 import { validateFiles, validateMemory } from './engine.js';
 
 /** One fresh module worker per world step, with a deadline even for an infinite loop. */
 export class CityRuntime {
   #pending = null;
-  run(files, world, memory) {
+  run(files, world, memory, options={}) {
     if (this.#pending) return Promise.reject(new Error('Дождитесь завершения текущего шага.'));
     if (typeof Worker === 'undefined' || location.protocol === 'file:') {
       return Promise.reject(new Error('Для запуска кода откройте приложение через HTTP(S) в браузере с Web Worker.'));
@@ -26,6 +27,7 @@ export class CityRuntime {
         const result = event.data;
         if (!result?.ok) { finish(new Error(String(result?.error || 'Ошибка выполнения кода.'))); return; }
         try {
+          if(options.mode==='dashboard'){finish(null,{dashboard:validateDashboard(result.dashboard)});return;}
           const memory = validateMemory(result.memory);
           if (!Array.isArray(result.operations) || !Array.isArray(result.logs) || result.logs.length > 100 || !Array.isArray(result.reads) || result.reads.length > 1000 || result.reads.some(name => typeof name !== 'string') || !Array.isArray(result.modules) || result.modules.length > 20 || result.modules.some(name => typeof name !== 'string')) throw new Error('Некорректный ответ скрипта.');
           finish(null, { operations: result.operations, memory, reads: result.reads, modules: result.modules, logs: result.logs.map(line => String(line).slice(0, 2000)) });
@@ -33,7 +35,7 @@ export class CityRuntime {
       });
       worker.addEventListener('error', event => { event.preventDefault(); finish(new Error(event.message || 'Не удалось загрузить скрипт.')); });
       worker.addEventListener('messageerror', () => finish(new Error('Не удалось прочитать ответ скрипта.')));
-      worker.postMessage({ files, world, memory });
+      worker.postMessage({ files, world, memory, ...options });
     });
   }
   cancel() { this.#pending?.cancel(); }
