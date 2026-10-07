@@ -1,0 +1,99 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { readFile,mkdir } from 'node:fs/promises';
+import { resolve,extname } from 'node:path';
+import { chromium } from '@playwright/test';
+const root=resolve(import.meta.dirname,'..'),types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.ttf':'font/ttf','.webmanifest':'application/manifest+json'};
+const server=createServer(async(req,res)=>{const raw=new URL(req.url,'http://localhost').pathname,path=resolve(root,'.'+decodeURIComponent(raw==='/'?'/index.html':raw));if(!path.startsWith(root+'/')){res.writeHead(403);res.end();return;}try{res.setHeader('Content-Type',types[extname(path)]||'application/octet-stream');res.end(await readFile(path));}catch{res.writeHead(404);res.end();}});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));// Playwright's serviceWorkers:'block' injects code that throws in opaque sandboxed frames.
+const browser=await chromium.launch(),context=await browser.newContext({viewport:{width:1600,height:1100}}),page=await context.newPage(),errors=[];
+page.on('pageerror',e=>errors.push(e.message));const save=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('codequest.city.v1')));
+async function code(text,path='index.js'){await page.locator('[data-path="'+path+'"]').click();await page.waitForSelector('#city-campaign .monaco-editor');await page.evaluate(async({text,path})=>{const {editor}=await import('/vendor/editor.js');const model=editor.getModels().find(m=>m.uri.path.endsWith('/'+path));if(!model)throw new Error(path);model.setValue(text);},{text,path});}
+async function step(){await page.locator('[data-run]').click();await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);}
+async function refresh(){await page.locator('[data-dashboard-refresh]').click();await page.waitForFunction(()=>/render\(\)|Ошибка дашборда/.test(document.querySelector('[data-dashboard-status]').textContent));}
+await mkdir(resolve(root,'tests/artifacts'),{recursive:true});
+try {
+  await page.goto('http://127.0.0.1:'+server.address().port);
+  await context.grantPermissions(['clipboard-read','clipboard-write']);
+  await page.locator('[data-campaign="city"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
+  await page.locator('[data-task] [data-method="cq.world.getState"]').click();
+  const detail=page.locator('[data-api-path="cq.world.getState"]');
+  assert.equal(await detail.getAttribute('open'),'');
+  assert.ok((await detail.locator('summary').textContent()).includes('Чтение'));
+  const original=(await save()).files['index.js'];
+  await detail.locator('[data-api-main]').click();
+  assert.ok((await page.evaluate(()=>navigator.clipboard.readText())).startsWith('export function main(cq)'));
+  assert.equal((await save()).files['index.js'],original);
+  await page.locator('[data-api-search]').fill('');
+  await page.locator('[data-api-kind]').selectOption('command');
+  assert.equal(await page.locator('[data-api-path="cq.world.getState"]').count(),0);
+  assert.equal(await page.locator('[data-api-path="cq.market.buy"]').count(),1);
+  await page.locator('[data-api-kind]').selectOption('read');
+  assert.equal(await page.locator('[data-api-path="cq.market.buy"]').count(),0);
+  await page.locator('[data-api-search]').fill('no-such-method');
+  await page.locator('[data-api-clear]').click();
+  assert.ok((await page.locator('[data-api-count]').textContent()).includes('из'));
+  assert.equal(await detail.getAttribute('open'),'');
+  await page.locator('[data-api-search]').fill('zzzzz');
+  await page.locator('[data-api-search]').press('Escape');
+  assert.equal(await page.locator('[data-api-search]').inputValue(),'');
+  assert.equal(await page.locator('[data-api-kind]').inputValue(),'all');
+  await page.locator('[data-api-back]').click();
+  console.log('✓ lesson-to-API navigation, effect filters, counts, retained expansion, reset and clipboard template without source replacement');
+
+  await page.locator('[data-dashboard-live]').uncheck();
+  assert.equal((await save()).dashboards.live,false);
+  await page.locator('#city-campaign a[href="#/campaigns"]').click();
+  await page.locator('[data-campaign="city"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
+  assert.equal(await page.locator('[data-dashboard-live]').isChecked(),false);
+  await page.locator('[data-path="dashboards/overview.js"]').click();
+  await code('export function render(){return {widgets:[{id:"debounce",type:"stat",value:1}]};}','dashboards/overview.js');
+  await refresh();
+  await page.locator('[data-dashboard-live]').check();
+  await code('export function render(){return {widgets:[{id:"debounce",type:"stat",value:2}]};}','dashboards/overview.js');
+  await page.locator('[data-dashboard-live]').uncheck();
+  await page.waitForTimeout(700);
+  assert.ok((await page.locator('[data-widget="debounce"]').textContent()).includes('1'));
+  await refresh();
+  assert.ok((await page.locator('[data-widget="debounce"]').textContent()).includes('2'));
+  console.log('✓ live setting persists and disabling it cancels a queued render');
+
+  await page.evaluate(()=>{window.metricNode=document.querySelector('[data-metrics] strong');document.querySelector('[data-orders] details').open=true;});
+  await code('export function main(cq){cq.memory.kept=1;cq.market.buy("scrap",10);cq.factory.start("metal",5);}');
+  await step();
+  assert.equal((await save()).world.balance,950);
+  assert.equal((await save()).world.lines[0].job.remaining,1);
+  assert.equal(await page.evaluate(()=>window.metricNode===document.querySelector('[data-metrics] strong')),true);
+  assert.equal(await page.locator('[data-orders] details').getAttribute('open'),'');
+  await page.locator('[data-wait]').click();
+  assert.equal((await save()).world.inventory.metal,5);
+  const snapshot=await save();
+  await code('export function main(cq){cq.memory.kept=999;cq.market.buy("scrap",1);cq.factory.start("metal",999);}');
+  await step();
+  assert.deepEqual((await save()).world,snapshot.world);
+  assert.deepEqual((await save()).memory,snapshot.memory);
+  assert.equal(await page.locator('[data-run-status]').getAttribute('data-state'),'error');
+  await code('export function main(cq){cq.market.sell("metal",5,"foundry");}');
+  await page.locator('[data-preview]').click();await page.waitForFunction(()=>!document.querySelector('[data-preview]').disabled);
+  assert.deepEqual((await save()).world,snapshot.world);
+  await step();assert.equal((await save()).world.inventory.metal,0);
+  assert.ok((await save()).world.balance>snapshot.world.balance);
+  console.log('✓ production timing, metric DOM continuity, expanded panel retention, atomic world/memory rollback, preview and actual sale');
+
+  await page.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await page.locator('[data-run-status] strong').evaluate(el=>getComputedStyle(el).animationName),'none');
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('[data-task] [data-method]').first().click();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await page.screenshot({path:resolve(root,'tests/artifacts/api-polish-mobile-dark.png'),fullPage:true});
+  await page.locator('#city-campaign a[href="#/campaigns"]').click();await page.locator('#campaign-theme').click();await page.locator('[data-campaign="city"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
+  assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
+  await page.locator('[data-task] [data-method]').first().click();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await page.screenshot({path:resolve(root,'tests/artifacts/api-polish-mobile-light.png'),fullPage:true});
+  assert.deepEqual(errors,[]);
+  console.log('✓ reduced motion, expanded API on mobile in dark/light themes, no uncaught browser errors');
+} finally { await browser.close(); await new Promise(r=>server.close(r)); }
