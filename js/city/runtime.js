@@ -27,8 +27,8 @@ export class CityRuntime {
         if (!result?.ok) { finish(new Error(String(result?.error || 'Ошибка выполнения кода.'))); return; }
         try {
           const memory = validateMemory(result.memory);
-          if (!Array.isArray(result.operations) || !Array.isArray(result.logs) || result.logs.length > 100) throw new Error('Некорректный ответ скрипта.');
-          finish(null, { operations: result.operations, memory, logs: result.logs.map(line => String(line).slice(0, 2000)) });
+          if (!Array.isArray(result.operations) || !Array.isArray(result.logs) || result.logs.length > 100 || !Array.isArray(result.reads) || result.reads.length > 1000 || result.reads.some(name => typeof name !== 'string') || !Array.isArray(result.modules) || result.modules.length > 20 || result.modules.some(name => typeof name !== 'string')) throw new Error('Некорректный ответ скрипта.');
+          finish(null, { operations: result.operations, memory, reads: result.reads, modules: result.modules, logs: result.logs.map(line => String(line).slice(0, 2000)) });
         } catch (error) { finish(error); }
       });
       worker.addEventListener('error', event => { event.preventDefault(); finish(new Error(event.message || 'Не удалось загрузить скрипт.')); });
