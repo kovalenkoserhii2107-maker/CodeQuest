@@ -21,10 +21,15 @@ try {
   const detail=page.locator('[data-api-path="cq.world.getState"]');
   assert.equal(await detail.getAttribute('open'),'');
   assert.ok((await detail.locator('summary').textContent()).includes('Чтение'));
-  const original=(await save()).files['index.js'];
+  const original=await save();
   await detail.locator('[data-api-main]').click();
   assert.ok((await page.evaluate(()=>navigator.clipboard.readText())).startsWith('export function main(cq)'));
-  assert.equal((await save()).files['index.js'],original);
+  assert.deepEqual(await save(),original);
+  await page.evaluate(()=>{navigator.clipboard.writeText=async()=>{throw new Error('Clipboard unavailable');};});
+  await detail.locator('[data-api-copy]').click();
+  assert.ok((await detail.locator('[data-api-copy-status]').textContent()).includes('вручную'));
+  assert.ok((await page.evaluate(()=>getSelection().toString())).includes('cq.world.getState'));
+  await page.evaluate(()=>{delete navigator.clipboard.writeText;});
   await page.locator('[data-api-search]').fill('');
   await page.locator('[data-api-kind]').selectOption('command');
   assert.equal(await page.locator('[data-api-path="cq.world.getState"]').count(),0);
