@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="CodeQuest — космическая корпорация, которой управляет ваш код на JavaScript.">
+  <meta name="description" content="CodeQuest — практика JavaScript: космическая кампания и экономическая песочница.">
   <meta name="theme-color" content="#000000">
   <title>CodeQuest — корпорация на вашем коде</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="css/editor.css">
   <link rel="stylesheet" href="vendor/editor.css">
   <link rel="stylesheet" href="css/workspace.css">
+  <link rel="stylesheet" href="css/campaigns.css">
   <script>
     // Тема применяется до отрисовки, иначе при загрузке мигнёт чужой фон.
     try {
@@ -25,7 +26,35 @@
   </script>
 </head>
 <body>
-  <div class="layout">
+  <main id="campaign-menu" class="campaign-menu" aria-labelledby="campaign-title">
+    <header class="campaign-heading">
+      <div><p class="campaign-eyebrow">CodeQuest</p><h1 id="campaign-title" tabindex="-1">Выберите кампанию</h1>
+      <p>Учитесь управлять миром с помощью JavaScript: от первой функции до собственной системы.</p></div>
+      <button type="button" class="city-button" id="campaign-theme" aria-label="Переключить тему">Сменить тему</button>
+    </header>
+    <div class="campaign-cards">
+      <article class="campaign-card">
+        <p class="campaign-eyebrow">01 / сюжетная кампания</p>
+        <div class="campaign-art campaign-art--space" aria-hidden="true"><span>JS</span><i></i><i></i></div>
+        <h2>Космическая корпорация</h2>
+        <p>Существующая история CodeQuest. Решайте задания, открывайте корабли и управляйте корпорацией написанными функциями.</p>
+        <p class="campaign-detail">Пошаговое обучение · задания и практика · текущий прогресс сохраняется</p>
+        <a class="city-button campaign-start" href="#/path" data-campaign="space">Начать / продолжить</a>
+      </article>
+      <article class="campaign-card">
+        <p class="campaign-eyebrow">02 / экономическая песочница</p>
+        <div class="campaign-art campaign-art--city" aria-hidden="true"><span>&lt;/&gt;</span><i></i><i></i></div>
+        <h2>Городской комбинат</h2>
+        <p>Откройте мастерскую в промышленном городе. Пишите скрипты закупки, производства и торговли; превращайте небольшой цех в автоматизированное предприятие.</p>
+        <p class="campaign-detail">Свободная стратегия · проекты из JS-модулей · отдельное сохранение</p>
+        <a class="city-button campaign-start" href="#/city" data-campaign="city">Открыть песочницу</a>
+      </article>
+    </div>
+    <p class="campaign-footer">Две кампании — два отдельных мира. Вы можете переключаться между ними в любой момент.</p>
+    <p id="campaign-error" class="city-notice" role="alert" hidden></p>
+  </main>
+  <main id="city-campaign" class="city-campaign" hidden></main>
+  <div class="layout" id="space-campaign" hidden>
 
     <aside class="sidebar">
       <a class="brand" href="#/path">
@@ -42,6 +71,7 @@
       </a>
 
       <nav class="nav" aria-label="Разделы">
+        <a class="nav__link" href="#/campaigns">← Выбор кампании</a>
         <div>
           <p class="nav__group-title">Работа</p>
           <ul class="nav__list">
@@ -559,7 +589,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js"></script>
-  <script type="module" src="js/shell.js"></script>
+  <script type="module" src="js/launch.js"></script>
 </body>
 </html>

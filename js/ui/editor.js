@@ -45,7 +45,7 @@ function loadRuntime() {
   return runtime;
 }
 
-export function createEditor(container, { value='', onInput, onRun, filename='solution.js', functionName='', toolsContainer=null, siblings=null }={}) {
+export function createEditor(container, { value='', onInput, onRun, filename='solution.js', functionName='', toolsContainer=null, siblings=null, includeLiveFunctions=true, extraDeclarations='' }={}) {
   let editor, model, m, disposed = false, wrap = false;
   // Соседние файлы проекта: без них редактор считает «./sort.js» ненайденным
   // модулем и рисует ошибку на верном коде
@@ -68,7 +68,7 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
       <label>Найти метод <input type="search" placeholder="Например: reduce, find, Math.ceil" aria-label="Поиск в справочнике"></label>
       <div data-reference></div>
     </details>
-    <p class="editor__legend"><span>Ctrl/Cmd + Space — подсказки</span><span>Ctrl/Cmd + Enter — тесты</span><span>Shift + Alt + F — форматирование</span><span>F1 — команды редактора</span></p>`;
+    <p class="editor__legend"><span>Ctrl/Cmd + Space — подсказки</span><span>Ctrl/Cmd + Enter — запуск</span><span>Shift + Alt + F — форматирование</span><span>F1 — команды редактора</span></p>`;
   const host=container.querySelector('.monaco-host');
   const fallback=host.querySelector('textarea'); fallback.value=value;
   fallback.addEventListener('input',()=>onInput?.(fallback.value));
@@ -97,7 +97,7 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
   loadRuntime().then(monaco=>{
     if(disposed) return;
     m=monaco;
-    const dependencies=liveFunctions().filter(item=>item.fn!==functionName).map(item=>{
+    const dependencies=(includeLiveFunctions ? liveFunctions() : []).filter(item=>item.fn!==functionName).map(item=>{
       const parameters=item.stage.solution.match(/function\s+\w+\s*\(([^)]*)\)/)?.[1] ?? '...args';
       return `/** ${item.stage.title}. ${item.stage.signature} */\ndeclare function ${item.fn}(${parameters.split(',').filter(Boolean).map(p=>`${p.trim()}: any`).join(',')}): any;`;
     }).join('\n');
@@ -106,7 +106,7 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
     m.typescript.javascriptDefaults.setDiagnosticsOptions({
       diagnosticCodesToIgnore:[7005,7006,7008,7016,7031,7034,7043,7044],
     });
-    track(m.typescript.javascriptDefaults.addExtraLib(dependencies,`file:///dependencies-${++serial}.d.ts`));
+    track(m.typescript.javascriptDefaults.addExtraLib(dependencies + '\n' + extraDeclarations,`file:///dependencies-${++serial}.d.ts`));
     folder=`file:///quests/${serial}`;
     model=m.editor.createModel(fallback.value,'javascript',m.Uri.parse(`${folder}/${filename}`));
     if(siblings) syncSiblings(siblings);

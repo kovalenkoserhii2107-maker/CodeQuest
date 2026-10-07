@@ -14,7 +14,7 @@ import { renderConsole } from './ui/console.js';
 import { renderDatabase, renderPanels } from './ui/dbview.js';
 import { disposeTask, renderTask } from './ui/task.js';
 import { renderLog } from './ui/log.js';
-import { renderPlant } from './ui/plant.js';
+import { renderPlant, disposePlant } from './ui/plant.js';
 import { renderView, corporationName, toast } from './ui.js';
 import { isFallbackMode } from './runner.js';
 import { refreshNotificationDot } from './shell.js';
@@ -41,6 +41,8 @@ const VIEW_TITLES = {
   panels: 'Ваши панели',
   log: 'Журнал',
 };
+
+let campaignActive = false;
 
 const el = id => document.getElementById(id);
 
@@ -101,7 +103,9 @@ function showView(name) {
 /* --- Маршрутизация ------------------------------------------------------- */
 
 function render() {
+  if (!campaignActive) return;
   disposeTask();
+  disposePlant();
   const { name, param } = parseRoute();
   renderNav();
   renderHud();
@@ -185,6 +189,7 @@ function render() {
 
 window.addEventListener('hashchange', render);
 subscribe(() => {
+  if (!campaignActive) return;
   renderNav();
   renderHud();
 });
@@ -197,17 +202,17 @@ el('reset-progress').addEventListener('click', () => {
   }
 });
 
-if (!location.hash) navigate('#/path');
-render();
+export function activateSpaceCampaign() {
+  campaignActive = true;
+  render();
+}
+export function deactivateSpaceCampaign() {
+  campaignActive = false;
+  disposeTask();
+  disposePlant();
+}
 
 if (isFallbackMode() || location.protocol === 'file:') {
   el('fallback-banner').hidden = false;
 }
 
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {
-      /* офлайн-режим просто не включится */
-    });
-  });
-}
