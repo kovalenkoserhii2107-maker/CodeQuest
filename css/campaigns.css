@@ -88,3 +88,59 @@
   .city-workspace .monaco-host { height: 360px; }
   .city-panel-heading { align-items: flex-start; }
 }
+
+
+/* Guided learning and world systems. */
+.city-primary { min-width: 0; display: grid; gap: 24px; }
+.city-orientation { margin-bottom: 24px; }
+.city-orientation > p { max-width: 1050px; }
+.city-world-cycle { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 24px 0 16px; list-style: none; }
+.city-world-cycle li { border-left: 2px solid var(--color-line); padding-left: 14px; min-width: 0; }
+.city-world-cycle strong, .city-world-cycle span { display: block; }
+.city-world-cycle span { color: var(--color-muted); margin-top: 8px; font-size: .85rem; overflow-wrap: anywhere; }
+.city-shortcuts, .city-api-groups { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.city-task h2 { font-size: 1.55rem; }
+.city-task-objective { font-size: 1.05rem; }
+.city-task-api { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.city-task-api code { background: var(--surface-raised); border: 1px solid var(--color-line); padding: 6px 10px; border-radius: 6px; }
+.city-task details { margin-top: 12px; }
+.city-task summary { min-height: 44px; cursor: pointer; padding: 10px 0; }
+.city-task pre { font: .85rem/1.6 var(--font-mono); color: var(--code-text); background: var(--code-bg); white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--color-line); padding: 16px; border-radius: 8px; margin: 10px 0; }
+.city-task-check { border-top: 1px solid var(--color-line); padding-top: 16px; margin-top: 18px; font-size: .85rem; color: var(--color-muted); }
+.city-lesson-list { display: grid; gap: 6px; list-style: none; }
+.city-lesson-list button { display: block; width: 100%; text-align: left; padding: 12px; }
+.city-lesson-list span, .city-lesson-list small { display: block; }
+.city-lesson-list small { color: var(--color-muted); margin-top: 6px; font-size: .75rem; }
+.city-lesson-list [aria-current="step"] { border-color: var(--color-accent); }
+.city-lesson-list [aria-pressed="true"] { background: var(--surface-chip); }
+.city-lesson-feedback { color: var(--color-muted); font-size: .85rem; margin: 12px 0; }
+.city-line-list { display: grid; gap: 10px; margin-bottom: 18px; }
+.city-line-list p { border: 1px solid var(--color-line); border-radius: 8px; padding: 12px; }
+.city-contract { border-top: 1px solid var(--color-line); padding: 12px 0; }
+.city-contract h3 { margin-top: 0; }
+.city-contract p { font-size: .85rem; }
+.city-state-fields dt { font-family: var(--font-mono); margin-top: 16px; overflow-wrap: anywhere; }
+.city-state-fields dd { color: var(--color-muted); margin-top: 6px; }
+.city-state-json { max-height: 480px; overflow: auto; font: .85rem/1.6 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; background: var(--code-bg); }
+.city-api-search { display: flex; flex-direction: column; gap: 10px; max-width: 700px; margin: 20px 0; }
+.city-api-search input { width: 100%; min-height: 44px; border: 1px solid var(--color-line); border-radius: 8px; color: var(--color-text); background: var(--surface-sunken); padding: 12px; font: inherit; }
+.city-api-search input:focus-visible { outline: 2px solid var(--color-text); outline-offset: 2px; }
+.city-api-groups { margin-bottom: 24px; }
+.city-api-groups [aria-pressed="true"] { border-color: var(--color-accent); }
+.city-api-method { border: 1px solid var(--color-line); border-radius: 10px; padding: 12px 18px; }
+.city-api-method summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.city-api-method summary code { font-size: .95rem; }
+.city-api-method summary span { font-size: .75rem; color: var(--color-muted); }
+.city-api-method p { margin: 12px 0; }
+.city-api-method summary::before { content: "+"; font-family: var(--font-mono); }
+.city-api-method[open] summary::before { content: "−"; }
+.city-workspace [data-editor].is-expanded { position: fixed; inset: 16px; z-index: 100; overflow: auto; padding: 20px; background: var(--surface-panel); border: 1px solid var(--color-line); border-radius: 12px; }
+.city-workspace [data-editor].is-expanded .monaco-host { height: 65vh; }
+@media (max-width: 1000px) {
+  .city-world-cycle { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .city-world-cycle { grid-template-columns: minmax(0, 1fr); }
+  .city-api-method { padding: 12px; }
+  .city-workspace [data-editor].is-expanded { inset: 8px; padding: 12px; }
+}

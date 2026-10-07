@@ -1,37 +1,43 @@
 import {
   CityEngine, CITY_SAVE_KEY, initialSave, readCitySave, validateFiles, validateMemory
 } from './engine.js';
+import { PRODUCTS } from './catalog.js';
 import { CityRuntime } from './runtime.js';
+import { CityLessons } from './lessons.js';
+import { LessonView } from './lesson-ui.js';
+import { API_TYPES, mountReference } from './api-reference.js';
 import { createEditor } from '../ui/editor.js';
 import { escapeHtml } from '../ui/html.js';
 
-const names = { scrap: 'Лом', metal: 'Металл', parts: 'Детали' };
 const number = value => value.toLocaleString('ru-RU');
 const money = value => number(value) + ' ₽';
-const API_TYPES = [
-  'interface CityBuyer { id: string; name: string; product: string; price: number; demand: number; limit: number; }',
-  'interface CityState { tick: number; balance: number; capacity: number; machineLevel: number; warehouseLevel: number;',
-  ' inventory: { scrap: number; metal: number; parts: number }; job: { product: string; quantity: number; remaining: number } | null;',
-  ' supplier: { product: string; price: number; stock: number }; buyers: CityBuyer[]; metrics: Record<string, number>; }',
-  'interface CityAPI { getState(): CityState; memory: Record<string, any>; print(...values: any[]): void;',
-  ' buy(product: "scrap", quantity: number): number; produce(product: "metal" | "parts", quantity: number): any;',
-  ' sell(product: "metal" | "parts", quantity: number, buyerId: string): number; upgrade(target: "warehouse" | "machine"): number; }'
-].join('\n');
+const statuses = { available: 'Доступен', active: 'Принят', cooldown: 'Обновляется' };
 
 export function mountCity(root) {
   let storage;
   try { storage = localStorage; } catch { /* readCitySave reports inaccessible storage */ }
   const loaded = readCitySave(storage);
-  let save = loaded.save, engine = new CityEngine(save.world), editor, file = 'index.js';
-  let disposed = false, busy = false, automatic = false, timer, generation = 0;
+  let save = loaded.save, engine = new CityEngine(save.world), lessons = new CityLessons(save.tutorial), editor, file = 'index.js';
+  let disposed = false, busy = false, automatic = false, timer, generation = 0, lessonView;
   const runtime = new CityRuntime(), output = [];
   root.innerHTML = [
     '<header class="city-header"><div><p class="campaign-eyebrow">CodeQuest / песочница</p>',
     '<h1>Городской комбинат</h1><p>Ваша мастерская. Ваша стратегия. Ваш JavaScript.</p></div>',
     '<a href="#/campaigns" class="city-button">Выбор кампании</a></header>',
     '<p class="city-notice" data-notice role="status"></p>',
+    '<section class="city-orientation city-panel"><h2>Как устроен мир</h2>',
+    '<p>Вы владелец городской мастерской. Покупайте лом, превращайте его в товары и выбирайте между продажей на рынке, заказами города и доставкой в другие районы.</p>',
+    '<ol class="city-world-cycle"><li><strong>1. Прочитать</strong><span>Получите состояние через cq.world.getState().</span></li>',
+    '<li><strong>2. Решить</strong><span>Проверьте деньги, сырьё, спрос и оборудование.</span></li>',
+    '<li><strong>3. Действовать</strong><span>Вызовите команды в main(cq). Они выполняются по порядку.</span></li>',
+    '<li><strong>4. Перевести время</strong><span>После успешного запуска мир проходит один шаг: партии и доставки продвигаются.</span></li></ol>',
+    '<p class="city-muted">Пробный запуск ничего не сохраняет. Ошибка отменяет весь шаг. «Пропустить шаг» двигает время без выполнения кода.</p>',
+    '<div class="city-shortcuts"><button type="button" data-jump="task">Текущее задание</button><button type="button" data-jump="api">Справочник API</button><button type="button" data-jump="world">Мастерская и рынок</button></div>',
+    '</section>',
     '<div class="city-metrics" data-metrics></div>',
-    '<div class="city-grid"><section class="city-workspace city-panel" aria-labelledby="city-code-title">',
+    '<div class="city-grid"><div class="city-primary">',
+    '<section class="city-panel city-task" data-task aria-label="Учебное задание"></section>',
+    '<section class="city-workspace city-panel" aria-labelledby="city-code-title">',
     '<div class="city-panel-heading"><h2 id="city-code-title">Проект мастерской</h2><button type="button" data-add>+ Файл</button></div>',
     '<div class="city-files" data-files role="group" aria-label="Файлы проекта"></div>',
     '<div data-editor></div>',
@@ -39,29 +45,27 @@ export function mountCity(root) {
     '<button type="button" data-preview>Пробный запуск</button>',
     '<button type="button" data-auto aria-pressed="false">Автоматизация: выкл.</button>',
     '<button type="button" data-wait>Пропустить шаг</button></div>',
-    '<p class="city-muted">main(cq) вызывается один раз на шаг. Автоматизация повторяет ваш код каждую секунду. При выходе в меню мир останавливается.</p>',
+    '<p class="city-muted">main(cq) вызывается один раз на шаг. Автоматизация повторяет проект через секунду после завершения предыдущего запуска. При выходе в меню мир останавливается.</p>',
+    '<p class="city-lesson-feedback" data-feedback role="status"></p>',
     '<h3>Вывод скрипта</h3><pre class="city-output" data-output role="log" aria-label="Вывод скрипта" aria-live="polite"></pre>',
-    '</section><aside class="city-side">',
-    '<section class="city-panel"><h2>Мастерская и рынок</h2><div data-world></div></section>',
-    '<section class="city-panel"><h2>От первой строки к стратегии</h2><ol class="city-goals" data-goals></ol>',
-    '<p class="city-muted">Это ориентиры: все команды доступны сразу, а решение и порядок действий выбираете вы.</p></section>',
+    '</section></div><aside class="city-side">',
+    '<section class="city-panel" data-board></section>',
+    '<section class="city-panel" data-world-panel><h2>Мастерская и рынок</h2><div data-world></div></section>',
+    '<section class="city-panel"><h2>Городские контракты</h2><div data-contracts></div>',
+    '<p class="city-muted">Два заказа одновременно. Сдайте до deadline; просрочка не списывает деньги. После выполнения заказ обновляется через 5 шагов.</p></section>',
+    '<section class="city-panel"><h2>Доставка и исследования</h2><div data-expansion></div></section>',
     '</aside></div>',
-    '<section class="city-panel city-api"><h2>API мастерской</h2>',
-    '<p>В index.js экспортируйте <code>main(cq)</code>. Функция может быть async. Команды выполняются в порядке вызова; если шаг завершится ошибкой, его изменения отменяются.</p>',
-    '<dl><dt>cq.getState()</dt><dd>Копия мира: balance, inventory, job, supplier, buyers, capacity, tick. Меняйте мир командами, а не полями этой копии.</dd>',
-    '<dt>cq.buy("scrap", количество)</dt><dd>Лом стоит 4 ₽ за единицу. Учитывайте деньги, запас поставщика и свободное место.</dd>',
-    '<dt>cq.produce("metal", количество)</dt><dd>1 металл = 2 лома + 2 ₽ энергии; партия готова через 2 шага.</dd>',
-    '<dt>cq.produce("parts", количество)</dt><dd>1 деталь = 2 металла + 6 ₽ энергии; готова через 3 шага. Один станок, до 8 единиц за партию на первом уровне.</dd>',
-    '<dt>cq.sell(товар, количество, buyerId)</dt><dd>Цена и спрос находятся в buyers. Выберите покупателя через find, filter или sort. Цены меняются каждый шаг.</dd>',
-    '<dt>cq.upgrade("warehouse" | "machine")</dt><dd>Склад: +100 мест, от 500 ₽. Станок: +8 единиц за партию, от 750 ₽. Цена умножается на текущий уровень; максимум — 6.</dd>',
-    '<dt>cq.print(...значения)</dt><dd>Вывод в журнал, также работает console.log.</dd>',
-    '<dt>cq.memory</dt><dd>Объект для данных между шагами (до 16 КБ JSON). Обычные переменные модулей создаются заново при каждом запуске.</dd></dl>',
-    '<details><summary>Подсказка: первая партия</summary><pre>',
-    escapeHtml('/** @param {CityAPI} cq */\nexport function main(cq) {\n  const s = cq.getState();\n  if (s.inventory.scrap < 10 && !s.job) {\n    cq.buy("scrap", 10);\n  }\n  if (!cq.getState().job) {\n    cq.produce("metal", 5);\n  }\n}\n// После запуска пропустите шаг: партия будет готова.\n// Затем напишите продажу через cq.sell("metal", 5, "foundry").'),
-    '</pre></details>',
-    '<details><summary>Модули: вынесите стратегию в другой файл</summary><pre>',
-    escapeHtml('// strategy.js\nexport function bestBuyer(buyers, product) {\n  return buyers.filter(b => b.product === product && b.demand > 0)\n    .sort((a, b) => b.price - a.price)[0];\n}\n\n// index.js\nimport { bestBuyer } from "./strategy.js";\n/** @param {CityAPI} cq */\nexport function main(cq) {\n  const s = cq.getState();\n  const buyer = bestBuyer(s.buyers, "metal");\n  const amount = Math.min(s.inventory.metal, buyer?.demand ?? 0);\n  if (amount > 0) cq.sell("metal", amount, buyer.id);\n}'),
-    '</pre><p class="city-muted">Поддерживаются относительные импорты файлов проекта без циклов. До 20 файлов и 200 КБ кода; 100 команд и 3 секунды на шаг.</p></details>',
+    '<section class="city-panel"><h2>Что возвращает getState()</h2>',
+    '<p class="city-muted">Это снимок для чтения: изменение его полей не меняет мир. Используйте команды API. Программные ID товаров: scrap (лом), metal (металл), parts (детали), wire (провод).</p>',
+    '<dl class="city-state-fields"><dt>balance, tick</dt><dd>Баланс в рублях и текущий номер шага.</dd>',
+    '<dt>inventory, capacity</dt><dd>Готовые товары на складе и его вместимость. getFreeSpace() также учитывает резерв незавершённых партий.</dd>',
+    '<dt>lines</dt><dd>Массив независимых линий: id, level, job. Для свободной линии job=null.</dd>',
+    '<dt>buyers, supplier</dt><dd>Цены, спрос покупателей и запас поставщика. Для remote-покупателей нужна доставка.</dd>',
+    '<dt>contracts, shipments, research</dt><dd>Принятые заказы, грузы в пути, ID открытых технологий. Каталоги и подробности — в соответствующих разделах API.</dd>',
+    '<dt>metrics</dt><dd>Куплено, произведено, продано, доставлено, выполнено контрактов, выручка и все расходы.</dd></dl>',
+    '<details><summary>Посмотреть текущее состояние целиком</summary><pre class="city-state-json" data-snapshot></pre></details></section>',
+    '<section class="city-panel city-api" data-api></section>',
+    '<section class="city-panel"><h2>Управление сохранением</h2><p class="city-muted">Мир, файлы, память и выполненные задания комбината сохраняются отдельно от космической кампании.</p>',
     '<button type="button" class="city-reset" data-reset>Начать комбинат заново</button></section>'
   ].join('');
   const el = selector => root.querySelector(selector);
@@ -72,7 +76,7 @@ export function mountCity(root) {
     el('[data-output]').scrollTop = el('[data-output]').scrollHeight;
   }
   function persist() {
-    save.world = engine.snapshot();
+    save.world = engine.snapshot(); save.tutorial = lessons.snapshot();
     try {
       if (!storage) throw new Error('storage unavailable');
       storage.setItem(CITY_SAVE_KEY, JSON.stringify(save));
@@ -84,7 +88,7 @@ export function mountCity(root) {
     for (const name of Object.keys(save.files)) {
       const button = document.createElement('button');
       button.type = 'button'; button.textContent = name; button.setAttribute('aria-pressed', String(name === file));
-      button.addEventListener('click', () => { if (busy || file === name) return; file = name; renderEditor(); renderFiles(); });
+      button.addEventListener('click', () => { if (busy || automatic || file === name) return; file = name; renderEditor(); renderFiles(); });
       container.append(button);
     }
   }
@@ -93,66 +97,86 @@ export function mountCity(root) {
     editor = createEditor(el('[data-editor]'), {
       filename: file, value: save.files[file], siblings: { ...save.files },
       includeLiveFunctions: false, extraDeclarations: API_TYPES,
-      onInput: code => {
-        save.files[file] = code; editor?.syncSiblings(save.files); persist();
-      },
-      onRun: () => step(false)
+      onInput: code => { save.files[file] = code; editor?.syncSiblings(save.files); persist(); },
+      onRun: () => { if (!automatic) step(false); }
     });
   }
-  function update() {
+  function updateWorld() {
     const w = engine.snapshot(), used = Object.values(w.inventory).reduce((a, b) => a + b, 0);
     el('[data-metrics]').innerHTML = [
       ['Баланс', money(w.balance)], ['Шаг мира', number(w.tick)],
-      ['Склад', used + ' / ' + w.capacity], ['Результат торговли', money(w.metrics.revenue - w.metrics.spent)]
+      ['Склад / свободно', used + '/' + w.capacity + ' · ' + engine.getFreeSpace()],
+      ['Доходы − все расходы', money(w.metrics.revenue - w.metrics.spent)]
     ].map(([label, value]) => '<div><span>' + label + '</span><strong>' + value + '</strong></div>').join('');
     el('[data-world]').innerHTML =
       '<dl class="city-stock">' + Object.entries(w.inventory).map(([key, value]) =>
-        '<dt>' + names[key] + '</dt><dd>' + number(value) + '</dd>').join('') + '</dl>' +
-      '<p><strong>Станок · уровень ' + w.machineLevel + '</strong><br>' +
-      (w.job ? names[w.job.product] + ': ' + w.job.quantity + ' ед., осталось шагов: ' + w.job.remaining : 'Свободен · партия до ' + (w.machineLevel * 8) + ' ед.') + '</p>' +
-      '<p>Лом: ' + money(w.supplier.price) + ' · в наличии ' + w.supplier.stock + '</p>' +
+        '<dt>' + PRODUCTS[key] + ' <code>' + key + '</code></dt><dd>' + number(value) + '</dd>').join('') + '</dl>' +
+      '<h3>Производственные линии</h3><div class="city-line-list">' + w.lines.map(line =>
+        '<p><strong>' + line.id + ' · уровень ' + line.level + '</strong><br>' +
+        (line.job ? PRODUCTS[line.job.product] + ': ' + line.job.quantity + ' ед.; осталось шагов: ' + line.job.remaining : 'Свободна · партия до ' + line.level * 8 + ' ед.') + '</p>').join('') + '</div>' +
+      '<p>Поставщик yard: лом ' + money(w.supplier.price) + ' · в наличии ' + w.supplier.stock + '</p>' +
       '<div class="city-table-scroll"><table><caption>Покупатели</caption><thead><tr><th>Покупатель / ID</th><th>Товар</th><th>Цена</th><th>Спрос</th></tr></thead><tbody>' +
-      w.buyers.map(b => '<tr><td>' + escapeHtml(b.name) + '<br><code>' + escapeHtml(b.id) + '</code></td><td>' + names[b.product] +
-        '</td><td>' + money(b.price) + '</td><td>' + b.demand + '</td></tr>').join('') + '</tbody></table></div>';
-    const goals = [
-      [w.metrics.bought >= 10, 'Первая поставка', 'Купите 10 лома: вызовы функций и аргументы.'],
-      [w.metrics.produced >= 5, 'Первая партия', 'Произведите 5 металла: объекты и условия.'],
-      [w.metrics.sold >= 5, 'Первая продажа', 'Продайте 5 единиц: массив покупателей, find и Math.min.'],
-      [w.metrics.revenue - w.metrics.spent >= 500, 'Прибыльная мастерская', 'Заработайте 500 ₽ сверх расходов: циклы, функции и стратегия.'],
-      [Object.keys(save.files).length > 1 && /\b(?:import|export)\b[\s\S]*?['"]\.\//.test(save.files['index.js']) && w.metrics.runs >= 5,
-        'Проект из модулей', 'Разделите стратегию на файлы и запустите её: import/export, память и автоматизация.']
-    ];
-    el('[data-goals]').innerHTML = goals.map(([done, title, description]) =>
-      '<li class="' + (done ? 'is-complete' : '') + '"><strong>' + (done ? '✓ ' : '') + title + '</strong><p>' + description + '</p></li>').join('');
-    for (const button of root.querySelectorAll('[data-run], [data-preview], [data-wait], [data-add], [data-reset], [data-files] button')) {
-      button.disabled = busy || automatic;
-    }
+      w.buyers.map(b => '<tr><td>' + escapeHtml(b.name) + '<br><code>' + escapeHtml(b.id) + '</code>' + (b.remote ? '<br><small>Доставка</small>' : '') +
+        '</td><td>' + PRODUCTS[b.product] + '</td><td>' + money(b.price) + '</td><td>' + b.demand + '</td></tr>').join('') + '</tbody></table></div>';
+    el('[data-contracts]').innerHTML = engine.getContracts().map(order => '<article class="city-contract"><h3>' + escapeHtml(order.name) +
+      '</h3><p><code>' + order.id + '</code> · ' + order.quantity + ' ' + PRODUCTS[order.product] + '</p><p>Награда: ' + money(order.reward) +
+      ' · срок: ' + order.duration + ' шагов</p><p class="city-muted">' + (order.locked ? 'Нужна технология wire' : statuses[order.status]) +
+      (order.status === 'active' ? ' · deadline=' + order.deadline + ' · осталось ' + (order.deadline - w.tick) :
+        order.status === 'cooldown' ? ' · обновится через ' + (order.refreshAt - w.tick) : '') + '</p></article>').join('');
+    el('[data-expansion]').innerHTML = '<h3>Маршруты</h3>' + engine.getRoutes().map(route =>
+      '<p><code>' + route.id + '</code>: ' + route.duration + ' шаг. · ' + money(route.fee) + ' · до ' + route.capacity +
+      ' ед. · ' + (route.busy ? 'занят' : 'свободен') + '</p>').join('') +
+      '<h3>Грузы в пути</h3>' + (w.shipments.length ? w.shipments.map(s => '<p>№' + s.id + ' · ' + s.quantity + ' ' + PRODUCTS[s.product] +
+        ' → <code>' + s.buyerId + '</code><br>Осталось ' + s.remaining + ' шаг. · ожидается ' + money(s.quantity * s.unitPrice) + '</p>').join('') : '<p class="city-muted">Нет грузов.</p>') +
+      '<h3>Технологии</h3>' + engine.getResearch().map(t => '<p><strong>' + escapeHtml(t.name) + '</strong> <code>' + t.id + '</code><br>' +
+        (t.unlocked ? 'Открыта' : money(t.cost)) + ' · ' + escapeHtml(t.description) + '</p>').join('') +
+      '<h3>Доступные рецепты</h3>' + engine.getRecipes().map(r => '<p><code>' + r.product + '</code> = ' + r.amount + ' ' + PRODUCTS[r.input] +
+        ' + ' + money(r.energy) + ' · ' + r.duration + ' шаг.</p>').join('');
+    el('[data-snapshot]').textContent = JSON.stringify(w, null, 2);
+  }
+  function update() {
+    updateWorld(); lessonView.render();
+    for (const button of root.querySelectorAll('[data-run], [data-preview], [data-wait], [data-add], [data-reset], [data-files] button')) button.disabled = busy || automatic;
     el('[data-auto]').textContent = 'Автоматизация: ' + (automatic ? 'вкл.' : 'выкл.');
     el('[data-auto]').setAttribute('aria-pressed', String(automatic));
   }
   function stop() { automatic = false; clearTimeout(timer); if (!disposed) update(); }
+  function evaluate(result, before, preview) {
+    const completed = lessons.evaluate({ ...result, before, after: engine.snapshot(), automatic, preview });
+    if (completed) {
+      log('Задание выполнено: ' + completed.title);
+      el('[data-feedback]').textContent = '✓ ' + completed.title + ' выполнено. ' +
+        (lessons.current() ? 'Следующее: ' + lessons.current().title : 'Все учебные задания выполнены. Развивайте собственную стратегию!');
+      lessonView.next(completed);
+    } else {
+      el('[data-feedback]').textContent = preview ? 'Проба: задания и прогресс не изменяются.' :
+        lessons.current() ? 'Текущее задание: ' + lessons.current().title + '. Условие проверки указано в его карточке.' : 'Свободная стратегия: все учебные задания выполнены.';
+    }
+  }
   async function step(preview = false) {
     if (busy || disposed) return;
     busy = true; const mine = generation; update();
-    const files = { ...save.files };
+    const files = { ...save.files }, before = engine.snapshot();
     try {
       validateFiles(files);
-      const result = await runtime.run(files, engine.snapshot(), save.memory);
+      const result = await runtime.run(files, before, save.memory);
       if (disposed || mine !== generation) return;
-      const candidate = new CityEngine(engine.snapshot());
-      candidate.apply(result.operations);
+      const candidate = new CityEngine(before); candidate.apply(result.operations);
       const memory = validateMemory(result.memory);
       result.logs.forEach(line => log((preview ? '[проба] ' : '') + line));
       if (preview) {
         const w = candidate.snapshot();
         log('[проба] Шаг ' + w.tick + ', баланс ' + money(w.balance) + '. Прогресс и память не изменены.');
+        evaluate(result, before, true);
       } else {
-        engine = candidate; save.memory = memory; persist();
+        engine = candidate; save.memory = memory;
+        evaluate(result, before, false); persist();
         log('Шаг ' + engine.snapshot().tick + ': выполнено команд — ' + result.operations.length + '.');
       }
     } catch (error) {
       if (disposed || mine !== generation) return;
       log('Ошибка: ' + error.message + ' Изменения шага отменены.');
+      el('[data-feedback]').textContent = 'Шаг отменён: задания не засчитаны. Исправьте ошибку из вывода скрипта.';
       stop();
     } finally {
       if (!disposed && mine === generation) {
@@ -163,11 +187,13 @@ export function mountCity(root) {
   }
   el('[data-run]').addEventListener('click', () => step(false));
   el('[data-preview]').addEventListener('click', () => step(true));
-  el('[data-wait]').addEventListener('click', () => { if (busy || automatic) return; engine.advance(); persist(); log('Шаг ' + engine.snapshot().tick + ': ожидание.'); update(); });
-  el('[data-auto]').addEventListener('click', () => {
-    if (automatic) stop();
-    else if (!busy) { automatic = true; update(); step(false); }
+  el('[data-wait]').addEventListener('click', () => {
+    if (busy || automatic) return;
+    const before = engine.snapshot(); engine.advance();
+    evaluate({ reads: [], operations: [], logs: [], memory: save.memory, modules: [] }, before, false);
+    persist(); log('Шаг ' + engine.snapshot().tick + ': ожидание.'); update();
   });
+  el('[data-auto]').addEventListener('click', () => { if (automatic) stop(); else if (!busy) { automatic = true; update(); step(false); } });
   el('[data-add]').addEventListener('click', () => {
     const name = window.prompt('Имя нового JavaScript-файла (например strategy.js):', 'strategy.js');
     if (!name) return;
@@ -178,15 +204,21 @@ export function mountCity(root) {
     } catch (error) { notice(error.message); }
   });
   el('[data-reset]').addEventListener('click', () => {
-    if (!window.confirm('Начать городской комбинат заново? Его деньги, файлы и память будут очищены.')) return;
-    stop(); generation++; runtime.cancel(); save = initialSave(); engine = new CityEngine(save.world);
-    file = 'index.js'; output.length = 0; el('[data-output]').textContent = ''; persist(); renderEditor(); renderFiles(); update();
+    if (!window.confirm('Начать городской комбинат заново? Его деньги, файлы, память и задания будут очищены.')) return;
+    stop(); generation++; runtime.cancel(); save = initialSave(); engine = new CityEngine(save.world); lessons = new CityLessons(save.tutorial);
+    lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons);
+    file = 'index.js'; output.length = 0; el('[data-output]').textContent = ''; el('[data-feedback]').textContent = '';
+    persist(); renderEditor(); renderFiles(); update();
   });
+  root.querySelectorAll('[data-jump]').forEach(button => button.addEventListener('click', () => {
+    const selector = { task: '[data-task]', api: '[data-api]', world: '[data-world-panel]' }[button.dataset.jump];
+    const target = el(selector); target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
   notice(loaded.warning);
-  renderEditor(); renderFiles(); update();
-  log('Мастерская открыта. Начните с cq.buy("scrap", 10).');
+  lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons);
+  mountReference(el('[data-api]')); renderEditor(); renderFiles(); update();
+  log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {
-    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel(); editor?.dispose();
-    root.replaceChildren();
+    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel(); editor?.dispose(); root.replaceChildren();
   };
 }
