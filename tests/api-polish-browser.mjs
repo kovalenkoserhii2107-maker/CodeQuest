@@ -17,6 +17,7 @@ try {
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   await page.locator('[data-campaign="city"]').click();
   await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
+  await page.locator('.city-section-nav [data-jump="task"]').click();
   await page.locator('[data-task] [data-method="cq.world.getState"]').click();
   const detail=page.locator('[data-api-path="cq.world.getState"]');
   assert.equal(await detail.getAttribute('open'),'');
