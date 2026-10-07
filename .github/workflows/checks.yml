@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - codex/workspace-custom-dashboards
+      - codex/sandbox-ux-economy
 permissions:
   contents: read
 jobs:

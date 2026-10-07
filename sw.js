@@ -5,7 +5,7 @@
  * Стратегия — «сначала сеть, кэш про запас»: так обновления страниц и кода
  * видны сразу после деплоя, а офлайн по-прежнему работает из кэша.
  */
-const CACHE = 'codequest-v18-workbench';
+const CACHE = 'codequest-v19-sandbox';
 
 const SHELL = [
   // editor-assets-start
@@ -48,6 +48,11 @@ const SHELL = [
   'js/city/dashboard-controller.js',
   'js/city/regions.js',
   'css/workbench.css',
+  'css/city-refinements.css',
+  'js/city/orders.js',
+  'js/city/insights.js',
+  'js/city/world-view.js',
+  'js/city/run-feedback.js',
   'js/shell.js',
   'js/state.js',
   'js/ui.js',
