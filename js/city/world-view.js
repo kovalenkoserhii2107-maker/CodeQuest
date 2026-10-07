@@ -31,6 +31,7 @@ export class CityWorldView {
       '<div class="city-table-scroll"><table><caption>Покупатели</caption><thead><tr><th>Покупатель / ID</th><th>Товар</th><th>Цена</th><th>Спрос</th></tr></thead><tbody>' +
       w.buyers.filter(b => (!el('[data-market-product]').value || b.product === el('[data-market-product]').value) && (!el('[data-market-region]').value || b.region === el('[data-market-region]').value)).map(b => '<tr><td>' + escapeHtml(b.name) + '<br><code>' + escapeHtml(b.id) + '</code>' + (b.remote ? '<br><small>Доставка</small>' : '')+'<br><small>'+b.region+(!w.regions.includes(b.region)?' · закрыт':'')+'</small>' +
         '</td><td>' + PRODUCTS[b.product] + '</td><td>' + money(b.price) + '</td><td>' + b.demand + '</td></tr>').join('') + '</tbody></table></div>';
+    if (!el('[data-world] tbody').children.length) el('[data-world] tbody').innerHTML = '<tr><td colspan="4">Нет покупателей для выбранных фильтров.</td></tr>';
     el('[data-contracts]').innerHTML = engine.getContracts().map(order => '<article class="city-contract"><h3>' + escapeHtml(order.name) +
       '</h3><p><code>' + order.id + '</code> · ' + order.quantity + ' ' + PRODUCTS[order.product] + '</p><p>Награда: ' + money(order.reward) +
       ' · срок: ' + order.duration + ' шагов</p><p class="city-muted">' + (order.locked ? 'Нужна технология wire' : statuses[order.status]) +

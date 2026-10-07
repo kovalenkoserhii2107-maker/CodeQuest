@@ -25,7 +25,7 @@ jobs:
         run: npm install --no-save --package-lock=false @playwright/test@1.55.1
       - run: npx playwright install --with-deps chromium
       - name: Verify campaigns in Chromium
-        run: node tests/campaign-browser.mjs && node tests/city-world-browser.mjs && node tests/workbench-browser.mjs
+        run: node tests/campaign-browser.mjs && node tests/city-world-browser.mjs && node tests/workbench-browser.mjs && node tests/sandbox-refinements-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
