@@ -201,13 +201,14 @@ export function mountCity(root) {
     const selector = { workspace: '[data-workspace]', task: '[data-task]', api: '[data-api]', world: '[data-world-panel]', orders: '[data-orders-panel]' }[button.dataset.jump];
     const target = el(selector); target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }));
-  root.querySelectorAll('.city-ide-modes [data-mode]').forEach(button=>button.onclick=()=>{project.setMode(button.dataset.mode);persist();el('[data-ide]').dataset.mode=button.dataset.mode;root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));});
+  function setMode(mode){project.setMode(mode);persist();el('[data-ide]').dataset.mode=mode;root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));}
+  root.querySelectorAll('.city-ide-modes [data-mode]').forEach(button=>button.onclick=()=>setMode(button.dataset.mode));
   el('[data-ide]').dataset.mode = project.workspace().mode;
   root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===project.workspace().mode)));
   notice(loaded.warning);
   lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
   reference = mountReference(el('[data-api]'));
-  root.addEventListener('city-api-back',()=>{el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();}); renderEditor(); renderFiles();mountProjectTools();update();
+  root.addEventListener('city-api-back',()=>{if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();}); renderEditor(); renderFiles();mountProjectTools();update();
   log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {
     disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();editor?.dispose();root.replaceChildren();

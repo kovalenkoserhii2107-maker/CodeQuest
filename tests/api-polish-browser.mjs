@@ -44,7 +44,10 @@ try {
   await page.locator('[data-api-search]').press('Escape');
   assert.equal(await page.locator('[data-api-search]').inputValue(),'');
   assert.equal(await page.locator('[data-api-kind]').inputValue(),'all');
+  await page.locator('.city-ide-modes [data-mode="dashboard"]').click();
   await page.locator('[data-api-back]').click();
+  assert.equal(await page.locator('[data-editor]').isVisible(),true);
+  assert.equal((await save()).workspace.mode,'code');
   console.log('✓ lesson-to-API navigation, effect filters, counts, retained expansion, reset and clipboard template without source replacement');
 
   await page.locator('[data-dashboard-live]').uncheck();
