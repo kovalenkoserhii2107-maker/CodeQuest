@@ -2,9 +2,9 @@ import { LESSONS } from './lessons.js';
 import { escapeHtml } from '../ui/html.js';
 
 export class LessonView {
-  #board; #task; #lessons; #selected; #key = '';
-  constructor(board, task, lessons) {
-    this.#board = board; this.#task = task; this.#lessons = lessons;
+  #board; #task; #lessons; #selected; #key = ''; #openAPI;
+  constructor(board, task, lessons, openAPI = () => {}) {
+    this.#openAPI = openAPI; this.#board = board; this.#task = task; this.#lessons = lessons;
     this.#selected = lessons.current()?.id || LESSONS[0].id;
   }
   next(completed) {
@@ -27,17 +27,18 @@ export class LessonView {
       '</ol><p class="city-muted">Проверяется текущее задание после успешного шага. Все механики мира доступны независимо от заданий.</p>';
     this.#board.querySelectorAll('[data-lesson]').forEach(button => button.addEventListener('click', () => {
       this.#selected = button.dataset.lesson; this.render();
-      this.#task.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      this.#task.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     }));
     const lesson = LESSONS.find(item => item.id === this.#selected);
     const status = this.#lessons.isDone(lesson.id) ? 'Выполнено' : current?.id === lesson.id ? 'Текущее задание' : 'Обзор будущего задания';
     this.#task.innerHTML = '<p class="campaign-eyebrow">' + status + ' / ' + lesson.stage + '</p><h2>' + escapeHtml(lesson.title) +
       '</h2><p class="city-task-objective">' + escapeHtml(lesson.objective) + '</p><p class="city-muted">JavaScript: ' + escapeHtml(lesson.concepts) +
-      '</p><div class="city-task-api">' + lesson.api.map(name => '<code>' + escapeHtml(name) + '</code>').join(' ') +
+      '</p><div class="city-task-api">' + lesson.api.map(name => '<button type="button" data-method="' + name + '" aria-label="Справка: ' + name + '"><code>' + escapeHtml(name) + '</code></button>').join(' ') +
       '</div><details><summary>Заготовка кода</summary><pre data-scaffold>' + escapeHtml(lesson.scaffold) +
       '</pre><button type="button" data-copy>Скопировать заготовку</button><p class="city-muted" data-copy-status role="status">Вставьте заготовку в редактор и допишите. Ваш код автоматически не заменяется.</p></details>' +
       lesson.hints.map((hint, i) => '<details><summary>Подсказка ' + (i + 1) + '</summary><pre>' + escapeHtml(hint) + '</pre></details>').join('') +
       '<p class="city-task-check"><strong>Как засчитывается:</strong> ' + escapeHtml(lesson.expectation) + '</p>';
+    this.#task.querySelectorAll('[data-method]').forEach(button=>button.onclick=()=>this.#openAPI(button.dataset.method));
     this.#task.querySelector('[data-copy]').addEventListener('click', async () => {
       const status = this.#task.querySelector('[data-copy-status]');
       try { await navigator.clipboard.writeText(lesson.scaffold); status.textContent = 'Скопировано. Вставьте в редактор выбранного файла.'; }

@@ -127,31 +127,73 @@ export const API_TYPES = TYPES + '\ninterface CityAPI {\n' +
   '\nproduce(product: "metal" | "parts" | "wire" | "circuit", quantity: number, lineId?: string): CityJob;' +
   '\nsell(product: string, quantity: number, buyerId: string): number; upgrade(target: "warehouse" | "machine", lineId?: string): number;\n}';
 
+const COMMAND_PATHS = new Set([
+  'cq.world.explore', 'cq.warehouse.upgrade', 'cq.warehouse.discard',
+  'cq.market.buy', 'cq.market.sell', 'cq.market.placeOrder', 'cq.market.cancelOrder',
+  'cq.factory.start', 'cq.factory.upgrade', 'cq.factory.purchaseLine',
+  'cq.contracts.accept', 'cq.contracts.deliver', 'cq.logistics.dispatch', 'cq.research.unlock'
+]);
+export const apiEffect = item => COMMAND_PATHS.has(item.path) ? 'command' : item.group === 'code' ? 'code' : 'read';
+
 export function mountReference(root) {
-  root.innerHTML = '<h2>Справочник API мира</h2><p>Начните с чтения мира, затем вызовите команду. Описания, типы и подсказки доступны также в редакторе.</p>' +
-    '<label class="city-api-search">Найти команду <input type="search" data-api-search placeholder="Например: свободное место, доставка, start" aria-label="Поиск API мира"></label>' +
+  root.innerHTML = '<h2>Справочник API мира</h2>' +
+    '<div class="city-api-guide"><strong>Чтение → проверка → команда → один шаг</strong><p>В main(cq) чтение видит результат предыдущих команд этого запуска. Время идёт только после успешного main. Ошибка отменяет все команды и изменения памяти.</p><p><b>Дашборд render(cq, view)</b> получает снимок мира: чтение разрешено, команды запрещены. Пробный запуск показывает прогноз без сохранения.</p></div>' +
+    '<label class="city-api-search">Найти метод <input type="search" data-api-search placeholder="Например: свободное место, доставка, start" aria-label="Поиск API мира"></label>' +
+    '<label class="city-api-kind">Тип метода <select data-api-kind aria-label="Тип метода API"><option value="all">Все методы</option><option value="read">Чтение · доступно в дашборде</option><option value="command">Команды · меняют мир</option><option value="code">Вывод и память</option></select></label>' +
     '<div class="city-api-groups" role="group" aria-label="Разделы API"><button type="button" data-group="all" aria-pressed="true">Все</button>' +
     API_GROUPS.map(([id, name]) => '<button type="button" data-group="' + id + '" aria-pressed="false">' + name + '</button>').join('') +
-    '</div><div data-api-list></div><details><summary>Код из первой версии</summary><p>cq.getState, cq.buy, cq.produce, cq.sell и cq.upgrade работают как раньше. В новых примерах используйте cq.world, cq.market, cq.factory и cq.warehouse.</p></details>';
-  let group = 'all', query = '';
+    '</div><p data-api-count role="status" class="city-muted"></p><div data-api-list></div>' +
+    '<button type="button" data-api-back>Вернуться к коду</button><details><summary>Код из первой версии</summary><p>cq.getState, cq.buy, cq.produce, cq.sell и cq.upgrade работают как раньше. В новых примерах используйте cq.world, cq.market, cq.factory и cq.warehouse.</p></details>';
+  let group = 'all', query = '', kind = 'all';
+  const expanded = new Set(), search = root.querySelector('[data-api-search]');
+  const effects = {read:'Чтение · дашборд ✓',command:'Команда · меняет мир',code:'Вывод / память'};
   function render() {
     const methods = API_METHODS.filter(item => (group === 'all' || group === item.group) &&
+      (kind === 'all' || kind === apiEffect(item)) &&
       (item.path + ' ' + item.description + ' ' + item.example).toLowerCase().includes(query));
+    root.querySelector('[data-api-count]').textContent = 'Найдено методов: ' + methods.length + ' из ' + API_METHODS.length;
+    root.querySelectorAll('[data-group]').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.group === group)));
     root.querySelector('[data-api-list]').innerHTML = methods.map(item => {
       const signature = item.path + (item.property ? '' : '(' + item.params.map(p => p.name + (p.optional ? '?' : '')).join(', ') + ')');
-      return '<details class="city-api-method"><summary><code>' + escapeHtml(signature) + '</code><span>' +
-        escapeHtml(API_GROUPS.find(([id]) => id === item.group)[1]) + '</span></summary><p>' + escapeHtml(item.description) + '</p>' +
+      const effect = apiEffect(item);
+      return '<details class="city-api-method" data-api-path="' + item.path + '"' + (expanded.has(item.path)?' open':'') + '><summary><code>' + escapeHtml(signature) + '</code><span class="city-api-effect" data-effect="' + effect + '">' + effects[effect] + '</span></summary><p>' + escapeHtml(item.description) + '</p>' +
         (item.params.length ? '<div class="city-table-scroll"><table><caption>Аргументы</caption><thead><tr><th>Имя / тип</th><th>Что передавать</th></tr></thead><tbody>' +
           item.params.map(p => '<tr><td><code>' + escapeHtml(p.name) + '</code><br><code>' + escapeHtml(p.type) + '</code></td><td>' + escapeHtml(p.description) +
             (p.optional ? ' Необязательный аргумент.' : '') + '</td></tr>').join('') + '</tbody></table></div>' : '<p>Аргументы не требуются.</p>') +
-        '<p>Возвращает: <code>' + escapeHtml(item.returns) + '</code>.</p><pre>' + escapeHtml(item.example) + '</pre>' +
+        '<p>Возвращает: <code>' + escapeHtml(item.returns) + '</code>.</p><pre data-api-example>' + escapeHtml(item.example) + '</pre>' +
+        '<div class="city-api-example-actions"><button type="button" data-api-copy>Копировать пример</button><button type="button" data-api-main>Копировать main(cq)</button></div><p data-api-copy-status class="city-muted" role="status">Пример не запускается автоматически. Команды выполняйте в index.js.</p>' +
         (item.errors.length ? '<p class="city-muted">Возможные ошибки: ' + item.errors.map(escapeHtml).join(' ') + '</p>' : '') + '</details>';
-    }).join('') || '<p>Ничего не найдено. Попробуйте другое название или раздел.</p>';
+    }).join('') || '<div class="city-empty">Ничего не найдено. Попробуйте другое название или раздел. <button type="button" data-api-clear>Сбросить фильтры</button></div>';
+    root.querySelectorAll('[data-api-path]').forEach(detail => {
+      const item = API_METHODS.find(m => m.path === detail.dataset.apiPath);
+      detail.addEventListener('toggle', () => { if(!detail.isConnected)return; if(detail.open)expanded.add(item.path);else expanded.delete(item.path); });
+      for (const button of detail.querySelectorAll('[data-api-copy], [data-api-main]')) button.onclick = async () => {
+        const code = button.hasAttribute('data-api-main') ? 'export function main(cq) {\n' + item.example.split('\n').map(line=>'  '+line).join('\n') + '\n}' : item.example;
+        const status = detail.querySelector('[data-api-copy-status]');
+        try { await navigator.clipboard.writeText(code); status.textContent = 'Скопировано. Вставьте в нужное место редактора.'; }
+        catch {
+          const pre = detail.querySelector('[data-api-example]'); pre.textContent = code;
+          const range=document.createRange();range.selectNodeContents(pre);
+          const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+          status.textContent = 'Буфер обмена недоступен. Код выделен — скопируйте вручную.';
+        }
+      };
+    });
+    root.querySelector('[data-api-clear]')?.addEventListener('click',reset);
   }
-  root.querySelector('[data-api-search]').addEventListener('input', event => { query = event.target.value.toLowerCase().trim(); render(); });
-  root.querySelectorAll('[data-group]').forEach(button => button.addEventListener('click', () => {
-    group = button.dataset.group; root.querySelectorAll('[data-group]').forEach(b => b.setAttribute('aria-pressed', String(b === button))); render();
-  }));
+  function reset(){group='all';kind='all';query='';search.value='';root.querySelector('[data-api-kind]').value='all';render();}
+  search.addEventListener('input',event=>{query=event.target.value.toLowerCase().trim();render();});
+  search.addEventListener('keydown',event=>{if(event.key==='Escape'){reset();search.focus();}});
+  root.querySelector('[data-api-kind]').onchange=event=>{kind=event.target.value;render();};
+  root.querySelectorAll('[data-group]').forEach(button=>button.onclick=()=>{group=button.dataset.group;render();});
+  root.querySelector('[data-api-back]').onclick=()=>root.dispatchEvent(new CustomEvent('city-api-back',{bubbles:true}));
   render();
   const help=document.createElement('details');help.innerHTML='<summary>Как написать собственный дашборд</summary><p>Создайте dashboards/my-dashboard.js и экспортируйте render(cq, view). Возвращайте widgets или html и css. Дашборд только читает мир, без перевода времени; изменяйте экономику в index.js.</p><pre>'+escapeHtml('export function render(cq, view) {\n const s=cq.world.getState();\n return {title:"Моя аналитика",columns:2,widgets:[\n {id:"cash",type:"stat",title:"Баланс",value:s.balance,unit:"₽"},\n {id:"trend",type:"chart",title:"Баланс",points:cq.analytics.getHistory().map(p=>p.balance)}]};\n}')+'</pre><p>Виджеты: stat (value/unit/tone), text (text), table (columns/rows), chart (points/labels). У каждого уникальный id и width (1–4). Порядок, ширина и видимость настраиваются на экране. Для свободного дизайна верните html, css и height (200–1200).</p><p>controls: массив {id,type,label,value,options}, type — select/text/number; варианты select — {value,label}. Значения доступны как view.inputs[id]. Скрипты внутри HTML не исполняются; логику пишите в render и импортируемых модулях.</p>';root.append(help);
+  return { open(path) {
+    if(!API_METHODS.some(item=>item.path===path))return;
+    expanded.add(path); reset(); search.value=path;query=path.toLowerCase();render();
+    const detail=root.querySelector('[data-api-path="'+path+'"]');
+    detail.open=true;detail.querySelector('summary').focus({preventScroll:true});
+    detail.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  }};
 }

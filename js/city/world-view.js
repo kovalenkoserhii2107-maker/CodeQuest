@@ -16,11 +16,22 @@ export class CityWorldView {
     this.engine = engine; this.tick = engine.getTime();
     const el = selector => this.root.querySelector(selector);
     const w = engine.snapshot(), used = Object.values(w.inventory).reduce((a, b) => a + b, 0);
-    el('[data-metrics]').innerHTML = [
+    const metricRoot = el('[data-metrics]'), previousDetails = el('[data-orders] details')?.open;
+    const values = [
       ['Баланс', money(w.balance)], ['Шаг мира', number(w.tick)],
       ['Склад / свободно', used + '/' + w.capacity + ' · ' + engine.getFreeSpace()],
       ['Доходы − все расходы', money(w.metrics.revenue - w.metrics.spent)]
-    ].map(([label, value]) => '<div><span>' + label + '</span><strong>' + value + '</strong></div>').join('');
+    ];
+    if(!metricRoot.children.length) metricRoot.innerHTML = values.map(([label,value])=>'<div><span>'+label+'</span><strong>'+value+'</strong></div>').join('');
+    else values.forEach(([,value],index)=>{
+      const text=metricRoot.children[index].querySelector('strong');
+      if(text.textContent===value)return;
+      text.textContent=value;
+      if(!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        text.getAnimations().forEach(animation=>animation.cancel());
+        text.animate([{opacity:.45,transform:'translateY(3px)'},{opacity:1,transform:'translateY(0)'}],{duration:180,easing:'ease-out'});
+      }
+    });
     el('[data-world]').innerHTML =
       '<dl class="city-stock">' + Object.entries(w.inventory).map(([key, value]) =>
         '<dt>' + PRODUCTS[key] + ' <code>' + key + '</code></dt><dd>' + number(value) + '</dd>').join('') + '</dl>' +
@@ -52,6 +63,7 @@ export class CityWorldView {
     el('[data-orders]').innerHTML = '<p class="city-muted">До 8 активных продаж. Товары и деньги не резервируются. Мир проверяет цену и ресурсы каждый шаг; удалённая продажа создаёт доставку.</p>' +
       (engine.getOrders().length ? engine.getOrders().slice().reverse().map(o => '<article class="city-order"><div><strong>№' + o.id + ' · ' + PRODUCTS[o.product] + ' × ' + o.quantity + '</strong><span class="city-badge" data-status="' + o.status + '">' + orderStatus[o.status] + '</span></div><p><code>' + escapeHtml(o.buyerId) + '</code> · порог ' + money(o.minPrice) + ' · ' + (o.status === 'pending' ? 'срок через ' + (o.expiresAt-w.tick) + ' шаг.' : 'закрыта на шаге ' + o.closedAt) + '</p>' + (o.reasons?.length ? '<p class="city-muted">' + o.reasons.map(escapeHtml).join(' ') + '</p>' : '') + '</article>').join('') : '<div class="city-empty"><strong>Отложенных продаж пока нет</strong><p>Поставьте порог цены через cq.market.placeOrder(). Продажа дождётся товара и подходящего рынка.</p></div>') +
       '<details><summary>Пример отложенной продажи</summary><pre>if (!cq.market.getOrders().some(o =&gt; o.status === "pending")) {\n  cq.market.placeOrder({ product: "metal", quantity: 5,\n    buyerId: "foundry", minPrice: 19, expiresIn: 24 });\n}</pre></details>';
+    if(previousDetails) el('[data-orders] details').open = true;
     el('[data-costs]').innerHTML = '<h3>Оценка затрат на единицу</h3><p class="city-muted">Минимальная стоимость доступной цепочки: сырьё + энергия. Не включает оборудование, разрешения и доставку; запасы поставщиков могут закончиться.</p><dl class="city-stock">' +
       Object.entries(engine.getUnitCosts()).map(([id, value]) => '<dt>' + PRODUCTS[id] + '</dt><dd>' + (value === null ? 'Нет открытой цепочки' : money(value)) + '</dd>').join('') + '</dl>';
     el('[data-snapshot]').textContent = JSON.stringify(w, null, 2);
