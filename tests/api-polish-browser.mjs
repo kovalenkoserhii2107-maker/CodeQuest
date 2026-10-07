@@ -3,14 +3,14 @@ import { createServer } from 'node:http';
 import { readFile,mkdir } from 'node:fs/promises';
 import { resolve,extname } from 'node:path';
 import { chromium } from '@playwright/test';
-const root=resolve(import.meta.dirname,'..'),types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.ttf':'font/ttf','.webmanifest':'application/manifest+json'};
+const root=resolve(import.meta.dirname,'..'),types={'.svg':'image/svg+xml','.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.ttf':'font/ttf','.webmanifest':'application/manifest+json'};
 const server=createServer(async(req,res)=>{const raw=new URL(req.url,'http://localhost').pathname,path=resolve(root,'.'+decodeURIComponent(raw==='/'?'/index.html':raw));if(!path.startsWith(root+'/')){res.writeHead(403);res.end();return;}try{res.setHeader('Content-Type',types[extname(path)]||'application/octet-stream');res.end(await readFile(path));}catch{res.writeHead(404);res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));// Playwright's serviceWorkers:'block' injects code that throws in opaque sandboxed frames.
 const browser=await chromium.launch(),context=await browser.newContext({viewport:{width:1600,height:1100}}),page=await context.newPage(),errors=[];
 page.on('pageerror',e=>errors.push(e.message));const save=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('codequest.city.v1')));
-async function code(text,path='index.js'){await page.locator('[data-path="'+path+'"]').click();await page.waitForSelector('#city-campaign .monaco-editor');await page.evaluate(async({text,path})=>{const {editor}=await import('/vendor/editor.js');const model=editor.getModels().find(m=>m.uri.path.endsWith('/'+path));if(!model)throw new Error(path);model.setValue(text);},{text,path});}
-async function step(){await page.locator('[data-run]').click();await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);}
-async function refresh(){await page.locator('[data-dashboard-refresh]').click();await page.waitForFunction(()=>/render\(\)|Ошибка дашборда/.test(document.querySelector('[data-dashboard-status]').textContent));}
+async function code(text,path='index.js'){await page.locator('.city-section-nav [data-jump="workspace"]').click();await page.locator('[data-path="'+path+'"]').click();await page.waitForSelector('#city-campaign .monaco-editor');await page.evaluate(async({text,path})=>{const {editor}=await import('/vendor/editor.js');const model=editor.getModels().find(m=>m.uri.path.endsWith('/'+path));if(!model)throw new Error(path);model.setValue(text);},{text,path});}
+async function step(){await page.locator('.city-section-nav [data-jump="workspace"]').click();await page.locator('[data-run]').click();await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);}
+async function refresh(){await page.locator('.city-section-nav [data-jump="workspace"]').click();await page.locator('[data-dashboard-refresh]').click();await page.waitForFunction(()=>/render\(\)|Ошибка дашборда/.test(document.querySelector('[data-dashboard-status]').textContent));}
 await mkdir(resolve(root,'tests/artifacts'),{recursive:true});
 try {
   await page.goto('http://127.0.0.1:'+server.address().port);
@@ -44,7 +44,9 @@ try {
   await page.locator('[data-api-search]').press('Escape');
   assert.equal(await page.locator('[data-api-search]').inputValue(),'');
   assert.equal(await page.locator('[data-api-kind]').inputValue(),'all');
+  await page.locator('.city-section-nav [data-jump="workspace"]').click();
   await page.locator('.city-ide-modes [data-mode="dashboard"]').click();
+  await page.locator('.city-section-nav [data-jump="api"]').click();
   await page.locator('[data-api-back]').click();
   assert.equal(await page.locator('[data-editor]').isVisible(),true);
   assert.equal((await save()).workspace.mode,'code');
@@ -58,6 +60,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
   assert.equal(await page.locator('[data-dashboard-live]').isChecked(),false);
   const restoredWorld=(await save()).world;
+  await page.locator('.city-section-nav [data-jump="task"]').click();
   await page.locator('[data-task] [data-method]').first().click();
   await page.locator('[data-api-back]').click();
   assert.deepEqual((await save()).world,restoredWorld);
@@ -98,12 +101,14 @@ try {
   await page.emulateMedia({reducedMotion:'reduce'});
   assert.equal(await page.locator('[data-run-status] strong').evaluate(el=>getComputedStyle(el).animationName),'none');
   await page.setViewportSize({width:390,height:844});
+  await page.locator('.city-section-nav [data-jump="task"]').click();
   await page.locator('[data-task] [data-method]').first().click();
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.screenshot({path:resolve(root,'tests/artifacts/api-polish-mobile-dark.png'),fullPage:true});
   await page.locator('#city-campaign a[href="#/campaigns"]').click();await page.locator('#campaign-theme').click();await page.locator('[data-campaign="city"]').click();
   await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
   assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
+  await page.locator('.city-section-nav [data-jump="task"]').click();
   await page.locator('[data-task] [data-method]').first().click();
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.screenshot({path:resolve(root,'tests/artifacts/api-polish-mobile-light.png'),fullPage:true});

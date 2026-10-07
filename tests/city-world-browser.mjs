@@ -5,7 +5,7 @@ import { resolve, extname } from 'node:path';
 import { chromium } from '@playwright/test';
 
 const root = resolve(import.meta.dirname, '..');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.txt': 'text/plain' };
+const types = { '.svg': 'image/svg+xml', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.txt': 'text/plain' };
 const server = createServer(async (req, res) => {
   const pathname = new URL(req.url, 'http://localhost').pathname;
   const path = resolve(root, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
@@ -22,6 +22,7 @@ const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 await mkdir(resolve(root, 'tests/artifacts'), { recursive: true });
 async function setCode(body, { raw = false, name = 'index.js' } = {}) {
+  await page.locator('.city-section-nav [data-jump="workspace"]').click();
   await page.waitForSelector('#city-campaign .monaco-editor');
   const code = raw ? body : '/** @param {CityAPI} cq */\nexport function main(cq) {\n' + body + '\n}';
   await page.evaluate(async ({ code, name }) => {
@@ -33,6 +34,7 @@ async function setCode(body, { raw = false, name = 'index.js' } = {}) {
 }
 const save = () => page.evaluate(() => JSON.parse(localStorage.getItem('codequest.city.v1')));
 async function step(button = '[data-run]') {
+  await page.locator('.city-section-nav [data-jump="workspace"]').click();
   await page.locator(button).click();
   await page.waitForFunction(() => !document.querySelector('[data-run]').disabled);
 }
@@ -42,7 +44,7 @@ async function completed(id) {
 try {
   await page.goto(url);
   await page.locator('[data-campaign="city"]').click();
-  await page.waitForSelector('[data-task]');
+  await page.waitForSelector('[data-workspace]');
   assert.ok((await page.locator('[data-task]').textContent()).includes('Познакомьтесь с мастерской'));
   assert.equal(await page.locator('[data-lesson]').count(), 13);
   assert.ok((await page.locator('.city-orientation').textContent()).includes('Как устроен мир'));
@@ -71,6 +73,7 @@ try {
   assert.equal((await save()).tutorial.completed.length, 6);
   console.log('✓ browser: first six tasks completed through real worker; preview never completes tasks');
 
+  await page.locator('.city-section-nav [data-jump="api"]').click();
   await page.locator('[data-group="warehouse"]').click();
   assert.equal(await page.locator('.city-api-method').count(), 4);
   await page.locator('[data-api-search]').fill('свободное');
@@ -132,12 +135,13 @@ try {
   const final = await save();
   await page.locator('#city-campaign a[href="#/campaigns"]').click();
   await page.locator('[data-campaign="city"]').click();
-  await page.waitForSelector('[data-task]');
+  await page.waitForSelector('[data-workspace]');
   assert.deepEqual(await save(), final);
   assert.ok((await page.locator('[data-board]').textContent()).includes('11 / 13'));
   await page.screenshot({ path: resolve(root, 'tests/artifacts/city-expanded-world-desktop.png'), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.city-section-nav [data-jump="api"]').click();
   await page.locator('[data-group="logistics"]').click();
   await page.locator('.city-api-method', { hasText: 'cq.logistics.dispatch' }).locator('summary').click();
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
@@ -146,7 +150,7 @@ try {
   await page.locator('#campaign-theme').click();
   assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
   await page.locator('[data-campaign="city"]').click();
-  await page.waitForSelector('[data-task]');
+  await page.waitForSelector('[data-workspace]');
   await page.screenshot({ path: resolve(root, 'tests/artifacts/city-expanded-world-mobile-light.png'), fullPage: true });
   assert.deepEqual(errors, []);
   console.log('✓ browser: parallel lines, modules, persisted lesson completion, searchable API, editor types, mobile width and light theme');
