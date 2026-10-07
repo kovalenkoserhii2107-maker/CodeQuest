@@ -5,7 +5,7 @@
  * Стратегия — «сначала сеть, кэш про запас»: так обновления страниц и кода
  * видны сразу после деплоя, а офлайн по-прежнему работает из кэша.
  */
-const CACHE = 'codequest-v19-sandbox';
+const CACHE = 'codequest-v20-polish';
 
 const SHELL = [
   // editor-assets-start

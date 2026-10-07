@@ -20,12 +20,13 @@ export function validateDashboard(value){
  });return out;
 }
 export function normalizeDashboardPrefs(value){
- const out={entry:typeof value?.entry==='string'?value.entry.slice(0,160):'',layouts:{},inputs:{}};
+ const out={live:value?.live !== false,entry:typeof value?.entry==='string'?value.entry.slice(0,160):'',layouts:{},inputs:{}};
  for(const [path,v]of Object.entries(value?.layouts||{}).slice(0,20)){if(!v||typeof v!=='object')continue;out.layouts[path]={columns:[1,2,3,4].includes(v.columns)?v.columns:null,order:Array.isArray(v.order)?[...new Set(v.order.filter(validId))].slice(0,30):[],widths:Object.fromEntries(Object.entries(v.widths||{}).filter(([id,n])=>validId(id)&&[1,2,3,4].includes(n)).slice(0,30)),hidden:Array.isArray(v.hidden)?v.hidden.filter(validId).slice(0,30):[]};}
  for(const [path,v]of Object.entries(value?.inputs||{}).slice(0,20)){if(v&&typeof v==='object'&&!Array.isArray(v))out.inputs[path]=Object.fromEntries(Object.entries(v).filter(([id,n])=>validId(id)&&['string','number','boolean'].includes(typeof n)).slice(0,12).map(([id,n])=>[id,typeof n==='string'?n.slice(0,300):n]));}return out;
 }
 export class DashboardPreferences{
  #value;constructor(value){this.#value=normalizeDashboardPrefs(value);}snapshot(){return copy(this.#value);}entry(){return this.#value.entry;}select(path){this.#value.entry=path;}
+ live(){return this.#value.live;}setLive(value){this.#value.live=Boolean(value);}
  inputs(path){return copy(this.#value.inputs[path]||{});}input(path,id,value){if(!validId(id)||!['string','number','boolean'].includes(typeof value))throw new Error('Некорректный фильтр.');this.#value.inputs[path]||={};this.#value.inputs[path][id]=value;}
  layout(path){return copy(this.#value.layouts[path]||{columns:null,order:[],widths:{},hidden:[]});}
  change(path,patch){this.#value.layouts[path]={...this.layout(path),...patch};this.#value=normalizeDashboardPrefs(this.#value);}

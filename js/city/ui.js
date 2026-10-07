@@ -23,6 +23,8 @@ export function mountCity(root) {
   try { storage = localStorage; } catch { /* readCitySave reports inaccessible storage */ }
   const loaded = readCitySave(storage);
   let save = loaded.save, engine = new CityEngine(save.world), lessons = new CityLessons(save.tutorial), project = new ProjectFiles(save.files,save.workspace), editor, file = project.active(), explorer, dashboards;
+  let reference;
+  const openAPI = path => reference?.open(path);
   let disposed = false, busy = false, automatic = false, timer, generation = 0, lessonView, savedEngine = engine;
   const runtime = new CityRuntime(), output = [];
   root.innerHTML = [
@@ -189,7 +191,7 @@ export function mountCity(root) {
   el('[data-reset]').addEventListener('click', () => {
     if (!window.confirm('Начать городской комбинат заново? Его деньги, файлы, память и задания будут очищены.')) return;
     stop(); generation++; runtime.cancel();dashboards.dispose();save=initialSave();engine=new CityEngine(save.world);lessons=new CityLessons(save.tutorial);project=new ProjectFiles(save.files,save.workspace);dashboards=null;
-    lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons);
+    lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
     el('[data-ide]').dataset.mode = 'split'; root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode==='split')));
     feedback.show('ready','Новая мастерская','Начните с первого задания.');
     file = 'index.js'; output.length = 0; el('[data-output]').textContent = ''; el('[data-feedback]').textContent = '';
@@ -197,16 +199,20 @@ export function mountCity(root) {
   });
   root.querySelectorAll('[data-jump]').forEach(button => button.addEventListener('click', () => {
     const selector = { workspace: '[data-workspace]', task: '[data-task]', api: '[data-api]', world: '[data-world-panel]', orders: '[data-orders-panel]' }[button.dataset.jump];
-    const target = el(selector); target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const target = el(selector); target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }));
-  root.querySelectorAll('.city-ide-modes [data-mode]').forEach(button=>button.onclick=()=>{project.setMode(button.dataset.mode);persist();el('[data-ide]').dataset.mode=button.dataset.mode;root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));});
+  function setMode(mode){project.setMode(mode);persist();el('[data-ide]').dataset.mode=mode;root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));}
+  root.querySelectorAll('.city-ide-modes [data-mode]').forEach(button=>button.onclick=()=>setMode(button.dataset.mode));
   el('[data-ide]').dataset.mode = project.workspace().mode;
   root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===project.workspace().mode)));
   notice(loaded.warning);
-  lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons);
-  mountReference(el('[data-api]')); renderEditor(); renderFiles();mountProjectTools();update();
+  lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
+  reference = mountReference(el('[data-api]'));
+  const backToCode = ()=>{if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();};
+  root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();update();
   log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {
+    root.removeEventListener('city-api-back',backToCode);
     disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();editor?.dispose();root.replaceChildren();
   };
 }

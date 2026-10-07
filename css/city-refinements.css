@@ -151,3 +151,28 @@
   .city-campaign button { transition: none; }
   .city-run-status[data-state="busy"] strong::before { animation: none; }
 }
+
+/* Brief feedback, without animating layout or editor contents. */
+.city-run-status > strong, .city-run-status > span { animation: city-feedback-in .18s ease-out; }
+@keyframes city-feedback-in { from { opacity: .5; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+.city-metrics strong { display: block; }
+[data-dashboard-output] { transition: opacity .15s ease; }
+[data-dashboard-output][aria-busy="true"] { opacity: .65; }
+.city-api-guide { padding: 16px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--surface-raised); margin-bottom: 18px; }
+.city-api-guide p { margin-top: 10px; line-height: 1.7; }
+.city-api-kind { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+.city-api-kind select { max-width: 100%; min-height: 44px; padding: 8px; color: var(--color-text); background: var(--surface-sunken); border: 1px solid var(--color-line); font: inherit; }
+.city-api-method { scroll-margin-top: 100px; }
+.city-api-method summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.city-api-method summary code { overflow-wrap: anywhere; white-space: normal; }
+.city-api-method summary .city-api-effect { font: .8rem var(--font-sans); color: var(--color-muted); border: 1px solid var(--color-line); border-radius: 5px; padding: 4px 8px; }
+.city-api-effect[data-effect="command"] { border-left: 3px solid var(--color-warn); }
+.city-api-example-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.city-api-example-actions button, .city-task-api button, [data-api-back] { min-height: 44px; }
+.city-task-api { display: flex; flex-wrap: wrap; gap: 8px; }
+.city-task-api button code { background: transparent; border: 0; padding: 0; }
+.city-api-method[open] > pre { animation: city-feedback-in .18s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .city-run-status > strong, .city-run-status > span, .city-api-method[open] > pre { animation: none; }
+  [data-dashboard-output] { transition: none; }
+}
