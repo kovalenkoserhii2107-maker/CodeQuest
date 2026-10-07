@@ -10,6 +10,8 @@ for (const path of ['ui', 'world-view', 'run-feedback', 'orders', 'insights', 'a
   const result = spawnSync(process.execPath, ['--check', 'js/city/' + path + '.js'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
 }
+const browserSyntax = spawnSync(process.execPath, ['--check', 'tests/sandbox-refinements-browser.mjs'], {encoding:'utf8'});
+assert.equal(browserSyntax.status, 0, browserSyntax.stderr);
 const make = () => {
   const state = initialWorld(); state.balance = 20000; state.inventory.scrap = 20;
   state.inventory.metal = 10; state.inventory.parts = 8;

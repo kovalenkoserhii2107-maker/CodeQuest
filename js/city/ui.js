@@ -98,7 +98,7 @@ export function mountCity(root) {
     const root=el('[data-files]');root.replaceChildren();
     for(const path of project.workspace().tabs){
       const tab=document.createElement('span');tab.className='city-file-tab';const button=document.createElement('button');button.type='button';button.textContent=path;button.setAttribute('aria-pressed',String(path===file));button.onclick=()=>openFile(path);tab.append(button);
-      if(path!=='index.js'){const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Закрыть вкладку '+path);close.onclick=()=>{if(busy||automatic)return;project.close(path);file=project.active();renderEditor();renderFiles();explorer?.select(file);persist();};tab.append(close);}
+      if(path!=='index.js'){const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Закрыть вкладку '+path);close.onclick=()=>{if(busy||automatic)return;const previous=file;project.close(path);file=project.active();if(previous!==file)renderEditor();renderFiles();explorer?.select(file);persist();};tab.append(close);}
       root.append(tab);
     }
     el('[data-run]').textContent = busy ? 'Выполняется…' : file.startsWith('dashboards/') ? 'Запустить index.js' : 'Запустить шаг';
