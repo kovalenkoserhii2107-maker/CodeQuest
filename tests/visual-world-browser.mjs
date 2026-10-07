@@ -68,6 +68,10 @@ try {
  assert.equal(await page.locator('.city-builder').evaluate(el=>el.open),false);
  assert.equal((await save()).workspace.active,'dashboards/trading.js');
  assert.ok((await save()).files['dashboards/trading.js'].includes('style: "area"'));
+ await page.locator('.city-ide-modes [data-mode="dashboard"]').click();
+ await page.locator('[data-dashboard-edit]').click();
+ assert.equal(await page.locator('[data-editor]').isVisible(),true);
+ assert.equal((await save()).workspace.mode,'split');
  assert.deepEqual((await save()).world,builderWorld);
  await page.locator('[data-dashboard-input="product"]').selectOption('parts');
  await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));

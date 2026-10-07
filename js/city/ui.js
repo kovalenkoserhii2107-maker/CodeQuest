@@ -98,7 +98,7 @@ export function mountCity(root) {
       el('[data-save-status]').textContent = 'Сохранено в этом браузере'; el('[data-save-status]').dataset.state = 'saved';
     } catch { el('[data-save-status]').textContent = 'Не удалось сохранить'; el('[data-save-status]').dataset.state = 'error'; notice('Не удалось сохранить прогресс. Не закрывайте страницу, если хотите продолжить.'); }
   }
-  function openFile(path){if(busy||automatic)return;navigation.open('workspace');if(path===file){editor?.focus();return;}project.open(path);file=path;renderEditor();renderFiles();explorer?.select(path);persist();}
+  function openFile(path){if(busy||automatic)return;navigation.open('workspace');if(project.workspace().mode==='dashboard')setMode('split');if(path===file){editor?.focus();return;}project.open(path);file=path;renderEditor();renderFiles();explorer?.select(path);persist();}
   function renderFiles(){
     const root=el('[data-files]');root.replaceChildren();
     for(const path of project.workspace().tabs){
@@ -118,7 +118,7 @@ export function mountCity(root) {
   function mountProjectTools(){
     explorer=new ProjectExplorer(el('[data-explorer]'),project,{isLocked:()=>busy||automatic,onError:notice,onSelect:openFile,onChange:change=>{const next=project.active();if(file!==next||change.rename){file=next;renderEditor();}dashboards?.sync(change);persist();renderFiles();dashboards?.refresh();}});
     dashboards=new DashboardController(el('[data-dashboard]'),{preferences:save.dashboards,getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,
-      onSave:prefs=>{save.dashboards=prefs;persist();},onOpen:openFile,onCreate:(path,code)=>{if(busy||automatic)throw new Error('Остановите запуск перед изменением файлов.');project.create(path,code);file=path;renderEditor();renderFiles();explorer.select(path);persist();}
+      onSave:prefs=>{save.dashboards=prefs;persist();},onOpen:openFile,onCreate:(path,code)=>{if(busy||automatic)throw new Error('Остановите запуск перед изменением файлов.');project.create(path,code);file=path;if(project.workspace().mode==='dashboard')setMode('split');renderEditor();renderFiles();explorer.select(path);persist();}
     });
   }
   const worldView = new CityWorldView(root);
