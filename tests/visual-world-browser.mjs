@@ -75,7 +75,7 @@ try {
  assert.deepEqual((await save()).world,builderWorld);
  await page.locator('[data-dashboard-output] [data-dashboard-input="product"]').selectOption('parts');
  await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
- assert.ok((await page.locator('[data-widget="widget-2"] svg').getAttribute('aria-label')).includes('repair'));
+ assert.ok((await page.locator('[data-dashboard-output] [data-widget="widget-2"] svg').getAttribute('aria-label')).includes('repair'));
  await page.locator('[data-dashboard-builder]').click();await page.locator('.city-builder').press('Escape');
  assert.equal(await page.locator('.city-builder').evaluate(el=>el.open),false);
  console.log('✓ builder presets, widget tools, chart styles, readonly real preview, validation, existing-file protection, JS export and filter');
