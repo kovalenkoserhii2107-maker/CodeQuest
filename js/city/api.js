@@ -17,17 +17,18 @@ export function createCityAPI(engine, memory, { onCommand = () => {}, onRead = (
   return {
     memory: validateMemory(memory),
     print: (...values) => onPrint(...values),
-    analytics:Object.freeze({getHistory:(limit=120)=>read('analytics.getHistory',()=>engine.getHistory(limit))}),
+    analytics:Object.freeze({getHistory:(limit=120)=>read('analytics.getHistory',()=>engine.getHistory(limit)),getUnitCosts:()=>read('analytics.getUnitCosts',()=>engine.getUnitCosts()),getAlerts:()=>read('analytics.getAlerts',()=>engine.getAlerts())}),
     project:Object.freeze({listFiles:()=>read('project.listFiles',()=>Object.keys(files)),readFile:path=>read('project.readFile',()=>{if(!Object.hasOwn(files,path))throw new Error('Файл не найден.');return files[path];})}),
     world: Object.freeze({
       getState: () => state('world.getState'),
       getRegions:()=>read('world.getRegions',()=>engine.getRegions()),getEvents:()=>read('world.getEvents',()=>engine.getEvents()),explore:id=>command('openRegion',[id]),
-      getTime: () => read('world.getTime', () => engine.snapshot().tick)
+      getTime: () => read('world.getTime', () => engine.getTime())
     }),
     warehouse: Object.freeze({
       getStock: id => read('warehouse.getStock', () => engine.snapshot().inventory[product(id)]),
       getFreeSpace: () => read('warehouse.getFreeSpace', () => engine.getFreeSpace()),
-      upgrade: () => command('upgrade', ['warehouse'])
+      upgrade: () => command('upgrade', ['warehouse']),
+      discard: (product, quantity) => command('discard', [product, quantity])
     }),
     market: Object.freeze({
       getSuppliers: () => read('market.getSuppliers', () => engine.getSuppliers()),
@@ -35,11 +36,15 @@ export function createCityAPI(engine, memory, { onCommand = () => {}, onRead = (
         if (id !== undefined) product(id);
         return engine.getBuyers(id);
       }),
+      getOrders: () => read('market.getOrders', () => engine.getOrders()),
+      placeOrder: options => command('placeOrder', [options]),
+      cancelOrder: id => command('cancelOrder', [id]),
       quote: (...args) => read('market.quote', () => engine.getQuote(...args)),
       buy: (...args) => command('buy', args),
       sell: (...args) => command('sell', args)
     }),
     factory: Object.freeze({
+      quote: (...args) => read('factory.quote', () => engine.getProductionQuote(...args)),
       getRecipes: () => read('factory.getRecipes', () => engine.getRecipes()),
       getLines: () => read('factory.getLines', () => engine.snapshot().lines),
       start: (...args) => command('produce', args),

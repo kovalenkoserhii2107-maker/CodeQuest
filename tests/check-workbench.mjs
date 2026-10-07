@@ -66,5 +66,5 @@ assert.equal(regional.snapshot().inventory.circuit,2);assert.equal(regional.getQ
 while(regional.snapshot().tick%24!==16)regional.advance();assert.equal(regional.getEvents()[1].priceBonus,8);
 const legacy=initialWorld();delete legacy.schema;delete legacy.regions;delete legacy.suppliers;delete legacy.history;delete legacy.inventory.circuit;legacy.buyers=legacy.buyers.slice(0,5).map(b=>{delete b.region;return b;});
 const old={version:1,world:legacy,files:{'index.js':'export function main() {}'},memory:{kept:true},tutorial:{completed:['inspect']}};
-const restored=readCitySave({getItem:key=>key===CITY_SAVE_KEY?JSON.stringify(old):null});assert.equal(restored.warning,'');assert.deepEqual(restored.save.files,old.files);assert.deepEqual(restored.save.memory,old.memory);assert.equal(restored.save.world.schema,3);
+const restored=readCitySave({getItem:key=>key===CITY_SAVE_KEY?JSON.stringify(old):null});assert.equal(restored.warning,'');assert.deepEqual(restored.save.files,old.files);assert.deepEqual(restored.save.memory,old.memory);assert.equal(restored.save.world.schema,4);
 console.log('✓ regions, permits, suppliers, compatible routes, events, circuits and save migration');
