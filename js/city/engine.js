@@ -340,7 +340,7 @@ export function migrateWorld(source) {
 }
 export const STARTER_CODE = '/** @param {CityAPI} cq */\nexport function main(cq) {\n  // Первое задание: изучите состояние своей мастерской.\n  const world = cq.world.getState();\n  // cq.print("Баланс:", world.balance);\n  // cq.print("Склад:", world.inventory);\n}\n';
 export function initialSave() {
-  return { version: 1, world: initialWorld(), files: { 'index.js': STARTER_CODE, ...DASHBOARD_EXAMPLES }, memory: {}, tutorial: { completed: [] }, workspace: { active: 'index.js', tabs: ['index.js'], folders: [] }, dashboards: normalizeDashboardPrefs({ entry: 'dashboards/overview.js' }) };
+  return { version: 1, world: initialWorld(), files: { 'index.js': STARTER_CODE, ...DASHBOARD_EXAMPLES }, memory: {}, tutorial: { completed: [] }, workspace: { active: 'index.js', mode: 'split', tabs: ['index.js'], folders: [] }, dashboards: normalizeDashboardPrefs({ entry: 'dashboards/overview.js' }) };
 }
 export function validateMemory(memory) {
   if (!memory || typeof memory !== 'object' || Array.isArray(memory)) throw new Error('cq.memory должен быть объектом.');

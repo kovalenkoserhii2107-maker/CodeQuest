@@ -1,0 +1,102 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { CityEngine, initialWorld, initialSave, readCitySave, validateWorld } from '../js/city/engine.js';
+import { createCityAPI } from '../js/city/api.js';
+import { LESSONS } from '../js/city/lessons.js';
+import { ProjectFiles } from '../js/city/project.js';
+
+for (const path of ['ui', 'world-view', 'run-feedback', 'orders', 'insights', 'api-reference',
+  'dashboard-controller', 'dashboard-model', 'dashboard-view', 'worker', 'engine']) {
+  const result = spawnSync(process.execPath, ['--check', 'js/city/' + path + '.js'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+}
+const make = () => {
+  const state = initialWorld(); state.balance = 20000; state.inventory.scrap = 20;
+  state.inventory.metal = 10; state.inventory.parts = 8;
+  return new CityEngine(state);
+};
+const market = make(), snapshot = market.snapshot();
+const costs = market.getUnitCosts();
+assert.deepEqual(costs, { scrap: 4, metal: 10, parts: 26, wire: null, circuit: null });
+const batch = market.getProductionQuote('metal', 5);
+assert.equal(batch.canStart, true); assert.equal(batch.energyCost, 10); assert.equal(batch.inputQuantity, 10);
+assert.deepEqual(market.snapshot(), snapshot);
+assert.throws(() => market.getProductionQuote('metal', -1));
+assert.throws(() => market.getProductionQuote('unknown', 1));
+assert.equal(market.getProductionQuote('metal', 9).canStart, false);
+assert.ok(market.getQuote('parts', 4, 'district').reasons.some(r => r.includes('доставка')));
+assert.equal(market.getQuote('metal', 5, 'foundry').estimatedMargin, 40);
+const first = market.placeOrder({product:'metal',quantity:5,buyerId:'foundry',minPrice:19});
+assert.equal(first.id, 1); assert.equal(market.snapshot().inventory.metal, 10);
+assert.ok(market.getOrders()[0].reasons[0].includes('порога'));
+for (let i=0; i<3; i++) market.advance();
+assert.equal(market.getOrders()[0].status, 'pending'); market.advance();
+assert.equal(market.getOrders()[0].status, 'filled');
+assert.equal(market.snapshot().balance, 20095); assert.equal(market.snapshot().inventory.metal, 5);
+assert.equal(market.getOrders()[0].unitPrice, 19);
+assert.throws(() => market.cancelOrder(first.id));
+console.log('✓ read-only production checks, unit costs, explained quotes and price-triggered sales');
+
+const waiting = make();
+waiting.placeOrder({product:'metal',quantity:20,buyerId:'foundry',minPrice:1,expiresIn:2});
+waiting.advance(); assert.equal(waiting.getOrders()[0].status, 'pending');
+assert.ok(waiting.getOrders()[0].reasons.some(r=>r.includes('складе')));
+waiting.advance(); assert.equal(waiting.getOrders()[0].status, 'expired');
+assert.equal(waiting.snapshot().balance, 20000);
+const cancelled=waiting.placeOrder({product:'metal',quantity:1,buyerId:'foundry',minPrice:1000});
+waiting.cancelOrder(cancelled.id); assert.equal(waiting.getOrders().at(-1).status, 'cancelled');
+assert.throws(()=>waiting.placeOrder({product:'metal',quantity:1,buyerId:'harbor-metal',minPrice:10,routeId:'barge'}), /регион/);
+assert.throws(()=>waiting.placeOrder({product:'parts',quantity:1,buyerId:'district',minPrice:10}), /маршрут/);
+assert.throws(()=>waiting.placeOrder({product:'metal',quantity:1,buyerId:'foundry',minPrice:10,expiresIn:1}));
+const atomic=waiting.snapshot();
+assert.throws(()=>waiting.apply([{method:'placeOrder',args:[{product:'metal',quantity:1,buyerId:'foundry',minPrice:1}]},{method:'cancelOrder',args:[999]}]));
+assert.deepEqual(waiting.snapshot(), atomic);
+const copy=waiting.getOrders();copy[0].status='pending';assert.equal(waiting.getOrders()[0].status,'expired');
+for(let i=0;i<60;i++){const o=waiting.placeOrder({product:'metal',quantity:1,buyerId:'foundry',minPrice:1000});waiting.cancelOrder(o.id);}
+for(let i=0;i<8;i++)waiting.placeOrder({product:'metal',quantity:1,buyerId:'foundry',minPrice:1000});
+assert.equal(waiting.getOrders().length,48);assert.equal(waiting.getOrders().filter(o=>o.status==='pending').length,8);
+assert.throws(()=>waiting.placeOrder({product:'metal',quantity:1,buyerId:'foundry',minPrice:1000}),/восьми/);
+validateWorld(waiting.snapshot());
+console.log('✓ expiration, cancellation, capacity, bounded history, clones and atomic rollback');
+
+const remote = make();
+remote.placeOrder({product:'parts',quantity:4,buyerId:'district',minPrice:80,routeId:'rail'});
+remote.advance();assert.equal(remote.getOrders()[0].status,'filled');
+assert.equal(remote.snapshot().balance,19992);assert.equal(remote.snapshot().shipments[0].remaining,2);
+remote.unlock('logistics');assert.equal(remote.getRoutes().find(r=>r.id==='rail').duration,2);
+const fixed=remote.snapshot().shipments[0].unitPrice;
+remote.advance();assert.equal(remote.snapshot().shipments[0].remaining,1);
+remote.advance();assert.equal(remote.snapshot().balance,19992-750+4*fixed);
+remote.dispatch('parts',1,'district','rail');assert.equal(remote.snapshot().shipments[0].remaining,2);
+remote.openRegion('port');assert.throws(()=>remote.placeOrder({product:'metal',quantity:1,buyerId:'harbor-metal',minPrice:1,routeId:'rail'}),/не обслуживает/);
+const factory=make();
+factory.produce('metal',5);factory.unlock('throughput');
+assert.equal(factory.snapshot().job.remaining,2);
+factory.advance();factory.advance();factory.produce('metal',5);
+assert.equal(factory.snapshot().job.remaining,1);assert.equal(factory.getRecipes().find(r=>r.product==='metal').duration,1);
+factory.unlock('wire');factory.unlock('efficiency');
+assert.equal(factory.getUnitCosts().wire,11);
+const stock=factory.snapshot().inventory.scrap;
+assert.throws(()=>factory.discard('scrap',stock+1));assert.throws(()=>factory.discard('scrap',-1));
+factory.discard('metal',2);assert.equal(factory.snapshot().inventory.metal,13);
+const readonly=createCityAPI(factory,{}, {readOnly:true});
+assert.throws(()=>readonly.market.placeOrder({product:'metal',quantity:1,buyerId:'foundry',minPrice:1}),/читает мир/);
+assert.throws(()=>readonly.market.cancelOrder(1),/читает мир/);
+assert.throws(()=>readonly.warehouse.discard('metal',1),/читает мир/);
+console.log('✓ order deliveries, fixed prices, new-job speed upgrades, discard validation and readonly dashboard APIs');
+
+const old=initialSave();old.world.schema=3;delete old.world.orders;delete old.world.nextOrder;
+old.world.balance=777;old.memory={kept:true};old.workspace.mode='code';
+const restored=readCitySave({getItem:()=>JSON.stringify(old)});
+assert.equal(restored.warning,'');assert.equal(restored.save.world.schema,4);
+assert.equal(restored.save.world.balance,777);assert.deepEqual(restored.save.files,old.files);
+assert.deepEqual(restored.save.memory,old.memory);assert.equal(restored.save.workspace.mode,'code');
+assert.deepEqual(restored.save.world.orders,[]);
+const corrupt=initialSave();delete corrupt.world.orders;
+assert.ok(readCitySave({getItem:()=>JSON.stringify(corrupt)}).warning);
+const project=new ProjectFiles(initialSave().files);project.setMode('dashboard');
+assert.equal(new ProjectFiles(project.files(),project.workspace()).workspace().mode,'dashboard');
+assert.throws(()=>project.setMode('bad'));
+assert.equal(LESSONS.find(l=>l.id==='estimate').check({reads:['factory.quote','analytics.getUnitCosts'],logs:['ok']}),true);
+assert.equal(LESSONS.find(l=>l.id==='orders').check({reads:['market.getOrders'],after:market.snapshot()}),true);
+console.log('✓ schema-3 migration preserves project and memory, corrupt new saves fail, modes persist and new lessons validate');

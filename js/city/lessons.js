@@ -111,6 +111,26 @@ export const LESSONS = [
     hints: ['Создайте strategy.js и напишите:\nexport function bestBuyer(buyers) {\n  return buyers.filter(b => !b.locked && !b.remote && b.demand > 0).sort((a, b) => b.price - a.price)[0];\n}', 'В памяти cq.memory храните данные, а не функции. Обычное состояние модулей не переносится в следующий шаг.'],
     expectation: 'Успешно выполнен проект, в графе импортов которого минимум два файла.',
     check: ctx => ctx.modules.length >= 2
+  },
+  {
+    id: 'estimate', stage: 'Свободная стратегия', title: '12. Рассчитайте следующую партию',
+    objective: 'Сравните затраты открытых цепочек и проверьте партию до запуска. Выведите причины, если ресурсов не хватает.',
+    concepts: 'Чистые вычисления, объект результата, оценка затрат и решение по данным.',
+    api: ['cq.analytics.getUnitCosts', 'cq.factory.quote', 'cq.print'],
+    scaffold: scaffold('const costs = cq.analytics.getUnitCosts();\nconst batch = cq.factory.quote("metal", 5);\n// Напечатайте costs и batch.reasons.\n// Запускайте производство только если batch.canStart.'),
+    hints: ['getUnitCosts оценивает сырьё и энергию по доступной цепочке. Это не фактическая прибыль: оборудование и доставка учитываются отдельно.', 'const q = cq.factory.quote("metal", 5);\nif (q.canStart) cq.factory.start("metal", 5);\nelse cq.print(q.reasons);'],
+    expectation: 'Реальный шаг прочитал getUnitCosts и factory.quote и напечатал хотя бы одну строку.',
+    check: ctx => ctx.reads.includes('analytics.getUnitCosts') && ctx.reads.includes('factory.quote') && ctx.logs.length > 0
+  },
+  {
+    id: 'orders', stage: 'Свободная стратегия', title: '13. Продайте по своей цене',
+    objective: 'Создайте отложенную продажу metal для foundry с minPrice=19. Приготовьте товар и дождитесь исполнения.',
+    concepts: 'Декларативная стратегия, очередь заявок, порог цены, сроки и мониторинг.',
+    api: ['cq.market.placeOrder', 'cq.market.getOrders', 'cq.market.cancelOrder'],
+    scaffold: scaffold('const orders = cq.market.getOrders();\ncq.print(orders);\n// Не создавайте дубликат, если уже есть pending.\n// Подготовьте 5 metal, задайте minPrice=19 и expiresIn=24.'),
+    hints: ['Заявка не резервирует товар и деньги. reasons объясняет ожидание. При ошибке весь шаг, включая создание заявки, откатывается.', 'if (!cq.market.getOrders().some(o => o.status === "pending")) {\n  cq.market.placeOrder({ product: "metal", quantity: 5,\n    buyerId: "foundry", minPrice: 19, expiresIn: 24 });\n}'],
+    expectation: 'В мире есть исполненная отложенная продажа metal, и текущий успешный скрипт прочитал getOrders.',
+    check: ctx => ctx.reads.includes('market.getOrders') && ctx.after.orders.some(o => o.status === 'filled' && o.product === 'metal')
   }
 ];
 export class CityLessons {

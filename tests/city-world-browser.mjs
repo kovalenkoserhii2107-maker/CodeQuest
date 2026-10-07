@@ -44,7 +44,7 @@ try {
   await page.locator('[data-campaign="city"]').click();
   await page.waitForSelector('[data-task]');
   assert.ok((await page.locator('[data-task]').textContent()).includes('Познакомьтесь с мастерской'));
-  assert.equal(await page.locator('[data-lesson]').count(), 11);
+  assert.equal(await page.locator('[data-lesson]').count(), 13);
   assert.ok((await page.locator('.city-orientation').textContent()).includes('Как устроен мир'));
   await page.screenshot({ path: resolve(root, 'tests/artifacts/city-first-task-desktop.png'), fullPage: true });
 
@@ -72,14 +72,14 @@ try {
   console.log('✓ browser: first six tasks completed through real worker; preview never completes tasks');
 
   await page.locator('[data-group="warehouse"]').click();
-  assert.equal(await page.locator('.city-api-method').count(), 3);
+  assert.equal(await page.locator('.city-api-method').count(), 4);
   await page.locator('[data-api-search]').fill('свободное');
   assert.equal(await page.locator('.city-api-method').count(), 1);
   await page.locator('.city-api-method summary').click();
   assert.ok((await page.locator('.city-api-method').textContent()).includes('резерва'));
   await page.locator('[data-api-search]').fill('');
   await page.locator('[data-group="factory"]').click();
-  assert.equal(await page.locator('.city-api-method').count(), 5);
+  assert.equal(await page.locator('.city-api-method').count(), 6);
   // Check editor type definitions against the actual worker language service.
   const diagnostics = await page.evaluate(async () => {
     const m = await import('/vendor/editor.js');
@@ -134,7 +134,7 @@ try {
   await page.locator('[data-campaign="city"]').click();
   await page.waitForSelector('[data-task]');
   assert.deepEqual(await save(), final);
-  assert.ok((await page.locator('[data-board]').textContent()).includes('11 / 11'));
+  assert.ok((await page.locator('[data-board]').textContent()).includes('11 / 13'));
   await page.screenshot({ path: resolve(root, 'tests/artifacts/city-expanded-world-desktop.png'), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
