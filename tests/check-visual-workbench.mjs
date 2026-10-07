@@ -52,3 +52,5 @@ const guideEntry=await moduleFor(DASHBOARD_GUIDE_CODE),guideWorld=rich(),before=
 assert.equal(validateDashboard(guideEntry.render(createCityAPI(guideWorld,{}, {readOnly:true}),{inputs:{}})).widgets.length,3);
 assert.deepEqual(guideWorld.snapshot(),before);
 console.log('✓ guide examples execute production, sale, region unlock/delivery and orders; render stays readonly');
+
+const browserSyntax=spawnSync(process.execPath,['--check','tests/visual-world-browser.mjs'],{encoding:'utf8'});assert.equal(browserSyntax.status,0,browserSyntax.stderr);

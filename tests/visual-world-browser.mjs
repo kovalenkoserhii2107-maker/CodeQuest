@@ -77,7 +77,14 @@ try {
  console.log('✓ builder presets, widget tools, chart styles, readonly real preview, validation, existing-file protection, JS export and filter');
 
  await code('export function main(cq){cq.buy("scrap",10);cq.factory.start("metal",5);}');await step();await page.locator('[data-wait]').click();
+ await code('export function main(cq){cq.world.explore("port");cq.logistics.dispatch("metal",5,"harbor-metal","barge");}');await step();
  await page.locator('.city-section-nav [data-jump="world"]').click();
+ assert.equal(await page.locator('[data-map-route="barge"]').getAttribute('data-active'),'true');
+ assert.equal(await page.locator('[data-location="port"]').getAttribute('data-locked'),'false');
+ await page.locator('.city-section-nav [data-jump="workspace"]').click();
+ for(let i=0;i<4;i++)await page.locator('[data-wait]').click();
+ await page.locator('.city-section-nav [data-jump="world"]').click();
+ assert.equal(await page.locator('[data-map-route="barge"]').getAttribute('data-active'),'false');
  assert.ok((await page.locator('[data-world]').textContent()).includes('Металл'));
  await page.locator('.city-section-nav [data-jump="api"]').click();
  await page.locator('[data-guide-tab="dashboards"]').click();
