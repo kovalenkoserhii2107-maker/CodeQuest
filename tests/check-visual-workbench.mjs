@@ -21,7 +21,13 @@ for(const template of BOARD_TEMPLATES){
   if(template.id==='markets')assert.equal(result.controls[0].id,'product');
  }
 }
-const all=boardFromTemplate('empty');all.widgets=WIDGET_SOURCES.map((s,i)=>widgetFromSource(s.id,i+1));all.title='My "title" <script> literal';
+for(const source of WIDGET_SOURCES){
+ const board=boardFromTemplate('empty');board.widgets=[widgetFromSource(source.id,1)];
+ const entry=await moduleFor(generateDashboard(board)),engine=rich(),before=engine.snapshot();
+ assert.equal(validateDashboard(entry.render(createCityAPI(engine,{}, {readOnly:true}),{inputs:{}})).widgets[0].type,source.type);
+ assert.deepEqual(engine.snapshot(),before);
+}
+const all=boardFromTemplate('empty');all.widgets=WIDGET_SOURCES.slice(0,12).map((s,i)=>widgetFromSource(s.id,i+1));all.title='My "title" <script> literal';
 const allEntry=await moduleFor(generateDashboard(all)),world=rich(),api=createCityAPI(world,{}, {readOnly:true});
 for(const style of ['line','area','bar']){
  for(const w of all.widgets)w.style=style;

@@ -33,4 +33,4 @@ export const CONTRACTS = Object.freeze([
   Object.freeze({ id: 'parts-order', name: 'Оснащение депо', product: 'parts', quantity: 4, reward: 390, duration: 10 }),
   Object.freeze({ id: 'wire-order', name: 'Уличное освещение', product: 'wire', quantity: 6, reward: 235, duration: 8 })
 ]);
-export const COMMANDS = Object.freeze(['buy', 'produce', 'sell', 'upgrade', 'purchaseLine', 'unlock', 'acceptContract', 'deliverContract', 'dispatch', 'openRegion', 'placeOrder', 'cancelOrder', 'discard']);
+export const COMMANDS = Object.freeze(['buy', 'produce', 'sell', 'upgrade', 'purchaseLine', 'unlock', 'acceptContract', 'deliverContract', 'dispatch', 'openRegion', 'placeOrder', 'cancelOrder', 'discard', 'networkOpen', 'networkBuy', 'networkStart', 'networkSell', 'networkTransfer', 'networkPurchaseLine', 'networkUpgradeLine', 'networkUpgradeWarehouse', 'networkUpgradeFleet', 'networkDiscard']);

@@ -1,9 +1,10 @@
+import { NETWORK_METHODS, NETWORK_TYPES, NETWORK_COMMAND_PATHS } from './network-reference.js';
 import { mountGuide } from './api-guide.js';
 import { escapeHtml } from '../ui/html.js';
 
 export const API_GROUPS = [
   ['world', 'Мир и время'], ['warehouse', 'Склад'], ['market', 'Рынок'],
-  ['factory', 'Производство'], ['contracts', 'Контракты'], ['logistics', 'Доставка'],
+  ['network', 'Сеть предприятия'], ['factory', 'Производство'], ['contracts', 'Контракты'], ['logistics', 'Доставка'],
   ['research', 'Исследования'], ['analytics','Аналитика'], ['project','Проект'], ['code', 'Вывод и память']
 ];
 const p = (name, type, description, optional = false) => ({ name, type, description, optional });
@@ -14,11 +15,12 @@ const line = () => p('lineId', 'string', 'ID линии из getLines(). По у
 const method = (group, name, description, params, returns, example, errors = []) =>
   ({ group, name, description, params, returns, example, errors, path: group === 'code' ? 'cq.' + name : 'cq.' + group + '.' + name });
 export const API_METHODS = [
+  ...NETWORK_METHODS,
   method('factory','quote','Проверяет партию без списания: inputQuantity, energyCost, duration, canStart и reasons.',[production(),quantity(),line()],'CityProductionQuote','const q = cq.factory.quote("metal", 5);\nif (q.canStart) cq.factory.start("metal", 5);\nelse cq.print(q.reasons);'),
   method('market','getOrders','История до 48 отложенных продаж: pending/filled/cancelled/expired. pending содержит currentPrice и reasons ожидания.',[],'CitySaleOrder[]','cq.print(cq.market.getOrders());'),
   method('market','placeOrder','Создаёт отложенную продажу по минимальной цене. До 8 активных. Склад и деньги не резервируются; заявки проверяются по порядку после обновления цен и производства. Для remote укажите совместимый маршрут; исполнение создаёт доставку.',[p('options','CitySaleOrderOptions','product, quantity, buyerId, minPrice (1–1000); routeId по умолчанию null; expiresIn 2–120, по умолчанию 24. На шаге expiresAt заявка уже не исполняется.')],'CitySaleOrder','if (!cq.market.getOrders().some(o=>o.status==="pending")) {\n  cq.market.placeOrder({product:"metal",quantity:5,buyerId:"foundry",minPrice:19,expiresIn:24});\n}'),
   method('market','cancelOrder','Отменяет активную продажу без штрафа. Уже исполненную доставку не отменяет.',[p('id','number','Числовой ID заявки.')],'CitySaleOrder','const o = cq.market.getOrders().find(o=>o.status==="pending");\nif (o) cq.market.cancelOrder(o.id);',['Активная продажа не найдена.']),
-  method('analytics','getUnitCosts','Минимальная оценка затрат на товар: доступное сырьё + энергия открытых рецептов. null — нет цепочки. Не включает оборудование, разрешения, доставку и ограничения текущих запасов.',[],'Record<string, number | null>','cq.print(cq.analytics.getUnitCosts());'),
+  method('analytics','getUnitCosts','Минимальная оценка затрат центральной мастерской: доступное сырьё + энергия открытых рецептов. Скидки филиалов не включены; для них используйте network.quoteProduction. null — нет цепочки. Не включает оборудование, разрешения, доставку и ограничения текущих запасов.',[],'Record<string, number | null>','cq.print(cq.analytics.getUnitCosts());'),
   method('analytics','getAlerts','Подсказки: оборотные деньги, свободное место, близкие сроки заказов и простаивающие линии.',[],'CityAlert[]','cq.analytics.getAlerts().forEach(a=>cq.print(a.level,a.text));'),
   method('warehouse','discard','Безвозвратно списывает товар со склада, освобождая место. Денег не приносит. Используйте для излишков.',[p('product','string','ID товара.'),quantity()],'number','// Только если этот запас больше не нужен:\ncq.warehouse.discard("scrap", 5);',['Не хватает товара.']),
 
@@ -35,7 +37,7 @@ export const API_METHODS = [
   method('warehouse', 'getStock', 'Количество одного товара на складе. Товары в пути и незавершённая партия сюда не входят.',
     [p('product', '"scrap" | "metal" | "parts" | "wire" | "circuit"', 'ID товара, а не русское название.')], 'number',
     'const scrap = cq.warehouse.getStock("scrap");\nif (scrap < 10) cq.market.buy("scrap", 10 - scrap);', ['Неизвестный товар.']),
-  method('warehouse', 'getFreeSpace', 'Свободное место с учётом резерва под готовые партии всех линий.', [], 'number',
+  method('warehouse', 'getFreeSpace', 'Свободное место центрального склада с учётом резерва под партии и входящие внутренние перевозки.', [], 'number',
     'cq.print("Свободно:", cq.warehouse.getFreeSpace());'),
   method('warehouse', 'upgrade', 'Добавляет 100 мест. Стоимость: 500 ₽ × текущий уровень склада, максимум 6.', [], 'number',
     'const s = cq.world.getState();\nif (s.warehouseLevel < 6 && s.balance >= 500 * s.warehouseLevel) cq.warehouse.upgrade();', ['Недостаточно денег.', 'Максимальный уровень.']),
@@ -92,6 +94,7 @@ export const API_METHODS = [
     errors: ['Память не является объектом или превышает 16 КБ.'], property: true }
 ];
 const TYPES = [
+  NETWORK_TYPES,
   'interface CityJob { product: string; quantity: number; remaining: number; }',
   'interface CityLine { id: string; level: number; job: CityJob | null; }',
   'interface CityBuyer { id: string; name: string; product: string; price: number; demand: number; limit: number; remote: boolean; region: string; locked?: boolean; }',
@@ -108,13 +111,13 @@ const TYPES = [
   'interface CityQuote { product: string; quantity: number; buyerId: string; unitPrice: number; gross: number; fee: number; net: number; duration: number; canTrade: boolean; reasons: string[]; estimatedUnitCost: number | null; estimatedMargin: number | null; }',
   'interface CityRegion { id: string; name: string; cost: number; description: string; unlocked: boolean; }',
   'interface CityEvent { id: string; region: string; name: string; active: boolean; priceBonus: number; changesIn: number; }',
-  'interface CityHistoryPoint { tick: number; balance: number; revenue: number; spent: number; inventory: Record<string,number>; prices: Record<string,number>; }',
+  'interface CityHistoryPoint { tick: number; balance: number; revenue: number; spent: number; inventory: Record<string,number>; prices: Record<string,number>; sites?: Omit<CitySiteHistoryPoint,"tick">[]; }',
   'interface DashboardViewContext { inputs: Record<string,string | number | boolean>; }',
   'interface CustomDashboard { title?: string; columns?: number; widgets?: any[]; html?: string; css?: string; height?: number; controls?: any[]; }',
   'interface CityState { tick: number; balance: number; capacity: number; warehouseLevel: number; machineLevel: number;',
   ' inventory: { scrap: number; metal: number; parts: number; wire: number; circuit: number }; job: CityJob | null;',
   ' supplier: { product: string; price: number; stock: number }; buyers: CityBuyer[]; metrics: Record<string, number>;',
-  ' orders: CitySaleOrder[]; nextOrder: number; schema: number; regions: string[]; suppliers: CitySupplier[]; history: CityHistoryPoint[]; lines: CityLine[]; research: string[]; shipments: CityShipment[]; nextShipment: number; contracts: Array<{ id: string; status: "available" | "active" | "cooldown"; deadline: number | null; refreshAt: number | null }>; }'
+  ' network: CityNetworkState; orders: CitySaleOrder[]; nextOrder: number; schema: number; regions: string[]; suppliers: CitySupplier[]; history: CityHistoryPoint[]; lines: CityLine[]; research: string[]; shipments: CityShipment[]; nextShipment: number; contracts: Array<{ id: string; status: "available" | "active" | "cooldown"; deadline: number | null; refreshAt: number | null }>; }'
 ].join('\n');
 function declaration(item) {
   const params = item.name === 'print' ? '...values: any[]' : item.params.map(p => p.name + (p.optional ? '?' : '') + ': ' + p.type).join(', ');
@@ -129,6 +132,7 @@ export const API_TYPES = TYPES + '\ninterface CityAPI {\n' +
   '\nsell(product: string, quantity: number, buyerId: string): number; upgrade(target: "warehouse" | "machine", lineId?: string): number;\n}';
 
 const COMMAND_PATHS = new Set([
+  ...NETWORK_COMMAND_PATHS,
   'cq.world.explore', 'cq.warehouse.upgrade', 'cq.warehouse.discard',
   'cq.market.buy', 'cq.market.sell', 'cq.market.placeOrder', 'cq.market.cancelOrder',
   'cq.factory.start', 'cq.factory.upgrade', 'cq.factory.purchaseLine',

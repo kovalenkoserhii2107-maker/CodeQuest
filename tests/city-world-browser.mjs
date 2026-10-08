@@ -46,7 +46,7 @@ try {
   await page.locator('[data-campaign="city"]').click();
   await page.waitForSelector('[data-workspace]');
   assert.ok((await page.locator('[data-task]').textContent()).includes('Познакомьтесь с мастерской'));
-  assert.equal(await page.locator('[data-lesson]').count(), 13);
+  assert.equal(await page.locator('[data-lesson]').count(), 17);
   assert.ok((await page.locator('.city-orientation').textContent()).includes('Как устроен мир'));
   await page.screenshot({ path: resolve(root, 'tests/artifacts/city-first-task-desktop.png'), fullPage: true });
 
@@ -137,7 +137,7 @@ try {
   await page.locator('[data-campaign="city"]').click();
   await page.waitForSelector('[data-workspace]');
   assert.deepEqual(await save(), final);
-  assert.ok((await page.locator('[data-board]').textContent()).includes('11 / 13'));
+  assert.ok((await page.locator('[data-board]').textContent()).includes('11 / 17'));
   await page.screenshot({ path: resolve(root, 'tests/artifacts/city-expanded-world-desktop.png'), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });

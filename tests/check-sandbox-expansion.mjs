@@ -90,7 +90,7 @@ console.log('✓ order deliveries, fixed prices, new-job speed upgrades, discard
 const old=initialSave();old.world.schema=3;delete old.world.orders;delete old.world.nextOrder;
 old.world.balance=777;old.memory={kept:true};old.workspace.mode='code';
 const restored=readCitySave({getItem:()=>JSON.stringify(old)});
-assert.equal(restored.warning,'');assert.equal(restored.save.world.schema,4);
+assert.equal(restored.warning,'');assert.equal(restored.save.world.schema,5);
 assert.equal(restored.save.world.balance,777);assert.deepEqual(restored.save.files,old.files);
 assert.deepEqual(restored.save.memory,old.memory);assert.equal(restored.save.workspace.mode,'code');
 assert.deepEqual(restored.save.world.orders,[]);

@@ -5,7 +5,7 @@
  * Стратегия — «сначала сеть, кэш про запас»: так обновления страниц и кода
  * видны сразу после деплоя, а офлайн по-прежнему работает из кэша.
  */
-const CACHE = 'codequest-v22-js-practice';
+const CACHE = 'codequest-v23-production-network';
 
 const SHELL = [
   // editor-assets-start
@@ -32,6 +32,11 @@ const SHELL = [
   'js/launch.js',
   'css/campaigns.css',
   'js/city/engine.js',
+  'js/city/network.js',
+  'js/city/network-reference.js',
+  'js/city/network-view.js',
+  'js/city/network-guide.js',
+  'css/city-network.css',
   'js/city/catalog.js',
   'js/city/api.js',
   'js/city/api-reference.js',
