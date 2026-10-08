@@ -49,13 +49,14 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
   let editor, model, m, disposed = false, wrap = false;
   // Соседние файлы проекта: без них редактор считает «./sort.js» ненайденным
   // модулем и рисует ошибку на верном коде
-  const siblingModels = new Map();
+  const siblingModels = new Map(), viewStates = new Map();
+  let pendingPosition = null;
   let folder = '';
   const cleanups=[];
   const track = disposable => cleanups.push(() => disposable.dispose());
   container.innerHTML=`
     <div class="workspace-toolbar">
-      <span class="mono">${escapeHtml(filename)}</span>
+      <span class="mono" data-editor-filename>${escapeHtml(filename)}</span>
       <button type="button" class="btn btn--ghost btn--sm" data-tool="format" disabled>Форматировать</button>
       <button type="button" class="btn btn--ghost btn--sm" data-tool="find" disabled>Найти</button>
       <button type="button" class="btn btn--ghost btn--sm" data-tool="wrap" disabled>Перенос строк</button>
@@ -109,6 +110,7 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
     track(m.typescript.javascriptDefaults.addExtraLib(dependencies + '\n' + extraDeclarations,`file:///dependencies-${++serial}.d.ts`));
     folder=`file:///quests/${serial}`;
     model=m.editor.createModel(fallback.value,'javascript',m.Uri.parse(`${folder}/${filename}`));
+    siblingModels.set(filename, model);
     if(siblings) syncSiblings(siblings);
     host.replaceChildren();
     editor=m.editor.create(host,{
@@ -150,45 +152,67 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
     theme();const observer=new MutationObserver(theme);observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});cleanups.push(()=>observer.disconnect());
     const updateStatus=()=>{const p=editor.getPosition();status.textContent=`JavaScript · строка ${p?.lineNumber??1}, столбец ${p?.column??1} · черновик сохраняется автоматически`;};
     track(editor.onDidChangeCursorPosition(updateStatus));
-    track(model.onDidChangeContent(()=>{onInput?.(model.getValue());updateStatus();}));
+    track(editor.onDidChangeModelContent(()=>{onInput?.(model.getValue());updateStatus();}));
     track(m.editor.onDidChangeMarkers(uris=>{
-      if(!uris.some(uri=>uri.toString()===model.uri.toString()))return;
-      const markers=m.editor.getModelMarkers({resource:model.uri});
-      count.textContent=markers.length?`· ${markers.length}`:'· ошибок нет';
-      const target=problems;
-      target.innerHTML=markers.map((item,i)=>`<button type="button" class="problem-link" data-marker="${i}">Строка ${item.startLineNumber}: ${escapeHtml(item.message)}</button>`).join('')||'<p>Синтаксических ошибок не найдено. Поведение проверяют тесты задания.</p>';
-      target.querySelectorAll('[data-marker]').forEach(button=>button.addEventListener('click',()=>{const item=markers[Number(button.dataset.marker)];editor.setPosition({lineNumber:item.startLineNumber,column:item.startColumn});editor.revealLineInCenter(item.startLineNumber);editor.focus();}));
+      if(uris.some(uri=>uri.toString()===model.uri.toString())) renderProblems();
     }));
+    track(editor.onDidChangeModel(()=>{renderProblems();updateStatus();}));
     editor.addCommand(m.KeyMod.CtrlCmd|m.KeyCode.Enter,()=>onRun?.());
     for(const button of container.querySelectorAll('[data-tool]'))button.disabled=false;
     container.querySelector('[data-tool=format]').addEventListener('click',()=>editor.getAction('editor.action.formatDocument')?.run());
     container.querySelector('[data-tool=find]').addEventListener('click',()=>editor.getAction('actions.find')?.run());
     container.querySelector('[data-tool=wrap]').addEventListener('click',event=>{wrap=!wrap;editor.updateOptions({wordWrap:wrap?'on':'off'});event.currentTarget.setAttribute('aria-pressed',String(wrap));});
-    updateStatus();
+    updateStatus(); renderProblems();
+    if (pendingPosition) goToLine(pendingPosition.line, pendingPosition.column);
   }).catch(()=>{if(!disposed)status.textContent='Расширенный редактор не загрузился. Черновик доступен; обновите страницу для повторной загрузки.';});
   /**
    * Держать модели соседних файлов в том же каталоге, что и открытый.
    * Тогда относительные импорты разрешаются, а подсказки видят чужие экспорты.
    */
   function syncSiblings(files){
+    siblings = files;
     if(!m||!folder) return;
-    const wanted=new Map(Object.entries(files||{}).filter(([path])=>path!==filename));
-
+    const wanted=new Map(Object.entries(files||{}));
     for(const [path,existing] of siblingModels){
-      if(wanted.has(path)) continue;
-      existing.dispose();
-      siblingModels.delete(path);
+      if(wanted.has(path)||existing===model) continue;
+      existing.dispose(); siblingModels.delete(path); viewStates.delete(path);
     }
-
     for(const [path,text] of wanted){
       const existing=siblingModels.get(path);
       if(existing){ if(existing.getValue()!==text) existing.setValue(text); continue; }
       siblingModels.set(path,m.editor.createModel(text,'javascript',m.Uri.parse(`${folder}/${path}`)));
     }
   }
+  function renderProblems(){
+    if(!m||!model)return;
+    const markers=m.editor.getModelMarkers({resource:model.uri});
+    count.textContent=markers.length?`· ${markers.length}`:'· ошибок нет';
+    problems.innerHTML=markers.map((item,i)=>`<button type="button" class="problem-link" data-marker="${i}">Строка ${item.startLineNumber}: ${escapeHtml(item.message)}</button>`).join('')||'<p>Синтаксических ошибок не найдено. Поведение проверяют тесты задания.</p>';
+    problems.querySelectorAll('[data-marker]').forEach(button=>button.onclick=()=>{const item=markers[Number(button.dataset.marker)];goToLine(item.startLineNumber,item.startColumn);});
+  }
+  function goToLine(line, column=1){
+    pendingPosition={line,column};
+    if(!editor)return;
+    editor.setPosition({lineNumber:Math.max(1,line),column:Math.max(1,column)});
+    editor.revealLineInCenter(line);editor.focus();pendingPosition=null;
+  }
+  function openFile(path, text, files){
+    if(path===filename){if(files)syncSiblings(files);return;}
+    if(editor)viewStates.set(filename,editor.saveViewState());
+    filename=path;container.querySelector('[data-editor-filename]').textContent=path;
+    pendingPosition=null;
+    if(!m){fallback.value=text; siblings=files;return;}
+    model=siblingModels.get(path);
+    if(!model){model=m.editor.createModel(text,'javascript',m.Uri.parse(`${folder}/${path}`));siblingModels.set(path,model);}
+    editor.setModel(model);
+    if(files)syncSiblings(files);
+    const view=viewStates.get(path);
+    if(view)editor.restoreViewState(view);else editor.setPosition({lineNumber:1,column:1});
+    editor.focus();
+  }
 
   return {
-    syncSiblings,
+    syncSiblings, openFile, goToLine,
     getValue:()=>model?.getValue()??fallback.value,
     setValue:next=>{if(editor){editor.pushUndoStop();editor.executeEdits('restore',[{range:model.getFullModelRange(),text:next}]);editor.pushUndoStop();}else{fallback.value=next;onInput?.(next);}},
     focus:()=>editor?editor.focus():fallback.focus(),
@@ -197,6 +221,6 @@ export function createEditor(container, { value='', onInput, onRun, filename='so
       container.querySelector('[data-tool=focus]').textContent='Развернуть';
       editor?.layout();
     },
-    dispose:()=>{disposed=true;for(const cleanup of cleanups)cleanup();editor?.dispose();model?.dispose();for(const extra of siblingModels.values())extra.dispose();siblingModels.clear();},
+    dispose:()=>{disposed=true;for(const cleanup of cleanups)cleanup();editor?.dispose();for(const extra of siblingModels.values())extra.dispose();siblingModels.clear();viewStates.clear();},
   };
 }

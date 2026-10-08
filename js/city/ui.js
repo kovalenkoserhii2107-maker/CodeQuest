@@ -1,3 +1,5 @@
+import { PracticeView } from './practice-ui.js';
+import { CityConsole } from './console-view.js';
 import { CityNavigation } from './navigation.js';
 import { RegionMap } from './region-map.js';
 import { CityWorldView } from './world-view.js';
@@ -25,10 +27,10 @@ export function mountCity(root) {
   try { storage = localStorage; } catch { /* readCitySave reports inaccessible storage */ }
   const loaded = readCitySave(storage);
   let save = loaded.save, engine = new CityEngine(save.world), lessons = new CityLessons(save.tutorial), project = new ProjectFiles(save.files,save.workspace), editor, file = project.active(), explorer, dashboards;
-  let reference;
+  let reference, practiceView;
   const openAPI = path => { navigation.open('api');reference?.open(path); };
   let disposed = false, busy = false, automatic = false, timer, generation = 0, lessonView, savedEngine = engine;
-  const runtime = new CityRuntime(), output = [];
+  const runtime = new CityRuntime();
   root.innerHTML = [
     '<header class="city-header"><div><p class="campaign-eyebrow">CodeQuest / песочница</p>',
     '<h1>Городской комбинат</h1><p>Ваша мастерская. Ваша стратегия. Ваш JavaScript.</p></div>',
@@ -57,7 +59,7 @@ export function mountCity(root) {
     '<div class="city-ide" data-ide data-mode="split"><aside class="city-explorer" data-explorer></aside><div class="city-ide-editor"><div class="city-files" data-files role="group" aria-label="Вкладки файлов"></div><div data-editor></div><p class="city-project-path" data-project-status></p></div><section class="city-dashboard-panel" data-dashboard aria-label="Мои дашборды"></section></div>',
     '<p class="city-muted">main(cq) вызывается один раз на шаг. Автоматизация повторяет проект через секунду после завершения предыдущего запуска. При выходе в меню мир останавливается.</p>',
     '<p class="city-lesson-feedback" data-feedback role="status"></p>',
-    '<h3>Вывод скрипта</h3><pre class="city-output" data-output role="log" aria-label="Вывод скрипта" aria-live="polite"></pre>',
+    '<section data-console></section>',
     '</section><section class="city-panel city-task" data-task aria-label="Учебное задание"></section></div><aside class="city-side">',
     '<section class="city-panel" data-board></section>',
     '<section class="city-panel" data-world-panel><h2>Мастерская и рынок</h2><div class="city-market-filters"><label>Товар<select data-market-product><option value="">Все товары</option>' + Object.entries(PRODUCTS).map(([id,name])=>'<option value="'+id+'">'+name+'</option>').join('') + '</select></label><label>Регион<select data-market-region><option value="">Все регионы</option><option value="city">Город</option><option value="port">Порт</option><option value="highlands">Северные высоты</option></select></label></div><div data-world></div></section>',
@@ -84,11 +86,9 @@ export function mountCity(root) {
   const el = selector => root.querySelector(selector);
   const navigation=new CityNavigation(root),regionMap=new RegionMap(el('[data-region-map]'),openAPI);
   function notice(message) { el('[data-notice]').textContent = message; el('[data-notice]').hidden = !message; }
-  function log(message) {
-    output.push(message); if (output.length > 100) output.splice(0, output.length - 100);
-    el('[data-output]').textContent = output.join('\n');
-    el('[data-output]').scrollTop = el('[data-output]').scrollHeight;
-  }
+  const consoleView = new CityConsole(el('[data-console]'),(path,line,column)=>{if(project.files()[path]===undefined){notice('Файл '+path+' отсутствует в проекте.');return;}openFile(path);editor?.goToLine(line,column);});
+  function log(message, level='system', stack='') { consoleView.write({text:message,level,stack},{source:'Мир',tick:engine.getTime()}); }
+  function scriptLog(source,tick) { return entry => { if(!disposed) consoleView.write(entry,{source,tick}); }; }
   function persist() {
     if (savedEngine !== engine || save.world.tick !== engine.getTime()) save.world = engine.snapshot();
     savedEngine = engine; save.tutorial = lessons.snapshot(); save.files=project.files();save.workspace=project.workspace();if(dashboards)save.dashboards=dashboards.snapshot();
@@ -109,18 +109,25 @@ export function mountCity(root) {
     el('[data-run]').textContent = busy ? 'Выполняется…' : file.startsWith('dashboards/') ? 'Запустить index.js' : 'Запустить шаг';
     el('[data-project-status]').textContent='codequest / '+file+' · запуск мира: index.js · черновик сохраняется';
   }
-  function renderEditor(){
-    editor?.dispose();editor=createEditor(el('[data-editor]'),{filename:file,value:project.files()[file],siblings:project.files(),includeLiveFunctions:false,extraDeclarations:API_TYPES,
-      onInput:code=>{try{project.write(file,code);editor?.syncSiblings(project.files());persist();dashboards?.schedule();}catch(e){notice(e.message+' Черновик не сохранён.');}},
+  function renderEditor(force=false){
+    if(editor&&!force){editor.openFile(file,project.files()[file],project.files());return;}
+    if(force)editor?.collapse();editor?.dispose();editor=createEditor(el('[data-editor]'),{filename:file,value:project.files()[file],siblings:project.files(),includeLiveFunctions:false,extraDeclarations:API_TYPES,
+      onInput:code=>{try{project.write(file,code);practiceView?.invalidate();editor?.syncSiblings(project.files());persist();dashboards?.schedule();}catch(e){notice(e.message+' Черновик не сохранён.');}},
       onRun:()=>{if(!automatic){if(file.startsWith('dashboards/'))dashboards.refresh();else step(false);}}
     });
   }
   function mountProjectTools(){
-    explorer=new ProjectExplorer(el('[data-explorer]'),project,{isLocked:()=>busy||automatic,onError:notice,onSelect:openFile,onChange:change=>{const next=project.active();if(file!==next||change.rename){file=next;renderEditor();}dashboards?.sync(change);persist();renderFiles();dashboards?.refresh();}});
-    dashboards=new DashboardController(el('[data-dashboard]'),{preferences:save.dashboards,getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,
+    explorer=new ProjectExplorer(el('[data-explorer]'),project,{isLocked:()=>busy||automatic,onError:notice,onSelect:openFile,onChange:change=>{const next=project.active();if(file!==next||change.rename){file=next;renderEditor();}else editor?.syncSiblings(project.files());dashboards?.sync(change);persist();renderFiles();dashboards?.refresh();}});
+    dashboards=new DashboardController(el('[data-dashboard]'),{preferences:save.dashboards,onLog:(entry,context)=>consoleView.write(entry,context),getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,
       onSave:prefs=>{save.dashboards=prefs;persist();},onOpen:openFile,onCreate:(path,code)=>{if(busy||automatic)throw new Error('Остановите запуск перед изменением файлов.');project.create(path,code);file=path;if(project.workspace().mode==='dashboard')setMode('split');renderEditor();renderFiles();explorer.select(path);persist();}
     });
   }
+  const mountPractice=()=>{
+    practiceView?.dispose();
+    const section=el('[data-practice-area]')||document.createElement('section');
+    section.dataset.practiceArea='';section.className='city-panel city-practice';el('[data-page="task"]').append(section);
+    practiceView=new PracticeView(section,{getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,isLocked:()=>busy||automatic,onLog:(entry,context)=>consoleView.write(entry,context),onPrepare:(path,starter)=>{if(project.files()[path]===undefined){project.create(path,starter);editor?.syncSiblings(project.files());explorer.render();}openFile(path);}});
+  };
   const worldView = new CityWorldView(root);
   function updateWorld() { worldView.render(engine);regionMap.render(engine); }
   function update() {
@@ -153,11 +160,10 @@ export function mountCity(root) {
     const files = { ...project.files(), [file]: editor.getValue() }, before = engine.snapshot();
     try {
       validateFiles(files);
-      const result = await runtime.run(files, before, save.memory);
+      const result = await runtime.run(files, before, save.memory,{onLog:scriptLog(preview?'Проба index.js':'index.js',before.tick)});
       if (disposed || mine !== generation) return;
       const candidate = new CityEngine(before); candidate.apply(result.operations);
       const memory = validateMemory(result.memory);
-      result.logs.forEach(line => log((preview ? '[проба] ' : '') + line));
       if (preview) {
         const w = candidate.snapshot();
         log('[проба] Шаг ' + w.tick + ', баланс ' + money(w.balance) + '. Прогресс и память не изменены.');
@@ -169,8 +175,8 @@ export function mountCity(root) {
       }
     } catch (error) {
       if (disposed || mine !== generation) return;
-      log('Ошибка: ' + error.message + ' Изменения шага отменены.');
-      el('[data-feedback]').textContent = 'Шаг отменён: задания не засчитаны. Исправьте ошибку из вывода скрипта.';
+      log('Ошибка: ' + error.message + ' Изменения шага отменены.','error',error.scriptStack);
+      el('[data-feedback]').textContent = 'Шаг отменён: задания не засчитаны. Исправьте ошибку из консоли JavaScript.';
       feedback.error(error.message); stop();
     } finally {
       if (!disposed && mine === generation) {
@@ -197,8 +203,8 @@ export function mountCity(root) {
     lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
     el('[data-ide]').dataset.mode = 'split'; root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode==='split')));
     feedback.show('ready','Новая мастерская','Начните с первого задания.');
-    file = 'index.js'; output.length = 0; el('[data-output]').textContent = ''; el('[data-feedback]').textContent = '';
-    persist(); renderEditor(); renderFiles();mountProjectTools();update();
+    file = 'index.js'; consoleView.clear(); el('[data-feedback]').textContent = '';
+    persist(); renderEditor(true); renderFiles();mountProjectTools();mountPractice();update();
   });
   root.querySelectorAll('[data-jump]').forEach(button => button.addEventListener('click', () => {
     navigation.open(button.dataset.jump);
@@ -213,10 +219,13 @@ export function mountCity(root) {
   lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
   reference = mountReference(el('[data-api]'));
   const backToCode = ()=>{navigation.open('workspace');if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();};
-  root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();update();
+  const goToPractice=()=>{navigation.open('task');el('[data-practice-area]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});};
+  root.addEventListener('city-api-practice',goToPractice);
+  root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();mountPractice();update();
   log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {
     root.removeEventListener('city-api-back',backToCode);
-    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();editor?.dispose();root.replaceChildren();
+    root.removeEventListener('city-api-practice',goToPractice);
+    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();practiceView.dispose();consoleView.dispose();editor?.dispose();root.replaceChildren();
   };
 }
