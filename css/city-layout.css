@@ -99,7 +99,7 @@
  .city-ide,.city-ide[data-mode="code"],.city-ide[data-mode="dashboard"]{grid-template-columns:minmax(0,1fr)}
  .city-ide [data-column-resize]{display:none}
  .city-ide[data-mode="dashboard"] .city-files-panel{display:none}
- .city-files-panel{height:min(var(--files-height,280px),340px)}
+ .city-files-panel{height:var(--files-height,280px)}
  .city-ide-editor{height:var(--editor-height,760px)}
  .city-output-stack,.city-ide[data-mode="dashboard"] .city-output-stack{grid-column:1}
  .city-api-dialog{width:calc(100vw - 16px);max-width:calc(100vw - 16px);height:calc(100dvh - 32px);max-height:calc(100dvh - 16px)}

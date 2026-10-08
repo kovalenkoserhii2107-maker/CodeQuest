@@ -94,8 +94,8 @@ export class WorkspaceLayout {
       if (key === 'outputShare') delta = -delta * 100 / Math.max(520, this.#ide.clientWidth - this.#state.filesWidth - 24);
       this.#state = normalizeWorkspaceLayout({...drag.initial, [key]:drag.initial[key] + delta}); this.#paint();
     };
-    handle.onpointerup = () => this.#finish(true);
-    handle.onpointercancel = () => this.#finish(false);
+    handle.onpointerup = event => { if (this.#drag?.handle === handle && this.#drag.id === event.pointerId) this.#finish(true); };
+    handle.onpointercancel = event => { if (this.#drag?.handle === handle && this.#drag.id === event.pointerId) this.#finish(false); };
     handle.onlostpointercapture = () => { if (this.#drag) this.#finish(false); };
     return handle;
   }
