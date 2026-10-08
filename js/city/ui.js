@@ -176,7 +176,7 @@ export function mountCity(root) {
     } catch (error) {
       if (disposed || mine !== generation) return;
       log('Ошибка: ' + error.message + ' Изменения шага отменены.','error',error.scriptStack);
-      el('[data-feedback]').textContent = 'Шаг отменён: задания не засчитаны. Исправьте ошибку из вывода скрипта.';
+      el('[data-feedback]').textContent = 'Шаг отменён: задания не засчитаны. Исправьте ошибку из консоли JavaScript.';
       feedback.error(error.message); stop();
     } finally {
       if (!disposed && mine === generation) {
@@ -219,10 +219,13 @@ export function mountCity(root) {
   lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
   reference = mountReference(el('[data-api]'));
   const backToCode = ()=>{navigation.open('workspace');if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();};
+  const goToPractice=()=>{navigation.open('task');el('[data-practice-area]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});};
+  root.addEventListener('city-api-practice',goToPractice);
   root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();mountPractice();update();
   log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {
     root.removeEventListener('city-api-back',backToCode);
+    root.removeEventListener('city-api-practice',goToPractice);
     disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();practiceView.dispose();consoleView.dispose();editor?.dispose();root.replaceChildren();
   };
 }
