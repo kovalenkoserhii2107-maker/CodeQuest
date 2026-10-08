@@ -48,7 +48,7 @@
 .city-api-filters .city-api-search{flex:1 1 300px;margin:16px 0}
 .city-api-filters .city-api-kind{display:flex;flex-direction:column;align-items:start;margin:16px 0;gap:10px}
 .city-api-groups button{font-size:.85rem;padding:8px 12px}
-[data-api-list]{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;margin:20px 0}
+[data-api-list]{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px;margin:20px 0}
 .city-campaign button.city-api-method{display:flex;flex-direction:column;align-items:start;justify-content:start;gap:10px;padding:16px;min-height:160px;text-align:left;width:100%;margin:0}
 .city-api-method code{font-size:.85rem;line-height:1.5;overflow-wrap:anywhere;white-space:normal}
 .city-api-effect{display:inline-block;font-size:.75rem;line-height:1.4;color:var(--color-muted);border:1px solid var(--color-line);border-radius:5px;padding:4px 8px}

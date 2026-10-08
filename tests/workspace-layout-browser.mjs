@@ -79,7 +79,7 @@ try {
  await api.press('Tab');assert.ok(await page.evaluate(()=>document.querySelector('[data-api-dialog]').contains(document.activeElement)));
  await api.press('Escape');assert.equal(await api.evaluate(el=>el.open),false);
  assert.equal(await page.evaluate(()=>document.activeElement.dataset.apiPath),'cq.network.getCatalog');
- await page.locator('[data-api-search]').fill('cq.network.transfer');await page.locator('[data-api-path="cq.network.transfer"]').click();assert.ok((await page.locator('[data-api-detail]').textContent()).includes('quantity'));
+ await page.locator('[data-api-search]').fill('cq.network.transfer');assert.ok((await size('[data-api-path="cq.network.transfer"]')).width<500);await page.locator('[data-api-path="cq.network.transfer"]').click();assert.ok((await page.locator('[data-api-detail]').textContent()).includes('quantity'));
  await page.mouse.click(4,4);assert.equal(await api.evaluate(el=>el.open),false);
  await page.screenshot({path:resolve(root,'tests/artifacts/compact-api-desktop.png'),fullPage:true});
  assert.deepEqual((await save()).world,original.world);
