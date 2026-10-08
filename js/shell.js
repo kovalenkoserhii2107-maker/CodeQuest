@@ -139,7 +139,7 @@ function renderAccount() {
   body.innerHTML = `
     <div class="popover__stats">
       <div><span>Уровень</span><b class="mono">${playerLevel()}</b></div>
-      <div><span>Кредиты</span><b class="mono">${state.credits} ¢</b></div>
+      <div><span>Доллары США</span><b class="mono">${state.credits} $</b></div>
       <div><span>Задачи</span><b class="mono">${solvedCount()} / ${totalCount()}</b></div>
       <div><span>Опыт</span><b class="mono">${state.xp} XP</b></div>
     </div>

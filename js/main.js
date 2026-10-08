@@ -64,7 +64,7 @@ const openQuest = questId => navigate(`#/task/${questId}`);
 function renderHud() {
   el('hud-level').textContent = String(playerLevel());
   el('hud-xp-bar').style.width = `${Math.round(levelProgress() * 100)}%`;
-  el('hud-credits').textContent = `${state.credits.toLocaleString()} ¢`;
+  el('hud-credits').textContent = `${state.credits.toLocaleString()} $`;
   el('hud-solved').textContent = `${solvedCount()} / ${totalCount()}`;
   el('corp-name').textContent = corporationName();
 
@@ -174,7 +174,7 @@ function render() {
     renderTask(quest, {
       onOpenQuest: openQuest,
       onSolved: outcome => {
-        toast(`+${outcome.credits} ¢ · +${outcome.xp} XP`);
+        toast(`+${outcome.credits} $ · +${outcome.xp} XP`);
         toast(`Осталась практика: вызовите ${outcome.quest.fn} в консоли`);
         renderNav();
       },

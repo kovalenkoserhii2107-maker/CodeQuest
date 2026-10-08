@@ -1,3 +1,4 @@
+import { WorkspaceLayout } from './workspace-layout.js';
 import { NetworkView } from './network-view.js';
 import { PracticeView } from './practice-ui.js';
 import { CityConsole } from './console-view.js';
@@ -20,7 +21,7 @@ import { createEditor } from '../ui/editor.js';
 import { escapeHtml } from '../ui/html.js';
 
 const number = value => value.toLocaleString('ru-RU');
-const money = value => number(value) + ' ₽';
+const money = value => number(value) + ' $';
 const statuses = { available: 'Доступен', active: 'Принят', cooldown: 'Обновляется' };
 
 export function mountCity(root) {
@@ -57,10 +58,9 @@ export function mountCity(root) {
     '<button type="button" data-auto aria-pressed="false">Автоматизация: выкл.</button>',
     '<button type="button" data-wait>Пропустить шаг</button><button type="button" data-cancel disabled>Отменить запуск</button></div>',
     '<div class="city-run-status" data-run-status role="status" aria-live="polite"><strong>Готово к запуску</strong><span>index.js меняет мир · дашборд читает данные</span></div><p class="city-save-status" data-save-status role="status">Сохранение в этом браузере</p>',
-    '<div class="city-ide" data-ide data-mode="split"><aside class="city-explorer" data-explorer></aside><div class="city-ide-editor"><div class="city-files" data-files role="group" aria-label="Вкладки файлов"></div><div data-editor></div><p class="city-project-path" data-project-status></p></div><section class="city-dashboard-panel" data-dashboard aria-label="Мои дашборды"></section></div>',
+    '<div class="city-layout-tools"><button type="button" data-layout-swap>Консоль наверх ↑</button><button type="button" data-layout-reset>Сбросить размеры панелей</button><span data-layout-status role="status">Потяните границы панелей · стрелки меняют размер</span></div><div class="city-ide" data-ide data-mode="split"><aside class="city-files-panel"><div class="city-explorer" data-explorer></div></aside><div class="city-ide-editor"><div class="city-files" data-files role="group" aria-label="Вкладки файлов"></div><div data-editor></div><p class="city-project-path" data-project-status></p></div><div class="city-output-stack"><div class="city-dashboard-shell"><section class="city-dashboard-panel" data-dashboard aria-label="Мои дашборды"></section></div><section data-console></section></div></div>',
     '<p class="city-muted">main(cq) вызывается один раз на шаг. Автоматизация повторяет проект через секунду после завершения предыдущего запуска. При выходе в меню мир останавливается.</p>',
     '<p class="city-lesson-feedback" data-feedback role="status"></p>',
-    '<section data-console></section>',
     '</section><section class="city-panel city-task" data-task aria-label="Учебное задание"></section></div><aside class="city-side">',
     '<section class="city-panel" data-board></section>',
     '<section class="city-panel city-network" data-network aria-label="Сеть предприятия"></section>',
@@ -74,7 +74,7 @@ export function mountCity(root) {
     '</aside></div>',
     '<section class="city-panel"><h2>Что возвращает getState()</h2>',
     '<p class="city-muted">Это снимок для чтения: изменение его полей не меняет мир. Используйте команды API. Программные ID товаров: scrap (лом), metal (металл), parts (детали), wire (провод), circuit (схемы).</p>',
-    '<dl class="city-state-fields"><dt>balance, tick</dt><dd>Баланс в рублях и текущий номер шага.</dd>',
+    '<dl class="city-state-fields"><dt>balance, tick</dt><dd>Баланс в долларах США (USD) и текущий номер шага.</dd>',
     '<dt>inventory, capacity</dt><dd>Готовые товары центральной мастерской и её вместимость. getFreeSpace() учитывает партии и входящие внутренние перевозки.</dd>',
     '<dt>lines</dt><dd>Массив независимых линий: id, level, job. Для свободной линии job=null.</dd>',
     '<dt>buyers, supplier</dt><dd>Цены, спрос покупателей и запас поставщика. Для remote-покупателей нужна доставка.</dd>',
@@ -130,6 +130,7 @@ export function mountCity(root) {
     section.dataset.practiceArea='';section.className='city-panel city-practice';el('[data-page="task"]').append(section);
     practiceView=new PracticeView(section,{getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,isLocked:()=>busy||automatic,onLog:(entry,context)=>consoleView.write(entry,context),onPrepare:(path,starter)=>{if(project.files()[path]===undefined){project.create(path,starter);editor?.syncSiblings(project.files());explorer.render();}openFile(path);}});
   };
+  const workspaceLayout = new WorkspaceLayout(root, storage);
   const worldView = new CityWorldView(root), networkView = new NetworkView(el('[data-network]'),openAPI);
   function updateWorld() { worldView.render(engine);regionMap.render(engine);networkView.render(engine); }
   function update() {
@@ -228,6 +229,6 @@ export function mountCity(root) {
   return () => {
     root.removeEventListener('city-api-back',backToCode);
     root.removeEventListener('city-api-practice',goToPractice);
-    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();practiceView.dispose();consoleView.dispose();editor?.dispose();root.replaceChildren();
+    reference.dispose();workspaceLayout.dispose();disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();practiceView.dispose();consoleView.dispose();editor?.dispose();root.replaceChildren();
   };
 }

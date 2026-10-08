@@ -22,13 +22,13 @@
 
 ## Расширение мира
 
-Общий мир: промышленный город city, свободный порт port, Северные высоты highlands. cq.world.getRegions/getEvents читают карту и события, cq.world.explore открывает доступ за 600/1000 ₽.
+Общий мир: промышленный город city, свободный порт port, Северные высоты highlands. cq.world.getRegions/getEvents читают карту и события, cq.world.explore открывает доступ за 600/1000 $.
 
 У поставщиков и покупателей region и locked. cq.market.buy(product,quantity,supplierId) выбирает yard (лом за 4), port-yard (лом за 3), northern-metal (металл за 12). Нужен доступ к региону. Дополнительные рынки испытывают периодические изменения цен.
 
-courier обслуживает city; rail — city/highlands; barge — port (5 шагов, 20 ₽, до 60 единиц). Неподходящий маршрут не отправит груз. Цена отправленного груза закреплена.
+courier обслуживает city; rail — city/highlands; barge — port (5 шагов, 20 $, до 60 единиц). Неподходящий маршрут не отправит груз. Цена отправленного груза закреплена.
 
-Исследование circuits за 800 ₽ открывает circuit: 3 wire + 8 ₽, 4 шага. Северный рынок принимает схемы.
+Исследование circuits за 800 $ открывает circuit: 3 wire + 8 $, 4 шага. Северный рынок принимает схемы.
 
 cq.analytics.getHistory(limit) возвращает до 120 снимков: tick, balance, revenue, spent, inventory, prices. Используйте map/filter/reduce для графиков и стратегии. cq.project.listFiles/readFile читает исходники.
 

@@ -177,11 +177,11 @@ const commitApi = {
   hireCandidate(candidateId, spent) {
     const candidate = laborExchange.getCandidates().find(item => item.id === candidateId);
     if (!candidate) return 'Кандидат не найден на бирже';
-    if (!Number.isFinite(spent) || spent <= 0) return 'Ваша функция не списала кредиты — найм не засчитан';
-    if (!spendCredits(spent)) throw new Error('На счету не хватило кредитов');
+    if (!Number.isFinite(spent) || spent <= 0) return 'Ваша функция не списала доллары — найм не засчитан';
+    if (!spendCredits(spent)) throw new Error('На счету не хватило долларов');
 
     addCrewMember(laborExchange.hire(candidateId) ?? candidate);
-    return `${candidate.name} принят в экипаж за ${spent.toLocaleString()} ¢`;
+    return `${candidate.name} принят в экипаж за ${spent.toLocaleString()} $`;
   },
 
   /**
@@ -217,9 +217,9 @@ const commitApi = {
 
     const bounty = threatLog.getThreats()[0]?.bounty ?? 0;
     state.credits += bounty;
-    addLog(`Первый перехват: премия ${bounty.toLocaleString()} ¢`, 'success');
+    addLog(`Первый перехват: премия ${bounty.toLocaleString()} $`, 'success');
 
-    return `Противник выведен из строя за ${report.rounds} раундов, премия ${bounty.toLocaleString()} ¢`;
+    return `Противник выведен из строя за ${report.rounds} раундов, премия ${bounty.toLocaleString()} $`;
   },
 
   /** Итоги продажи: руду отдаём, выручку зачисляем на счёт. */
@@ -231,8 +231,8 @@ const commitApi = {
     if (!spendResource('ore', sold)) throw new Error('В бункере меньше руды, чем в плане продажи');
 
     state.credits += revenue;
-    addLog(`Продано ${sold} т руды за ${revenue.toLocaleString()} ¢`, 'success');
-    return `Продано ${sold} т руды, на счёт зачислено ${revenue.toLocaleString()} ¢`;
+    addLog(`Продано ${sold} т руды за ${revenue.toLocaleString()} $`, 'success');
+    return `Продано ${sold} т руды, на счёт зачислено ${revenue.toLocaleString()} $`;
   },
 };
 

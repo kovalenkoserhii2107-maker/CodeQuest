@@ -134,7 +134,7 @@ export async function renderArsenal() {
                   <h3 class="widget__title">${escapeHtml(module.name)}</h3>
                   <p class="widget__unit">${module.type === 'weapon' ? 'орудие' : 'щит'}</p>
                 </div>
-                ${count ? `<span class="badge badge--ok">на борту ×${count}</span>` : `<span class="badge badge--info">${module.price.toLocaleString()} ¢</span>`}
+                ${count ? `<span class="badge badge--ok">на борту ×${count}</span>` : `<span class="badge badge--info">${module.price.toLocaleString()} $</span>`}
               </header>
               <div class="widget__body">
                 <div class="widget__row">
@@ -233,7 +233,7 @@ export async function renderBattle() {
           <button class="route-card${item.id === threat.id ? ' is-active' : ''}" type="button" data-threat="${escapeHtml(item.id)}">
             <span class="route-card__name">${escapeHtml(item.name)}</span>
             <span class="route-card__meta mono">атака ${item.attack} · щит ${item.shield} · корпус ${item.hull}</span>
-            <span class="route-card__meta">премия ${item.bounty.toLocaleString()} ¢</span>
+            <span class="route-card__meta">премия ${item.bounty.toLocaleString()} $</span>
           </button>`)
         .join('')}
     </div>
@@ -316,7 +316,7 @@ async function fight(button) {
 
   addLog(
     won
-      ? `Победа: ${threat.name} выведен из строя, премия ${bounty.toLocaleString()} ¢`
+      ? `Победа: ${threat.name} выведен из строя, премия ${bounty.toLocaleString()} $`
       : `Бой (${threat.name}) закончился без победы`,
     won ? 'success' : 'info',
   );
@@ -338,7 +338,7 @@ function battleReportHtml(value, { ship, threat, bounty }) {
       <h3 class="panel__title">Бой: ${escapeHtml(threat.name)}</h3>
       <span class="badge ${badge}">${label}</span>
     </div>
-    ${bounty > 0 ? `<p class="widget__value mono">${bounty.toLocaleString()} <small>¢ премии</small></p>` : ''}
+    ${bounty > 0 ? `<p class="widget__value mono">${bounty.toLocaleString()} <small>$ премии</small></p>` : ''}
     <div class="widget__row"><span>Раундов</span><b class="mono">${escapeHtml(showValue(value?.rounds))}</b></div>
     ${fillBar({ value: shipHull, max: ship.hull, label: `Корпус — ${ship.name}`, unit: '', tone: 'progress' })}
     ${fillBar({ value: enemyHull, max: threat.hull, label: `Корпус — ${threat.name}`, unit: '' })}

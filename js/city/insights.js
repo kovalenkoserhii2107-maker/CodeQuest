@@ -14,7 +14,7 @@ export function productionQuote(world, product, quantity, lineId, freeSpace) {
   if (line.job) reasons.push('Линия занята ещё ' + line.job.remaining + ' шаг.');
   if (quantity > 8 * line.level) reasons.push('Мощность линии: до ' + 8 * line.level + ' ед.');
   if (world.inventory[recipe.input] < inputQuantity) reasons.push('Нужно ' + inputQuantity + ' ' + recipe.input + '; есть ' + world.inventory[recipe.input] + '.');
-  if (world.balance < energyCost) reasons.push('На энергию нужно ' + energyCost + ' ₽.');
+  if (world.balance < energyCost) reasons.push('На энергию нужно ' + energyCost + ' $.');
   if (quantity > freeSpace + inputQuantity) reasons.push('Не хватает места под готовую партию.');
   return { product, quantity, lineId, input: recipe.input, inputQuantity, energyCost, duration, canStart: !reasons.length, reasons };
 }

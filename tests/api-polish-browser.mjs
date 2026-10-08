@@ -19,9 +19,9 @@ try {
   await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
   await page.locator('.city-section-nav [data-jump="task"]').click();
   await page.locator('[data-task] [data-method="cq.world.getState"]').click();
-  const detail=page.locator('[data-api-path="cq.world.getState"]');
+  const detail=page.locator('[data-api-dialog]');
   assert.equal(await detail.getAttribute('open'),'');
-  assert.ok((await detail.locator('summary').textContent()).includes('Чтение'));
+  assert.ok((await detail.locator('.city-api-effect').textContent()).includes('Чтение'));
   const original=await save();
   await detail.locator('[data-api-main]').click();
   assert.ok((await page.evaluate(()=>navigator.clipboard.readText())).startsWith('export function main(cq)'));
@@ -31,6 +31,7 @@ try {
   assert.ok((await detail.locator('[data-api-copy-status]').textContent()).includes('вручную'));
   assert.ok((await page.evaluate(()=>getSelection().toString())).includes('cq.world.getState'));
   await page.evaluate(()=>{delete navigator.clipboard.writeText;});
+  await page.locator('[data-api-close]').click();
   await page.locator('[data-api-search]').fill('');
   await page.locator('[data-api-kind]').selectOption('command');
   assert.equal(await page.locator('[data-api-path="cq.world.getState"]').count(),0);
@@ -40,7 +41,8 @@ try {
   await page.locator('[data-api-search]').fill('no-such-method');
   await page.locator('[data-api-clear]').click();
   assert.ok((await page.locator('[data-api-count]').textContent()).includes('из'));
-  assert.equal(await detail.getAttribute('open'),'');
+  assert.equal(await detail.getAttribute('open'),null);
+  assert.equal(await page.locator('[data-api-path="cq.world.getState"]').count(),1);
   await page.locator('[data-api-search]').fill('zzzzz');
   await page.locator('[data-api-search]').press('Escape');
   assert.equal(await page.locator('[data-api-search]').inputValue(),'');
@@ -52,7 +54,7 @@ try {
   assert.equal(await page.locator('[data-editor]').isVisible(),true);
   assert.equal((await save()).workspace.mode,'code');
   await page.locator('.city-ide-modes [data-mode="split"]').click();
-  console.log('✓ lesson-to-API navigation, effect filters, counts, retained expansion, reset and clipboard template without source replacement');
+  console.log('✓ lesson-to-API navigation, effect filters, counts, modal closure, reset and clipboard template without source replacement');
 
   await page.locator('[data-dashboard-live]').uncheck();
   assert.equal((await save()).dashboards.live,false);
@@ -63,7 +65,7 @@ try {
   const restoredWorld=(await save()).world;
   await page.locator('.city-section-nav [data-jump="task"]').click();
   await page.locator('[data-task] [data-method]').first().click();
-  await page.locator('[data-api-back]').click();
+  await page.locator('[data-api-dialog-back]').click();
   assert.deepEqual((await save()).world,restoredWorld);
   await page.locator('[data-path="dashboards/overview.js"]').click();
   await code('export function render(){return {widgets:[{id:"debounce",type:"stat",value:1}]};}','dashboards/overview.js');
@@ -106,6 +108,7 @@ try {
   await page.locator('[data-task] [data-method]').first().click();
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.screenshot({path:resolve(root,'tests/artifacts/api-polish-mobile-dark.png'),fullPage:true});
+  await page.locator('[data-api-close]').click();
   await page.locator('#city-campaign a[href="#/campaigns"]').click();await page.locator('#campaign-theme').click();await page.locator('[data-campaign="city"]').click();
   await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
   assert.equal(await page.locator('html').getAttribute('data-theme'),'light');

@@ -71,7 +71,7 @@ export async function renderRoutes() {
   tankHost.innerHTML = `
     <div class="panel__head">
       <h3 class="panel__title">Топливный бак</h3>
-      <span class="panel__hint">${FUEL_PRICE} ¢ за тонну</span>
+      <span class="panel__hint">${FUEL_PRICE} $ за тонну</span>
     </div>
     ${fillBar({ value: fuel, max: TANK_CAPACITY, label: 'Заправлено', unit: 'т' })}
     <div class="grid grid--split">
@@ -92,7 +92,7 @@ export async function renderRoutes() {
       ${[50, 200, 400]
         .map(amount => `
           <button class="btn btn--ghost btn--sm" type="button" data-fuel="${amount}">
-            +${amount} т · ${(amount * FUEL_PRICE).toLocaleString()} ¢
+            +${amount} т · ${(amount * FUEL_PRICE).toLocaleString()} $
           </button>`)
         .join('')}
     </div>
@@ -173,7 +173,7 @@ function buyFuel(amount, button) {
   const price = amount * FUEL_PRICE;
   if (!spendCredits(price)) {
     button.disabled = false;
-    toastFromMission('Не хватает кредитов на заправку');
+    toastFromMission('Не хватает долларов на заправку');
     return;
   }
 
@@ -182,11 +182,11 @@ function buyFuel(amount, button) {
     // Заправка сорвалась после списания — деньги возвращаем
     state.credits += price;
     button.disabled = false;
-    toastFromMission('Заправка не прошла, кредиты возвращены');
+    toastFromMission('Заправка не прошла, доллары возвращены');
     return;
   }
 
-  addLog(`Заправка: +${added} т топлива за ${price.toLocaleString()} ¢`, 'info');
+  addLog(`Заправка: +${added} т топлива за ${price.toLocaleString()} $`, 'info');
   toastFromMission(`Залито ${added} т топлива`);
 }
 
@@ -428,7 +428,7 @@ export async function renderMarket() {
                   <span class="table__ship-name">${escapeHtml(offer.buyer)}</span>
                   <span class="route__note">${escapeHtml(offer.note)}</span>
                 </td>
-                <td class="table__num">${offer.price.toLocaleString()} ¢/т</td>
+                <td class="table__num">${offer.price.toLocaleString()} $/т</td>
                 <td class="table__num">${offer.limit} т</td>
               </tr>`)
             .join('')}
@@ -459,14 +459,14 @@ export async function renderMarket() {
       <span class="panel__hint">sellOre из вашего кода</span>
     </div>
     ${fillBar({ value: ore, max: ORE_CAPACITY, label: 'Руды в бункере', unit: 'т' })}
-    <p class="widget__value mono">${Number(value?.revenue ?? 0).toLocaleString()} <small>¢ выручки</small></p>
+    <p class="widget__value mono">${Number(value?.revenue ?? 0).toLocaleString()} <small>$ выручки</small></p>
     ${
       deals.length
         ? deals
             .map(deal => `
               <div class="widget__row">
                 <span>${escapeHtml(showValue(deal.buyer))}</span>
-                <b class="mono">${escapeHtml(showValue(deal.amount))} т · ${Number(deal.sum ?? 0).toLocaleString()} ¢</b>
+                <b class="mono">${escapeHtml(showValue(deal.amount))} т · ${Number(deal.sum ?? 0).toLocaleString()} $</b>
               </div>`)
             .join('')
         : '<p class="widget__note">Ваша функция не нашла, кому продать.</p>'
@@ -503,8 +503,8 @@ function sellByPlan(plan, button) {
 
   state.credits += revenue;
   db.insert('deals', { sold, revenue, buyers: (plan.deals ?? []).length });
-  addLog(`Продано ${sold} т руды за ${revenue.toLocaleString()} ¢`, 'success');
-  toastFromMission(`Выручка ${revenue.toLocaleString()} ¢ зачислена`);
+  addLog(`Продано ${sold} т руды за ${revenue.toLocaleString()} $`, 'success');
+  toastFromMission(`Выручка ${revenue.toLocaleString()} $ зачислена`);
 }
 
 /* --- Мелочь -------------------------------------------------------------- */

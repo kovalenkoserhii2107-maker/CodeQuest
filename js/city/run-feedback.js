@@ -18,7 +18,7 @@ export class RunFeedback {
       return PRODUCTS[id] + ' ' + (n > 0 ? '+' : '') + n;
     });
     this.show(preview ? 'preview' : 'success', preview ? 'Проба завершена · мир не изменён' : 'Шаг ' + after.tick + ' выполнен',
-      (preview ? 'Прогноз: ' : '') + 'баланс ' + (delta > 0 ? '+' : '') + delta.toLocaleString('ru-RU') + ' ₽ · ' +
+      (preview ? 'Прогноз: ' : '') + 'баланс ' + (delta > 0 ? '+' : '') + delta.toLocaleString('ru-RU') + ' $ · ' +
       (changed.join(', ') || 'склад без изменений') + ' · команд: ' + commands +
       (duration ? ' · ' + Math.round(duration) + ' мс' : ''));
   }

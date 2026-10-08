@@ -356,7 +356,7 @@ export function completeQuest(questId, { withSolution = false, source = null } =
   state.credits += credits;
   state.xp += xp;
 
-  addLog(`Задача «${quest.title}» решена: +${credits} ¢, +${xp} XP`, 'success');
+  addLog(`Задача «${quest.title}» решена: +${credits} $, +${xp} XP`, 'success');
 
   addLog(`Осталась практика: вызовите ${quest.fn} в консоли`, 'info');
 
@@ -590,7 +590,7 @@ export function sellStockModule(uniqueId) {
   const refund = salvagePrice(sold);
 
   state.credits += refund;
-  addLog(`Модуль «${sold.name}» сдан верфи за ${refund.toLocaleString()} ¢`, 'info');
+  addLog(`Модуль «${sold.name}» сдан верфи за ${refund.toLocaleString()} $`, 'info');
   emit();
 
   return refund;
@@ -776,7 +776,7 @@ export function completeChapter(chapterId, { credits = 0, xp = 0 } = {}) {
   state.chapters[chapterId] = { at: new Date().toISOString() };
   state.credits += credits;
   state.xp += xp;
-  addLog(`Глава комбината пройдена: +${credits} ¢`, 'success');
+  addLog(`Глава комбината пройдена: +${credits} $`, 'success');
   emit();
   return { credits, xp };
 }
@@ -792,7 +792,7 @@ export function recordShift({ metal = 0, earned = 0, note = '' } = {}) {
   plant.log.unshift({ at: new Date().toISOString(), metal: Number(metal) || 0, earned: Math.round(Number(earned) || 0), note });
   plant.log = plant.log.slice(0, 20);
 
-  addLog(`Смена закрыта: ${metal} т металла, +${Math.round(Number(earned) || 0)} ¢`, 'success');
+  addLog(`Смена закрыта: ${metal} т металла, +${Math.round(Number(earned) || 0)} $`, 'success');
   emit();
   return { ...plant };
 }

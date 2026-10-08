@@ -29,7 +29,8 @@ try {
  assert.deepEqual((await save()).world,before.world);
  await page.locator('[data-map-api="cq.world.explore"]').click();
  assert.equal(await page.locator('[data-page="api"]').isVisible(),true);
- assert.equal(await page.locator('[data-api-path="cq.world.explore"]').getAttribute('open'),'');
+ assert.equal(await page.locator('[data-api-dialog]').getAttribute('data-api-method'),'cq.world.explore');
+ await page.locator('[data-api-close]').click();
  await page.locator('.city-section-nav [data-jump="api"]').focus();
  await page.locator('.city-section-nav [data-jump="api"]').press('Home');
  assert.equal(await page.locator('[data-workspace]').isVisible(),true);
@@ -50,6 +51,7 @@ try {
  await page.locator('[data-builder-title]').fill('Торговая панель');
  await page.locator('[data-builder-columns]').selectOption('3');
  const prices=page.locator('[data-builder-widget="widget-2"]');
+ await prices.locator('summary').click();
  await prices.locator('[data-builder-style]').selectOption('area');
  await prices.locator('[data-builder-widget-title]').fill('Мои цены');
  await page.waitForFunction(()=>document.querySelector('[data-builder-status]')?.textContent.includes('5 виджетов'));
@@ -97,7 +99,8 @@ try {
  assert.ok((await page.evaluate(()=>navigator.clipboard.readText())).includes('type: "progress"'));
  await page.locator('[data-guide-tab="debug"]').click();
  await page.locator('[data-guide-page="debug"] [data-guide-method="cq.logistics.getRoutes"]').click();
- assert.equal(await page.locator('[data-api-path="cq.logistics.getRoutes"]').getAttribute('open'),'');
+ assert.equal(await page.locator('[data-api-dialog]').getAttribute('data-api-method'),'cq.logistics.getRoutes');
+ await page.locator('[data-api-close]').click();
  await page.locator('[data-guide-tab="start"]').click();
  assert.equal(await page.locator('[data-guide-page="start"] .city-guide-recipe').count(),5);
  await page.setViewportSize({width:390,height:844});
