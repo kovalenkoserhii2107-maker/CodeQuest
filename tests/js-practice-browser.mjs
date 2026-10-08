@@ -92,6 +92,13 @@ try {
   assert.deepEqual((await save()).world,practiceBefore);
   const existing=(await save()).files[path];await page.locator('[data-practice-open="'+id+'"]').click();assert.equal((await save()).files[path],existing);
  }
+ await code('export async function planPurchase(){ console.log("practice-in-progress"); await new Promise(()=>{}); }','practice/budget.js');
+ await page.locator('.city-section-nav [data-jump="task"]').click();await page.locator('[data-practice-test="budget"]').click();
+ await page.waitForFunction(()=>document.querySelector('[data-output]').textContent.includes('practice-in-progress'));
+ await code(solutions.budget,'practice/budget.js');
+ assert.equal(await page.locator('[data-practice-result="budget"]').getAttribute('data-state'),'pending');
+ assert.equal(await page.locator('[data-practice-test="budget"]').isDisabled(),false);
+ assert.deepEqual((await save()).world,practiceBefore);
  await code(solutions.report+'\n// revised','practice/report.js');
  assert.equal(await page.locator('[data-practice-result="report"]').getAttribute('data-state'),'pending');
  await code('import { summarize } from "../practice/report.js"; export function render(cq){ const s=summarize(cq.world.getState()); console.log("report-dashboard",s);return {title:"Tested report",widgets:[{id:"stock",type:"stat",title:"Stock",value:s.inventoryTotal},{id:"load",type:"progress",title:"Load",value:s.busyLines,max:Math.max(1,s.busyLines+s.freeLines)}]}; }','dashboards/overview.js');await refresh();
