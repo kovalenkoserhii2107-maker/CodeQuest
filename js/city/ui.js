@@ -111,8 +111,8 @@ export function mountCity(root) {
   }
   function renderEditor(force=false){
     if(editor&&!force){editor.openFile(file,project.files()[file],project.files());return;}
-    editor?.dispose();editor=createEditor(el('[data-editor]'),{filename:file,value:project.files()[file],siblings:project.files(),includeLiveFunctions:false,extraDeclarations:API_TYPES,
-      onInput:code=>{try{project.write(file,code);editor?.syncSiblings(project.files());persist();dashboards?.schedule();}catch(e){notice(e.message+' Черновик не сохранён.');}},
+    if(force)editor?.collapse();editor?.dispose();editor=createEditor(el('[data-editor]'),{filename:file,value:project.files()[file],siblings:project.files(),includeLiveFunctions:false,extraDeclarations:API_TYPES,
+      onInput:code=>{try{project.write(file,code);practiceView?.invalidate();editor?.syncSiblings(project.files());persist();dashboards?.schedule();}catch(e){notice(e.message+' Черновик не сохранён.');}},
       onRun:()=>{if(!automatic){if(file.startsWith('dashboards/'))dashboards.refresh();else step(false);}}
     });
   }

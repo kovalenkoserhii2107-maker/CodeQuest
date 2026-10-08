@@ -76,6 +76,9 @@ try {
   lines:'export function chooseLine(lines) { return [...lines].filter(l=>l.job===null).sort((a,b)=>b.level-a.level||(a.id<b.id?-1:a.id>b.id?1:0))[0]?.id??null; }',
   report:'export function summarize({inventory={},lines=[],balance=0}) { const busyLines=lines.filter(l=>l.job).length; return {inventoryTotal:Object.values(inventory).reduce((s,n)=>s+n,0),busyLines,freeLines:lines.length-busyLines,lowBalance:balance<100}; }'
  };
+ await page.locator('.city-section-nav [data-jump="api"]').click();await page.locator('[data-guide-tab="debug"]').click();
+ assert.ok((await page.locator('[data-guide-page="debug"]').textContent()).includes('console.warn'));
+ await page.locator('[data-guide-practice]').click();assert.equal(await page.locator('[data-page="task"]').isVisible(),true);
  const practiceBefore=(await save()).world;
  for(const [id,solution]of Object.entries(solutions)){
   await page.locator('.city-section-nav [data-jump="task"]').click();await page.locator('[data-practice-open="'+id+'"]').click();
@@ -89,6 +92,8 @@ try {
   assert.deepEqual((await save()).world,practiceBefore);
   const existing=(await save()).files[path];await page.locator('[data-practice-open="'+id+'"]').click();assert.equal((await save()).files[path],existing);
  }
+ await code(solutions.report+'\n// revised','practice/report.js');
+ assert.equal(await page.locator('[data-practice-result="report"]').getAttribute('data-state'),'pending');
  await code('import { summarize } from "../practice/report.js"; export function render(cq){ const s=summarize(cq.world.getState()); console.log("report-dashboard",s);return {title:"Tested report",widgets:[{id:"stock",type:"stat",title:"Stock",value:s.inventoryTotal},{id:"load",type:"progress",title:"Load",value:s.busyLines,max:Math.max(1,s.busyLines+s.freeLines)}]}; }','dashboards/overview.js');await refresh();
  assert.equal(await page.locator('[data-dashboard-output] h3').textContent(),'Tested report');assert.deepEqual((await save()).world,practiceBefore);
  console.log('✓ all three practices fail TODOs, accept working functions in real Workers, preserve files and world, and integrate with dashboards');

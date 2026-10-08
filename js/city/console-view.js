@@ -21,6 +21,7 @@ export class CityConsole {
       const button = root.querySelector('[data-console-float]');
       button.setAttribute('aria-pressed', String(floating));
       button.textContent = floating ? 'Вернуть в панель' : 'Отдельное окно';
+      button.focus({preventScroll:true});
     };
     this.#render();
   }
