@@ -42,7 +42,7 @@ try {
  assert.deepEqual((await save()).world,original.world);assert.deepEqual((await save()).files,original.files);
  assert.equal(await page.evaluate(async()=>{const {editor}=await import('/vendor/editor.js');return editor.getModels().find(m=>m.uri.path.endsWith('/index.js')).id;}),modelId);
  assert.ok((await page.locator('[data-editor]').textContent()).includes('layout-kept'));
- const prefs=await layout();await page.reload();await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
+ const prefs=await layout();await page.reload();await page.locator('[data-campaign="city"]').click();await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
  assert.deepEqual(await layout(),prefs);assert.equal(await page.locator('[data-ide]').getAttribute('data-output-order'),'console-first');
  assert.ok(Math.abs((await size('.city-files-panel')).width-prefs.filesWidth)<2);assert.ok(Math.abs((await size('.city-ide-editor')).height-prefs.editorHeight)<2);
  await page.locator('.city-section-nav [data-jump="world"]').click();await page.locator('.city-section-nav [data-jump="workspace"]').click();
