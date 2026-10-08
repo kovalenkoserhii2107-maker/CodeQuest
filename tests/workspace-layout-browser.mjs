@@ -71,7 +71,20 @@ try {
 
  await page.locator('.city-section-nav [data-jump="api"]').click();
  const cards=page.locator('[data-api-list] .city-api-method');assert.ok(await cards.count()>50);
- const first=await cards.nth(0).boundingBox(),second=await cards.nth(1).boundingBox();assert.ok(Math.abs(first.y-second.y)<2);assert.ok(second.x>first.x+first.width);
+ // Navigation scrolls smoothly. Read both cards in the same frame: separate
+ // boundingBox round trips can observe different scroll positions.
+ const rows=await page.locator('[data-api-list]').evaluate(async list=>{
+  const cards=list.querySelectorAll('.city-api-method'),rows=[];
+  // Exercise geometry while scrolling too, rather than suppressing animation.
+  window.scrollBy({top:160,behavior:'smooth'});
+  for(let frame=0;frame<8;frame++){
+   await new Promise(resolve=>requestAnimationFrame(resolve));
+   const first=cards[0].getBoundingClientRect(),second=cards[1].getBoundingClientRect();
+   rows.push({first:{x:first.x,y:first.y,width:first.width},second:{x:second.x,y:second.y,width:second.width}});
+  }
+  return rows;
+ });
+ for(const {first,second} of rows){assert.ok(Math.abs(first.y-second.y)<2,JSON.stringify({first,second}));assert.ok(second.x>first.x+first.width,JSON.stringify({first,second}));}
  await cards.nth(0).click();const api=page.locator('[data-api-dialog]'),apiBox=await api.boundingBox();
  assert.ok(Math.abs(apiBox.width-1600*.7)<3);assert.ok(Math.abs(apiBox.x+apiBox.width/2-800)<3);
  assert.equal(await page.evaluate(()=>document.activeElement.hasAttribute('data-api-close')),true);
