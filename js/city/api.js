@@ -24,6 +24,27 @@ export function createCityAPI(engine, memory, { onCommand = () => {}, onRead = (
       getRegions:()=>read('world.getRegions',()=>engine.getRegions()),getEvents:()=>read('world.getEvents',()=>engine.getEvents()),explore:id=>command('openRegion',[id]),
       getTime: () => read('world.getTime', () => engine.getTime())
     }),
+    network: Object.freeze({
+      getCatalog: () => read('network.getCatalog', () => engine.getSiteCatalog()),
+      getSites: () => read('network.getSites', () => engine.getSites()),
+      getSite: id => read('network.getSite', () => engine.getSite(id)),
+      getFleet: () => read('network.getFleet', () => engine.getFleet()),
+      getTransfers: () => read('network.getTransfers', () => engine.getTransfers()),
+      getHistory: (id,limit=60) => read('network.getHistory', () => engine.getSiteHistory(id,limit)),
+      quoteProduction: (...args) => read('network.quoteProduction', () => engine.quoteSiteProduction(...args)),
+      quoteTrade: (...args) => read('network.quoteTrade', () => engine.quoteSiteTrade(...args)),
+      quoteTransfer: (...args) => read('network.quoteTransfer', () => engine.quoteTransfer(...args)),
+      open: id => command('networkOpen',[id]),
+      buy: (...args) => command('networkBuy',args),
+      start: (...args) => command('networkStart',args),
+      sell: (...args) => command('networkSell',args),
+      transfer: (...args) => command('networkTransfer',args),
+      purchaseLine: id => command('networkPurchaseLine',[id]),
+      upgradeLine: (id,lineId='line-1') => command('networkUpgradeLine',[id,lineId]),
+      upgradeWarehouse: id => command('networkUpgradeWarehouse',[id]),
+      upgradeFleet: () => command('networkUpgradeFleet',[]),
+      discard: (...args) => command('networkDiscard',args)
+    }),
     warehouse: Object.freeze({
       getStock: id => read('warehouse.getStock', () => engine.snapshot().inventory[product(id)]),
       getFreeSpace: () => read('warehouse.getFreeSpace', () => engine.getFreeSpace()),
