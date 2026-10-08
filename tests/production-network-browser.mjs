@@ -13,6 +13,12 @@ page.on('pageerror',e=>errors.push(e.message));const save=()=>page.evaluate(()=>
 async function code(text,path='index.js'){await page.locator('.city-section-nav [data-jump="workspace"]').click();await page.locator('[data-path="'+path+'"]').click();await page.waitForSelector('#city-campaign .monaco-editor');await page.evaluate(async({text,path})=>{const {editor}=await import('/vendor/editor.js');const model=editor.getModels().find(m=>m.uri.path.endsWith('/'+path));if(!model)throw new Error(path);model.setValue(text);},{text,path});}
 async function step(){await page.locator('.city-section-nav [data-jump="workspace"]').click();await page.locator('[data-run]').click();await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);}
 async function refresh(){await page.locator('[data-dashboard-refresh]').click();await page.waitForFunction(()=>/render\(\)|Ошибка дашборда/.test(document.querySelector('[data-dashboard-status]').textContent));}
+async function editorDiagnostics(path){
+ return page.evaluate(async path=>{
+  const m=await import('/vendor/editor.js'),model=m.editor.getModels().find(model=>model.uri.path.endsWith('/'+path)),factory=await m.typescript.getJavaScriptWorker(),worker=await factory(model.uri);
+  return worker.getSemanticDiagnostics(model.uri.toString());
+ },path);
+}
 await mkdir(resolve(root,'tests/artifacts'),{recursive:true});
 try {
  await page.goto('http://127.0.0.1:'+server.address().port);
@@ -33,7 +39,8 @@ try {
   return worker.getSemanticDiagnostics(model.uri.toString());
  });
  assert.deepEqual(diagnostics,[]);
- await code(NETWORK_RECIPES.find(r=>r.id==='open').code);
+ await code('/** @param {CityAPI} cq */\n'+NETWORK_RECIPES.find(r=>r.id==='open').code);
+ assert.deepEqual(await editorDiagnostics('index.js'),[]);
  const initial=await save();await page.locator('[data-preview]').click();await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);
  assert.deepEqual((await save()).world,initial.world);assert.equal((await save()).tutorial.completed.length,13);
  await step();assert.equal((await save()).world.network.sites.length,1);assert.equal((await save()).world.balance,27600);assert.equal((await save()).tutorial.completed.at(-1),'site');
@@ -75,7 +82,7 @@ try {
 
  page.once('dialog',dialog=>dialog.accept('strategies/network.js'));await page.locator('[data-add]').click();
  await code('export function planSite(site){return {product:site.id==="port"?"metal":"parts",quantity:1};}','strategies/network.js');
- await code('import { planSite } from "./strategies/network.js";export function main(cq){cq.world.explore("highlands");cq.network.open("highlands");cq.network.buy("port","scrap",2,"port-yard");cq.network.buy("highlands","metal",2,"northern-metal");console.log(cq.network.getFleet());for(const site of cq.network.getSites().filter(s=>s.id!=="city")){const p=planSite(site);const q=cq.network.quoteProduction(site.id,p.product,p.quantity);if(q.canStart)cq.network.start(site.id,p.product,p.quantity);}}');await step();
+ await code('/** @param {CityAPI} cq */\nimport { planSite } from "./strategies/network.js";export function main(cq){cq.world.explore("highlands");cq.network.open("highlands");cq.network.buy("port","scrap",2,"port-yard");cq.network.buy("highlands","metal",2,"northern-metal");console.log(cq.network.getFleet());for(const site of cq.network.getSites().filter(s=>s.id!=="city")){const p=planSite(site);const q=cq.network.quoteProduction(site.id,p.product,p.quantity);if(q.canStart)cq.network.start(site.id,p.product,p.quantity);}}');assert.deepEqual(await editorDiagnostics('index.js'),[]);await step();
  assert.equal((await save()).tutorial.completed.length,17);assert.equal((await save()).tutorial.completed.at(-1),'network-dispatcher');assert.equal((await save()).world.network.sites.length,2);
  await code('export function main(cq){cq.research.unlock("wire");cq.research.unlock("circuits");cq.network.upgradeFleet();}');await step();
  await code(NETWORK_STRATEGY);const operatingStart=(await save()).world;
@@ -94,6 +101,7 @@ try {
  await page.locator('[data-builder-path]').fill('dashboards/company.js');await page.locator('[data-builder-export]').click();
  await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]').textContent.includes('render()'));
  assert.equal(await page.locator('[data-dashboard-output] h3').textContent(),'Сеть предприятия');
+ assert.deepEqual(await editorDiagnostics('dashboards/company.js'),[]);
  assert.equal(await page.locator('[data-dashboard-output] progress').getAttribute('max'),'3');
  await page.locator('[data-dashboard-output] [data-dashboard-input="site"]').selectOption('port');
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('codequest.city.v1')).dashboards.inputs['dashboards/company.js']?.site==='port');
