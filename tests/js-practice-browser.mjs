@@ -22,7 +22,7 @@ try {
  await page.locator('[data-path="index.js"]').click();
  const retained=await page.evaluate(async()=>{const m=await import('/vendor/editor.js');const e=m.editor.getEditors().find(e=>e.getModel()?.uri.path.endsWith('/index.js'));return {id:e.getModel().id,undo:e.getModel().canUndo(),position:e.getPosition()};});
  assert.equal(retained.id,editorState.id);assert.equal(retained.undo,true);assert.deepEqual(retained.position,{lineNumber:2,column:4});
- await page.locator('[data-editor] .inputarea').press('Control+z');
+ await page.keyboard.press('Control+z');
  assert.ok(!(await save()).files['index.js'].includes('editable'));
  console.log('✓ file switching preserves model, cursor and a functional undo stack');
 
@@ -101,6 +101,15 @@ try {
  assert.ok(!(await page.locator('[data-run-status]').textContent()).includes('Ошибка'));
  await page.screenshot({path:resolve(root,'tests/artifacts/js-practice-desktop.png'),fullPage:true});
  await page.locator('.city-section-nav [data-jump="task"]').click();await page.screenshot({path:resolve(root,'tests/artifacts/js-practice-tasks.png'),fullPage:true});
+ await code('export function main(){ for(let i=0;i<1000;i++)console.log("bulk",i); }');
+ await page.locator('[data-console-clear]').click();
+ for(let i=0;i<6;i++){await page.locator('[data-preview]').click();await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);}
+ assert.equal(await page.locator('.city-console-row').count(),500);
+ assert.equal(await page.locator('.city-console-row').filter({hasText:'bulk 100'}).count(),0);
+ assert.ok((await page.locator('[data-output]').textContent()).includes('bulk 99'));
+ assert.deepEqual((await save()).world,economy);
+ console.log('✓ bounded console under repeated high-volume output; 100 logs per run, 500 retained records, probes preserve the world');
+
  await page.locator('#city-campaign a[href="#/campaigns"]').click();await page.locator('#campaign-theme').click();await page.locator('[data-campaign="city"]').click();
  await page.waitForFunction(()=>document.querySelector('[data-dashboard-status]')?.textContent.includes('render()'));
  assert.ok((await save()).files['practice/report.js']);assert.equal(await page.locator('html').getAttribute('data-theme'),'light');

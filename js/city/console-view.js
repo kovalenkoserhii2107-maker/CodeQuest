@@ -28,8 +28,12 @@ export class CityConsole {
     const level = ['log', 'info', 'warn', 'error', 'system'].includes(entry.level) ? entry.level : 'log';
     const record = { level, text: String(entry.text).slice(0, 4000), source: context.source || 'Мир', tick: context.tick, location: scriptLocation(entry.stack) };
     this.#records.push(record);
-    if (this.#records.length > 500) { this.#records.shift(); this.#render(); }
-    else { if (this.#visible(record)) this.#output.append(this.#row(record)); this.#count(); this.#scroll(); }
+    if (this.#records.length > 500) {
+      const removed=this.#records.shift();
+      if(this.#visible(removed))this.#output.firstElementChild?.remove();
+    }
+    if (this.#visible(record)) this.#output.append(this.#row(record));
+    this.#count(); this.#scroll();
   }
   #visible(record) { return this.#filter === 'all' || (this.#filter === 'log' ? record.level === 'log' || record.level === 'info' : record.level === this.#filter); }
   #row(record) {
