@@ -120,11 +120,13 @@ const build=files=>buildProject(new Map(Object.entries(files)),'index.js',code=>
 for(const recipe of NETWORK_RECIPES){
  const host=rich();
  if(recipe.id!=='open'){host.openRegion('port');host.networkOpen('port');}
+ if(recipe.id==='sell'){host.networkBuy('port','scrap',16,'port-yard');host.networkStart('port','metal',8);host.advance();host.advance();host.networkStart('port','parts',4);host.advance();host.advance();host.advance();}
  if(recipe.id==='transfer'){host.networkBuy('port','scrap',10,'port-yard');host.networkStart('port','metal',5);host.advance();host.advance();}
  const local=new CityEngine(host.snapshot()),ops=[],entry=await import(build({'index.js':recipe.code}).url);
  entry.main(createCityAPI(local,{}, {onCommand:op=>ops.push(op)}));host.apply(ops);
  if(recipe.id==='open')assert.equal(host.getSites().length,2);
  if(recipe.id==='produce')assert.equal(host.getSite('port').lines[0].job.product,'metal');
+ if(recipe.id==='sell')assert.equal(host.snapshot().metrics.sold,4);
  if(recipe.id==='transfer')assert.equal(host.getTransfers()[0].quantity,5);
 }
 console.log('✓ guide recipes execute construction, regional production, transfers and specialization comparison');

@@ -42,7 +42,7 @@ try {
  assert.equal(await page.locator('[data-network-site="highlands"]').getAttribute('data-built'),'false');
  await page.locator('[data-network-site="port"] [data-network-api]').click();
  assert.equal(await page.locator('[data-api-path="cq.network.quoteProduction"]').getAttribute('open'),'');
- await page.locator('[data-guide-tab="network"]').click();assert.equal(await page.locator('[data-guide-page="network"] .city-guide-recipe').count(),4);
+ await page.locator('[data-guide-tab="network"]').click();assert.equal(await page.locator('[data-guide-page="network"] .city-guide-recipe').count(),5);
  await page.locator('[data-guide-page="network"] details').first().locator('summary').click();await page.locator('[data-network-guide-copy="open"]').click();
  assert.ok((await page.evaluate(()=>navigator.clipboard.readText())).includes('cq.network.open'));
  console.log('✓ legacy save migration, typed network API, readonly preview, construction lesson, world cards and guide clipboard');
