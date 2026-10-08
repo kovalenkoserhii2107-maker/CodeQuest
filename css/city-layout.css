@@ -17,7 +17,7 @@
 .city-dashboard-shell{height:var(--dashboard-height,480px);order:0}
 .city-dashboard-panel{flex:1;min-height:0;overflow:auto;padding:16px;border:0}
 .city-output-stack>.city-console{height:var(--console-height,280px);margin:0;order:1;border-radius:0}
-.city-output-stack>.city-console .city-console-toolbar{flex-shrink:0}
+.city-output-stack>.city-console .city-console-toolbar{flex-shrink:0;max-height:calc(100% - 100px);overflow:auto}
 .city-output-stack>.city-console .city-console-output{flex:1;min-height:48px;height:auto}
 .city-output-stack>.city-console>.city-muted{display:none}
 .city-output-stack>.city-console .city-console-count{flex-shrink:0}
