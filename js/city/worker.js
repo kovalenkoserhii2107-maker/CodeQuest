@@ -1,3 +1,4 @@
+import { runPractice } from './practice.js';
 import { formatConsoleValues } from './console-format.js';
 import { validateDashboard } from './dashboard-model.js';
 import { createCityAPI } from './api.js';
@@ -7,10 +8,10 @@ import { buildProject, orderModules, findImports, resolveSpecifier } from '../ac
 self.addEventListener('message', async event => {
   const urls = [];
   try {
-    const { files, world, memory, mode='main', entry:entryPath='index.js', inputs={} } = event.data;
+    const { files, world, memory, mode='main', entry:entryPath='index.js', inputs={}, practice } = event.data;
     const engine = new CityEngine(world), operations = [], logs = [], reads = [];
     const safeFiles = validateFiles(files);
-    const reachable = orderModules(new Map(Object.entries(safeFiles)), mode === 'dashboard' ? entryPath : 'index.js');
+    const reachable = orderModules(new Map(Object.entries(safeFiles)), mode !== 'main' ? entryPath : 'index.js');
     for (const name of reachable) {
       const code = safeFiles[name];
       for (const item of findImports(code)) {
@@ -25,7 +26,7 @@ self.addEventListener('message', async event => {
     };
     const print = (...values) => emit('log', values);
     const cq = createCityAPI(engine, memory, {
-      onPrint: print,readOnly:mode==='dashboard',files:safeFiles,
+      onPrint: print,readOnly:mode!=='main',files:safeFiles,
       onRead: name => { if (reads.length < 1000) reads.push(name); },
       onCommand: operation => {
         if (operations.length >= 100) throw new Error('Допускается до 100 команд за шаг.');
@@ -33,11 +34,12 @@ self.addEventListener('message', async event => {
       }
     });
     for (const level of ['log', 'info', 'warn', 'error']) console[level] = (...values) => emit(level, values);
-    const project = buildProject(new Map(Object.entries(safeFiles)), mode==='dashboard'?entryPath:'index.js', (source, path) => {
+    const project = buildProject(new Map(Object.entries(safeFiles)), mode!=='main'?entryPath:'index.js', (source, path) => {
       const url = URL.createObjectURL(new Blob([source + '\n//# sourceURL=city/' + path], { type: 'text/javascript' }));
       urls.push(url); return url;
     });
     const entry = await import(project.url);
+    if(mode==='practice'){self.postMessage({ok:true,practice:await runPractice(practice,entry)});return;}
     if(mode==='dashboard'){if(typeof entry.render!=='function')throw new Error(entryPath+' должен экспортировать render(cq, view).');self.postMessage({ok:true,dashboard:validateDashboard(await entry.render(cq,{inputs:validateMemory(inputs)}))});return;}
     if (typeof entry.main !== 'function') throw new Error('index.js должен экспортировать функцию main(cq).');
     await entry.main(cq);

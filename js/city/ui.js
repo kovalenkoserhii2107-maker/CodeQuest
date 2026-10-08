@@ -1,3 +1,4 @@
+import { PracticeView } from './practice-ui.js';
 import { CityConsole } from './console-view.js';
 import { CityNavigation } from './navigation.js';
 import { RegionMap } from './region-map.js';
@@ -26,7 +27,7 @@ export function mountCity(root) {
   try { storage = localStorage; } catch { /* readCitySave reports inaccessible storage */ }
   const loaded = readCitySave(storage);
   let save = loaded.save, engine = new CityEngine(save.world), lessons = new CityLessons(save.tutorial), project = new ProjectFiles(save.files,save.workspace), editor, file = project.active(), explorer, dashboards;
-  let reference;
+  let reference, practiceView;
   const openAPI = path => { navigation.open('api');reference?.open(path); };
   let disposed = false, busy = false, automatic = false, timer, generation = 0, lessonView, savedEngine = engine;
   const runtime = new CityRuntime();
@@ -121,6 +122,12 @@ export function mountCity(root) {
       onSave:prefs=>{save.dashboards=prefs;persist();},onOpen:openFile,onCreate:(path,code)=>{if(busy||automatic)throw new Error('Остановите запуск перед изменением файлов.');project.create(path,code);file=path;if(project.workspace().mode==='dashboard')setMode('split');renderEditor();renderFiles();explorer.select(path);persist();}
     });
   }
+  const mountPractice=()=>{
+    practiceView?.dispose();
+    const section=el('[data-practice-area]')||document.createElement('section');
+    section.dataset.practiceArea='';section.className='city-panel city-practice';el('[data-page="task"]').append(section);
+    practiceView=new PracticeView(section,{getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,isLocked:()=>busy||automatic,onLog:(entry,context)=>consoleView.write(entry,context),onPrepare:(path,starter)=>{if(project.files()[path]===undefined){project.create(path,starter);editor?.syncSiblings(project.files());explorer.render();}openFile(path);}});
+  };
   const worldView = new CityWorldView(root);
   function updateWorld() { worldView.render(engine);regionMap.render(engine); }
   function update() {
@@ -197,7 +204,7 @@ export function mountCity(root) {
     el('[data-ide]').dataset.mode = 'split'; root.querySelectorAll('.city-ide-modes [data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode==='split')));
     feedback.show('ready','Новая мастерская','Начните с первого задания.');
     file = 'index.js'; consoleView.clear(); el('[data-feedback]').textContent = '';
-    persist(); renderEditor(true); renderFiles();mountProjectTools();update();
+    persist(); renderEditor(true); renderFiles();mountProjectTools();mountPractice();update();
   });
   root.querySelectorAll('[data-jump]').forEach(button => button.addEventListener('click', () => {
     navigation.open(button.dataset.jump);
@@ -212,10 +219,10 @@ export function mountCity(root) {
   lessonView = new LessonView(el('[data-board]'), el('[data-task]'), lessons, openAPI);
   reference = mountReference(el('[data-api]'));
   const backToCode = ()=>{navigation.open('workspace');if(project.workspace().mode==='dashboard')setMode('code');el('[data-workspace]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});editor?.focus();};
-  root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();update();
+  root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();mountPractice();update();
   log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
   return () => {
     root.removeEventListener('city-api-back',backToCode);
-    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();consoleView.dispose();editor?.dispose();root.replaceChildren();
+    disposed = true; generation++; clearTimeout(timer); automatic = false; runtime.cancel();dashboards.dispose();practiceView.dispose();consoleView.dispose();editor?.dispose();root.replaceChildren();
   };
 }

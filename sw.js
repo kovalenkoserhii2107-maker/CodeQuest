@@ -40,6 +40,8 @@ const SHELL = [
   'js/city/runtime.js',
   'js/city/console-format.js',
   'js/city/console-view.js',
+  'js/city/practice.js',
+  'js/city/practice-ui.js',
   'css/city-practice.css',
   'js/city/worker.js',
   'js/city/ui.js',

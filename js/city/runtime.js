@@ -38,6 +38,11 @@ export class CityRuntime {
           finish(error); return;
         }
         try {
+          if(options.mode==='practice'){
+            const practice=result.practice;
+            if(!practice||practice.id!==options.practice||typeof practice.passed!=='boolean'||!Array.isArray(practice.results)||practice.results.length>30||practice.results.some(test=>typeof test.name!=='string'||typeof test.detail!=='string'||typeof test.passed!=='boolean'))throw new Error('Некорректный результат тестов.');
+            finish(null,{practice});return;
+          }
           if(options.mode==='dashboard'){finish(null,{dashboard:validateDashboard(result.dashboard)});return;}
           const memory = validateMemory(result.memory);
           if (!Array.isArray(result.operations) || !Array.isArray(result.logs) || result.logs.length > 100 || !Array.isArray(result.reads) || result.reads.length > 1000 || result.reads.some(name => typeof name !== 'string') || !Array.isArray(result.modules) || result.modules.length > 20 || result.modules.some(name => typeof name !== 'string')) throw new Error('Некорректный ответ скрипта.');
