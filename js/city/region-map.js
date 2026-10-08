@@ -12,7 +12,7 @@ export class RegionMap{
   if(!engine)return;if(this.#engine===engine&&this.#tick===engine.getTime()&&this.#lastSelected===this.#selected)return;this.#tick=engine.getTime();this.#lastSelected=this.#selected;this.#engine=engine;const regions=engine.getRegions(),state=engine.snapshot(),selected=regions.find(r=>r.id===this.#selected);
   for(const button of this.#root.querySelectorAll('[data-location]')){
    const region=regions.find(r=>r.id===button.dataset.location),site=engine.getSites().find(s=>s.id===region.id);button.dataset.locked=String(!region.unlocked);button.setAttribute('aria-pressed',String(region.id===this.#selected));
-   button.querySelector('[data-map-access]').textContent=region.unlocked?(site?'Площадка · '+site.lines.length+' линий':'Открыт · можно построить цех'):region.cost.toLocaleString('ru-RU')+' ₽ · закрыт';
+   button.querySelector('[data-map-access]').textContent=region.unlocked?(site?'Цех · линий: '+site.lines.length:'Открыт · можно построить цех'):region.cost.toLocaleString('ru-RU')+' ₽ · закрыт';
   }
   for(const route of this.#root.querySelectorAll('[data-map-route]')){
    const id=route.dataset.mapRoute,info=engine.getRoutes().find(r=>r.id===id);

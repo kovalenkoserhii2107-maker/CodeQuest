@@ -111,7 +111,7 @@ const TYPES = [
   'interface CityQuote { product: string; quantity: number; buyerId: string; unitPrice: number; gross: number; fee: number; net: number; duration: number; canTrade: boolean; reasons: string[]; estimatedUnitCost: number | null; estimatedMargin: number | null; }',
   'interface CityRegion { id: string; name: string; cost: number; description: string; unlocked: boolean; }',
   'interface CityEvent { id: string; region: string; name: string; active: boolean; priceBonus: number; changesIn: number; }',
-  'interface CityHistoryPoint { tick: number; balance: number; revenue: number; spent: number; inventory: Record<string,number>; prices: Record<string,number>; }',
+  'interface CityHistoryPoint { tick: number; balance: number; revenue: number; spent: number; inventory: Record<string,number>; prices: Record<string,number>; sites?: Omit<CitySiteHistoryPoint,"tick">[]; }',
   'interface DashboardViewContext { inputs: Record<string,string | number | boolean>; }',
   'interface CustomDashboard { title?: string; columns?: number; widgets?: any[]; html?: string; css?: string; height?: number; controls?: any[]; }',
   'interface CityState { tick: number; balance: number; capacity: number; warehouseLevel: number; machineLevel: number;',
