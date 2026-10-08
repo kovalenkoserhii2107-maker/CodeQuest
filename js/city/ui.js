@@ -1,3 +1,4 @@
+import { NetworkView } from './network-view.js';
 import { PracticeView } from './practice-ui.js';
 import { CityConsole } from './console-view.js';
 import { CityNavigation } from './navigation.js';
@@ -62,7 +63,8 @@ export function mountCity(root) {
     '<section data-console></section>',
     '</section><section class="city-panel city-task" data-task aria-label="Учебное задание"></section></div><aside class="city-side">',
     '<section class="city-panel" data-board></section>',
-    '<section class="city-panel" data-world-panel><h2>Мастерская и рынок</h2><div class="city-market-filters"><label>Товар<select data-market-product><option value="">Все товары</option>' + Object.entries(PRODUCTS).map(([id,name])=>'<option value="'+id+'">'+name+'</option>').join('') + '</select></label><label>Регион<select data-market-region><option value="">Все регионы</option><option value="city">Город</option><option value="port">Порт</option><option value="highlands">Северные высоты</option></select></label></div><div data-world></div></section>',
+    '<section class="city-panel city-network" data-network aria-label="Сеть предприятия"></section>',
+    '<section class="city-panel" data-world-panel><h2>Центральная мастерская и рынки</h2><p class="city-muted">Здесь показан центральный склад. Филиалы имеют собственные inventory и lines в сети предприятия.</p><div class="city-market-filters"><label>Товар<select data-market-product><option value="">Все товары</option>' + Object.entries(PRODUCTS).map(([id,name])=>'<option value="'+id+'">'+name+'</option>').join('') + '</select></label><label>Регион<select data-market-region><option value="">Все регионы</option><option value="city">Город</option><option value="port">Порт</option><option value="highlands">Северные высоты</option></select></label></div><div data-world></div></section>',
     '<section class="city-panel"><h2>Городские контракты</h2><div data-contracts></div>',
     '<p class="city-muted">Два заказа одновременно. Сдайте до deadline; просрочка не списывает деньги. После выполнения заказ обновляется через 5 шагов.</p></section>',
     '<section class="city-panel"><h2>Доставка и исследования</h2><div data-expansion></div></section>',
@@ -73,11 +75,11 @@ export function mountCity(root) {
     '<section class="city-panel"><h2>Что возвращает getState()</h2>',
     '<p class="city-muted">Это снимок для чтения: изменение его полей не меняет мир. Используйте команды API. Программные ID товаров: scrap (лом), metal (металл), parts (детали), wire (провод), circuit (схемы).</p>',
     '<dl class="city-state-fields"><dt>balance, tick</dt><dd>Баланс в рублях и текущий номер шага.</dd>',
-    '<dt>inventory, capacity</dt><dd>Готовые товары на складе и его вместимость. getFreeSpace() также учитывает резерв незавершённых партий.</dd>',
+    '<dt>inventory, capacity</dt><dd>Готовые товары центральной мастерской и её вместимость. getFreeSpace() учитывает партии и входящие внутренние перевозки.</dd>',
     '<dt>lines</dt><dd>Массив независимых линий: id, level, job. Для свободной линии job=null.</dd>',
     '<dt>buyers, supplier</dt><dd>Цены, спрос покупателей и запас поставщика. Для remote-покупателей нужна доставка.</dd>',
     '<dt>contracts, shipments, research</dt><dd>Принятые заказы, грузы в пути, ID открытых технологий. Каталоги и подробности — в соответствующих разделах API.</dd>',
-    '<dt>metrics</dt><dd>Куплено, произведено, продано, доставлено, выполнено контрактов, выручка и все расходы.</dd></dl>',
+    '<dt>network</dt><dd>Филиалы, внутренние перевозки, уровень транспорта. getSites() включает центральную мастерскую; network.sites в сохранении содержит филиалы.</dd><dt>metrics</dt><dd>Куплено, произведено, продано, доставлено, выполнено контрактов, выручка и все расходы.</dd></dl>',
     '<details><summary>Посмотреть текущее состояние целиком</summary><pre class="city-state-json" data-snapshot></pre></details></section>',
     '<section class="city-panel city-api" data-api></section>',
     '<section class="city-panel"><h2>Управление сохранением</h2><p class="city-muted">Мир, файлы, память и выполненные задания комбината сохраняются отдельно от космической кампании.</p>',
@@ -128,8 +130,8 @@ export function mountCity(root) {
     section.dataset.practiceArea='';section.className='city-panel city-practice';el('[data-page="task"]').append(section);
     practiceView=new PracticeView(section,{getFiles:()=>project.files(),getWorld:()=>engine.snapshot(),getMemory:()=>save.memory,isLocked:()=>busy||automatic,onLog:(entry,context)=>consoleView.write(entry,context),onPrepare:(path,starter)=>{if(project.files()[path]===undefined){project.create(path,starter);editor?.syncSiblings(project.files());explorer.render();}openFile(path);}});
   };
-  const worldView = new CityWorldView(root);
-  function updateWorld() { worldView.render(engine);regionMap.render(engine); }
+  const worldView = new CityWorldView(root), networkView = new NetworkView(el('[data-network]'),openAPI);
+  function updateWorld() { worldView.render(engine);regionMap.render(engine);networkView.render(engine); }
   function update() {
     updateWorld(); lessonView.render();explorer?.render();
     el('[data-current-lesson]').textContent = lessons.current()?.title || 'Свободная стратегия';

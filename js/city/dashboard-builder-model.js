@@ -8,12 +8,17 @@ export const WIDGET_SOURCES = [
  {id:'production',name:'Загрузка линий',type:'progress',expression:'s.lines.filter(line => line.job !== null).length',max:'s.lines.length',unit:'линий',method:'cq.factory.getLines',hint:'Занятые линии / все линии. Изменяется при запуске и завершении партий.'},
  {id:'deliveries',name:'Грузы в пути',type:'table',columns:['Груз','Товар','Количество','Осталось'],expression:'cq.logistics.getShipments().map(s => [s.id, s.product, s.quantity, s.remaining])',width:2,method:'cq.logistics.getShipments',hint:'Список текущих доставок. Пустая таблица означает, что грузов нет.'},
  {id:'orders',name:'Отложенные продажи',type:'table',columns:['№','Товар','Цена от','Статус'],expression:'cq.market.getOrders().map(o => [o.id, o.product, o.minPrice, o.status])',width:2,method:'cq.market.getOrders',hint:'История продаж по порогу цены. Для изменения заявки нужен main.'},
+ {id:'sites',name:'Склады сети',type:'table',columns:['Площадка','Готово','Входящие','Свободно','Линии'],expression:'cq.network.getSites().map(site => [site.id, site.inventoryTotal, site.inbound, site.freeSpace, site.lines.length])',width:2,method:'cq.network.getSites',hint:'Сравнивайте отдельные склады. Входящие грузы уже резервируют место.'},
+ {id:'networkLoad',name:'Загрузка всей сети',type:'progress',expression:'cq.network.getSites().reduce((sum, site) => sum + site.busyLines, 0)',max:'cq.network.getSites().reduce((sum, site) => sum + site.lines.length, 0)',unit:'линий',method:'cq.network.getSites',hint:'Занятые линии всех построенных площадок / общее число линий.'},
+ {id:'transfers',name:'Внутренние перевозки',type:'table',columns:['№','Откуда','Куда','Товар','Количество','Статус','Осталось'],expression:'cq.network.getTransfers().map(t => [t.id, t.from, t.to, t.product, t.quantity, t.status, t.remaining])',width:2,method:'cq.network.getTransfers',hint:'Собственные товары между складами. delivered не означает продажу.'},
+ {id:'siteTrend',name:'Запасы площадки по шагам',type:'chart',expression:'cq.network.getHistory(site, 60).map(p => p.inventoryTotal)',labels:'cq.network.getHistory(site, 60).map(p => String(p.tick))',style:'line',unit:'ед.',width:2,siteFilter:true,method:'cq.network.getHistory',hint:'Фильтр площадки создаётся автоматически. История начинается с первого шага с данными площадки.'},
  {id:'note',name:'Моя заметка',type:'text',method:'cq.world.getState',hint:'Объясните себе смысл показателей или добавьте инструкцию.'}
 ];
 export const BOARD_TEMPLATES=[
  {id:'overview',name:'Мастерская',description:'Баланс, история, склад и загрузка производства.',sources:['balance','profit','space','trend','stock','production']},
  {id:'markets',name:'Рынки',description:'Сравнение цен с фильтром товара и история заявок.',sources:['balance','prices','stock','orders']},
  {id:'logistics',name:'Диспетчерская',description:'Загрузка линий, грузы и динамика баланса.',sources:['production','deliveries','trend']},
+ {id:'network',name:'Сеть предприятия',description:'Склады филиалов, загрузка, внутренние перевозки и история площадки.',sources:['balance','sites','networkLoad','transfers','siteTrend']},
  {id:'empty',name:'Чистый лист',description:'Начните с показателя и добавьте нужные инструменты.',sources:['balance']}
 ];
 export function widgetFromSource(source,index){
@@ -45,7 +50,9 @@ export function generateDashboard(value){
   if(source.type==='text')fields.push('text: '+q(w.text));
   return '      // '+source.hint+'\n      { '+fields.join(', ')+' }';
  });
- const controls=board.widgets.some(w=>w.source==='prices')?
-  '    controls: [{ id: "product", type: "select", label: "Товар", value: product,\n      options: ["metal","parts","wire","circuit"].map(value => ({value, label: value})) }],\n':'';
- return '/** @param {CityAPI} cq */\nexport function render(cq, view) {\n  // Только чтение. Мир изменяйте в main(cq), файл index.js.\n  const s = cq.world.getState();\n  const history = cq.analytics.getHistory(60);\n  const product = view.inputs.product || '+q(board.product)+';\n  return {\n    title: '+q(board.title)+',\n    columns: '+board.columns+',\n'+controls+'    widgets: [\n'+widgets.join(',\n')+'\n    ]\n  };\n}\n';
+ const controls=[];
+ if(board.widgets.some(w=>w.source==='prices'))controls.push('{ id: "product", type: "select", label: "Товар", value: product, options: ["metal","parts","wire","circuit"].map(value => ({value, label: value})) }');
+ if(board.widgets.some(w=>WIDGET_SOURCES.find(s=>s.id===w.source).siteFilter))controls.push('{ id: "site", type: "select", label: "Площадка", value: site, options: cq.network.getSites().map(s => ({value: s.id, label: s.name})) }');
+ const controlCode=controls.length?'    controls: [\n      '+controls.join(',\n      ')+'\n    ],\n':'';
+ return '/** @param {CityAPI} cq */\nexport function render(cq, view) {\n  // Только чтение. Мир изменяйте в main(cq), файл index.js.\n  const s = cq.world.getState();\n  const history = cq.analytics.getHistory(60);\n  const product = view.inputs.product || '+q(board.product)+';\n  const site = String(view.inputs.site || "city");\n  return {\n    title: '+q(board.title)+',\n    columns: '+board.columns+',\n'+controlCode+'    widgets: [\n'+widgets.join(',\n')+'\n    ]\n  };\n}\n';
 }

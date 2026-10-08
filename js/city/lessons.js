@@ -131,6 +131,46 @@ export const LESSONS = [
     hints: ['Заявка не резервирует товар и деньги. reasons объясняет ожидание. При ошибке весь шаг, включая создание заявки, откатывается.', 'if (!cq.market.getOrders().some(o => o.status === "pending")) {\n  cq.market.placeOrder({ product: "metal", quantity: 5,\n    buyerId: "foundry", minPrice: 19, expiresIn: 24 });\n}'],
     expectation: 'В мире есть исполненная отложенная продажа metal, и текущий успешный скрипт прочитал getOrders.',
     check: ctx => ctx.reads.includes('market.getOrders') && ctx.after.orders.some(o => o.status === 'filled' && o.product === 'metal')
+  },
+  {
+    id:'site',stage:'Сеть предприятия',title:'14. Постройте филиал',
+    objective:'Сравните площадки и накопите бюджет на регион, цех и оборотный резерв. Откройте port и постройте портовой цех.',
+    concepts:'Каталог данных, выбор инвестиции, разделение общего и местного состояния.',
+    api:['cq.network.getCatalog','cq.network.getSites','cq.world.explore','cq.network.open'],
+    scaffold:scaffold('const catalog = cq.network.getCatalog();\nconsole.log(catalog);\n// Регион port: 600 ₽, цех: 1800 ₽.\n// Не открывайте повторно уже открытый регион или площадку.\n// Оставьте деньги на сырьё и энергию.\nconsole.log(cq.network.getSites());'),
+    hints:['canOpen учитывает регион, существование площадки и баланс. Строительство даёт отдельный склад на 100 мест и одну линию.','const port = cq.network.getCatalog().find(s => s.id === "port");\nif (port.canOpen) cq.network.open(port.id);'],
+    expectation:'Построен хотя бы один филиал, текущий успешный код прочитал getCatalog и getSites.',
+    check:ctx=>ctx.after.network.sites.length>=1&&ctx.reads.includes('network.getCatalog')&&ctx.reads.includes('network.getSites')
+  },
+  {
+    id:'site-production',stage:'Сеть предприятия',title:'15. Организуйте местное производство',
+    objective:'Купите сырьё на склад филиала и запустите партию через network.start. Сравните затраты деталей в порту с центральной мастерской.',
+    concepts:'Параметры контекста, изолированные склады, расчёт перед командой.',
+    api:['cq.network.getSite','cq.network.buy','cq.network.quoteProduction','cq.network.start'],
+    scaffold:scaffold('const port = cq.network.getSite("port");\nconsole.log(port.inventory);\n// network.buy("port", "scrap", quantity, "port-yard")\n// сначала проверьте деньги, запас и freeSpace.\nconst quote = cq.network.quoteProduction("port", "metal", 5);\nconsole.log(quote);\n// Если canStart, вызовите network.start для port.'),
+    hints:['Аргумент siteId идёт первым. Линия line-1 есть на каждой площадке; без siteId нельзя выбрать нужный цех.','const q = cq.network.quoteProduction("port", "metal", 5);\nif (q.canStart) cq.network.start("port", "metal", 5, q.lineId);'],
+    expectation:'Успешный шаг прочитал quoteProduction, напечатал данные и выполнил network.start на филиале.',
+    check:ctx=>ctx.reads.includes('network.quoteProduction')&&ctx.logs.length>0&&ctx.operations.some(op=>op.method==='networkStart'&&op.args[0]!=='city')
+  },
+  {
+    id:'internal-transfer',stage:'Сеть предприятия',title:'16. Свяжите склады поставками',
+    objective:'Перевезите готовый товар между своими площадками. Проверяйте машины и свободное место назначения; дождитесь delivered.',
+    concepts:'Очереди, резервирование ресурсов, состояния transit/delivered, игровые события.',
+    api:['cq.network.getFleet','cq.network.quoteTransfer','cq.network.transfer','cq.network.getTransfers'],
+    scaffold:scaffold('const fleet = cq.network.getFleet();\nconst transfers = cq.network.getTransfers();\nconsole.log(fleet, transfers);\n// Перевозка не является продажей и не приносит деньги.\n// Проверьте quoteTransfer("metal", 5, "port", "city").\n// После отправки не отправляйте ту же партию повторно.'),
+    hints:['Товар снимается сразу. Склад назначения резервирует количество до прибытия. История getTransfers хранит до 48 записей.','const q = cq.network.quoteTransfer("metal", 5, "port", "city");\nif (q.canDispatch) cq.network.transfer("metal", 5, "port", "city");\nconsole.log(cq.network.getTransfers());'],
+    expectation:'Хотя бы одна внутренняя перевозка прибыла (network.moved > 0), текущий успешный код прочитал getTransfers.',
+    check:ctx=>ctx.after.network.moved>0&&ctx.reads.includes('network.getTransfers')
+  },
+  {
+    id:'network-dispatcher',stage:'Сеть предприятия',title:'17. Соберите диспетчер сети',
+    objective:'Постройте второй филиал. Выделите выбор партии в отдельный модуль и за один шаг запустите производство на двух филиалах через общий цикл.',
+    concepts:'Декомпозиция, обход вложенных массивов, координация общего бюджета и локальных ресурсов.',
+    api:['cq.network.getSites','cq.network.getFleet','cq.network.quoteProduction','cq.network.start','cq.memory'],
+    scaffold:'import { planSite } from "./strategies/network.js";\n/** @param {CityAPI} cq */\nexport function main(cq) {\n  const sites = cq.network.getSites();\n  console.log(cq.network.getFleet());\n  for (const site of sites.filter(s => s.id !== "city")) {\n    const plan = planSite(site);\n    // plan — ваши данные: product, quantity, lineId, или null.\n    // Проверяйте quoteProduction перед каждым start:\n    // общий бюджет меняется после предыдущей команды.\n    console.log(site.id, plan);\n  }\n}\n',
+    hints:['Планировщик должен возвращать данные, а main — выполнять команды. Каждый филиал имеет свой inventory и lines; деньги и исследования общие.','Проверяйте вновь cq.world.getState().balance между командами. Самостоятельный проект: 20 шагов без ошибки, отсутствие дубликатов перевозок и дашборд сети.'],
+    expectation:'Построены два филиала; проект использует минимум два модуля, читает getSites и getFleet, а текущий шаг выполняет network.start на двух разных филиалах.',
+    check:ctx=>ctx.after.network.sites.length===2&&ctx.modules.length>=2&&ctx.reads.includes('network.getSites')&&ctx.reads.includes('network.getFleet')&&new Set(ctx.operations.filter(op=>op.method==='networkStart'&&op.args[0]!=='city').map(op=>op.args[0])).size>=2
   }
 ];
 export class CityLessons {

@@ -19,7 +19,7 @@ export class CityWorldView {
     const metricRoot = el('[data-metrics]'), previousDetails = el('[data-orders] details')?.open;
     const values = [
       ['Баланс', money(w.balance)], ['Шаг мира', number(w.tick)],
-      ['Склад / свободно', used + '/' + w.capacity + ' · ' + engine.getFreeSpace()],
+      ['Центральный склад / свободно', used + '/' + w.capacity + ' · ' + engine.getFreeSpace()],
       ['Доходы − все расходы', money(w.metrics.revenue - w.metrics.spent)]
     ];
     if(!metricRoot.children.length) metricRoot.innerHTML = values.map(([label,value])=>'<div><span>'+label+'</span><strong>'+value+'</strong></div>').join('');

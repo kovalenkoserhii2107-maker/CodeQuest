@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { CityEngine,initialWorld,initialSave,readCitySave,validateWorld } from '../js/city/engine.js';
 import { createCityAPI } from '../js/city/api.js';
-for(const name of ['network','engine','api','catalog']){const p=spawnSync(process.execPath,['--check','js/city/'+name+'.js'],{encoding:'utf8'});assert.equal(p.status,0,p.stderr);}
+for(const name of ['network','network-reference','network-guide','network-view','engine','api','catalog','ui','dashboard-builder-model','lessons']){const p=spawnSync(process.execPath,['--check','js/city/'+name+'.js'],{encoding:'utf8'});assert.equal(p.status,0,p.stderr);}
 const rich=()=>new CityEngine({...initialWorld(),balance:500000,inventory:{scrap:40,metal:30,parts:0,wire:0,circuit:0}});
 const e=rich(),api=createCityAPI(e,{});
 const unchanged=e.snapshot();
