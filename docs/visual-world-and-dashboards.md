@@ -46,9 +46,9 @@ Worker. Экономика и память не меняются. Пустой �
 Старые chart без style по-прежнему выводятся линией.
 
 ~~~js
-{ id: "cash", type: "stat", title: "Баланс", value: state.balance, unit: "₽" }
+{ id: "cash", type: "stat", title: "Баланс", value: state.balance, unit: "$" }
 { id: "trend", type: "chart", style: "area", title: "Баланс", width: 2,
-  points: history.map(p => p.balance), labels: history.map(p => String(p.tick)), unit: "₽" }
+  points: history.map(p => p.balance), labels: history.map(p => String(p.tick)), unit: "$" }
 { id: "busy", type: "progress", title: "Загрузка линий",
   value: state.lines.filter(l => l.job).length, max: state.lines.length, unit: "линий" }
 ~~~

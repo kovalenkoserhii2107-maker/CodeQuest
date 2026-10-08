@@ -336,7 +336,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
       <div class="task__brief">${briefHtml(quest.brief)}</div>
 
       <div class="task__reward mono">
-        Награда: +${quest.reward.credits} ¢ · ${
+        Награда: +${quest.reward.credits} $ · ${
           quest.unlocks
             ? `открывает раздел «${escapeHtml(quest.unlocks.label)}»`
             : `улучшает ${escapeHtml(quest.fn)} во всём приложении`
@@ -514,7 +514,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
       banner = practiceDone
         ? `
           <div class="report__success">
-            <p class="report__success-title">Тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
+            <p class="report__success-title">Тесты пройдены${outcome ? `: +${outcome.credits} $, +${outcome.xp} XP` : ''}</p>
             <p class="report__success-text">Задание уже закрыто практикой — ${
               quest.unlocks
                 ? `раздел «${escapeHtml(quest.unlocks.label)}» работает на вашем коде`
@@ -524,7 +524,7 @@ export function renderTask(quest, { onOpenQuest, onSolved }) {
           </div>`
         : `
           <div class="report__success">
-            <p class="report__success-title">Тесты пройдены${outcome ? `: +${outcome.credits} ¢, +${outcome.xp} XP` : ''}</p>
+            <p class="report__success-title">Тесты пройдены${outcome ? `: +${outcome.credits} $, +${outcome.xp} XP` : ''}</p>
             <p class="report__success-text">
               Осталась практическая часть: ${escapeHtml(quest.practice.title.toLowerCase())}.
               Откройте консоль и выполните команду${

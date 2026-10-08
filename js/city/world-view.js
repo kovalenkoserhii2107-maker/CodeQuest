@@ -1,7 +1,7 @@
 import { PRODUCTS } from './catalog.js';
 import { escapeHtml } from '../ui/html.js';
 const number = value => value.toLocaleString('ru-RU');
-const money = value => number(value) + ' ₽';
+const money = value => number(value) + ' $';
 const statuses = { available: 'Доступен', active: 'Принят', cooldown: 'Обновляется' };
 
 /** Rendering depends on the world, not on button/worker state. */

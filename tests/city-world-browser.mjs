@@ -78,8 +78,9 @@ try {
   assert.equal(await page.locator('.city-api-method').count(), 4);
   await page.locator('[data-api-search]').fill('свободное');
   assert.equal(await page.locator('.city-api-method').count(), 1);
-  await page.locator('.city-api-method summary').click();
-  assert.ok((await page.locator('.city-api-method').textContent()).includes('резерва'));
+  await page.locator('.city-api-method').click();
+  assert.ok((await page.locator('[data-api-detail]').textContent()).includes('резерва'));
+  await page.locator('[data-api-close]').click();
   await page.locator('[data-api-search]').fill('');
   await page.locator('[data-group="factory"]').click();
   assert.equal(await page.locator('.city-api-method').count(), 6);
@@ -143,9 +144,10 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('.city-section-nav [data-jump="api"]').click();
   await page.locator('[data-group="logistics"]').click();
-  await page.locator('.city-api-method', { hasText: 'cq.logistics.dispatch' }).locator('summary').click();
+  await page.locator('.city-api-method', { hasText: 'cq.logistics.dispatch' }).click();
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   await page.screenshot({ path: resolve(root, 'tests/artifacts/city-expanded-world-mobile.png'), fullPage: true });
+  await page.locator('[data-api-close]').click();
   await page.locator('#city-campaign a[href="#/campaigns"]').click();
   await page.locator('#campaign-theme').click();
   assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');

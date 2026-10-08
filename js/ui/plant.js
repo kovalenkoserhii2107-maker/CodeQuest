@@ -235,7 +235,7 @@ function shiftHtml() {
     <div class="widget__row"><span>Всего в партии</span><b class="mono">${total} т</b></div>
     <div class="widget__row"><span>Смен закрыто</span><b class="mono">${plant.shifts}</b></div>
     <div class="widget__row"><span>Металла получено</span><b class="mono">${plant.metal} т</b></div>
-    <div class="widget__row"><span>Заработано</span><b class="mono">${plant.earned.toLocaleString()} ¢</b></div>
+    <div class="widget__row"><span>Заработано</span><b class="mono">${plant.earned.toLocaleString()} $</b></div>
 
     <div class="task__actions">
       <button class="btn btn--primary btn--sm" type="button" id="plant-run-shift">Провести смену</button>
@@ -302,7 +302,7 @@ export function renderPlant() {
             ? `
               <p class="task__story">${escapeHtml(chapter.story)}</p>
               <div class="task__brief">${briefHtml(chapter.brief)}</div>
-              <div class="task__reward mono">Награда: +${chapter.reward.credits} ¢</div>
+              <div class="task__reward mono">Награда: +${chapter.reward.credits} $</div>
               ${lessonHtml(chapter)}
               <div class="task__hints" id="plant-hints"></div>`
             : '<p class="widget__note">Проект собран: линия работает на вашем коде. Проводите смены — комбинат зарабатывает.</p>'
@@ -435,7 +435,7 @@ export function renderPlant() {
       credits: Math.round(chapter.reward.credits * factor),
       xp: Math.round(chapter.reward.xp * factor),
     });
-    if (outcome) toast(`Глава пройдена: +${outcome.credits} ¢`);
+    if (outcome) toast(`Глава пройдена: +${outcome.credits} $`);
 
     pendingOutput = { html: reportHtml(report), hint };
     renderPlant();
@@ -499,14 +499,14 @@ export function renderPlant() {
     const earned = Number(value.выручка) || 0;
 
     showOutput(
-      [...result.logs.map(logLine), `<p class="log log--summary is-ok"><span class="log__text">смена посчитана: ${metal} т, ${earned} ¢</span></p>`].join(''),
+      [...result.logs.map(logLine), `<p class="log log--summary is-ok"><span class="log__text">смена посчитана: ${metal} т, ${earned} $</span></p>`].join(''),
       'прогон смены',
     );
 
     host.innerHTML = `
       <div class="widget__row"><span>Принято</span><b class="mono">${escapeHtml(formatValue(value.принято))} т</b></div>
       <div class="widget__row"><span>Металл</span><b class="mono">${metal} т</b></div>
-      <div class="widget__row"><span>Выручка</span><b class="mono ${earned > 0 ? 'is-ok' : ''}">${earned.toLocaleString()} ¢</b></div>
+      <div class="widget__row"><span>Выручка</span><b class="mono ${earned > 0 ? 'is-ok' : ''}">${earned.toLocaleString()} $</b></div>
       ${
         earned > 0
           ? '<div class="task__actions"><button class="btn btn--primary btn--sm" type="button" id="plant-close-shift">Закрыть смену</button></div>'
@@ -517,9 +517,9 @@ export function renderPlant() {
     if (closeButton) {
       closeButton.addEventListener('click', () => {
         recordShift({ metal, earned, note: `смена ${plant.shifts + 1}` });
-        toast(`Смена закрыта: +${earned.toLocaleString()} ¢`);
+        toast(`Смена закрыта: +${earned.toLocaleString()} $`);
         pendingOutput = {
-          html: `<p class="log log--summary is-ok"><span class="log__text">смена ${plant.shifts + 1} закрыта: ${metal} т металла, +${earned.toLocaleString()} ¢</span></p>`,
+          html: `<p class="log log--summary is-ok"><span class="log__text">смена ${plant.shifts + 1} закрыта: ${metal} т металла, +${earned.toLocaleString()} $</span></p>`,
           hint: 'смена закрыта',
         };
         renderPlant();

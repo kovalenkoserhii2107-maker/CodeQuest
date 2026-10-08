@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build:editor": "node tools/build-editor.mjs",
-    "test": "node tests/check-quests.mjs && node tests/check-editor.mjs && node tests/check-economy.mjs && node tests/check-assets.mjs && node tests/check-charts.mjs && node tests/check-foundation.mjs && node tests/check-city.mjs && node tests/check-city-world.mjs && node tests/check-workbench.mjs && node tests/check-sandbox-expansion.mjs && node tests/check-visual-workbench.mjs && node tests/check-js-practice.mjs && node tests/check-production-network.mjs"
+    "test": "node tests/check-quests.mjs && node tests/check-editor.mjs && node tests/check-economy.mjs && node tests/check-assets.mjs && node tests/check-charts.mjs && node tests/check-foundation.mjs && node tests/check-city.mjs && node tests/check-city-world.mjs && node tests/check-workbench.mjs && node tests/check-sandbox-expansion.mjs && node tests/check-visual-workbench.mjs && node tests/check-js-practice.mjs && node tests/check-production-network.mjs && node tests/check-workspace-layout.mjs"
   },
   "repository": {
     "type": "git",

@@ -81,7 +81,7 @@ export async function renderCommand() {
       <h3 class="panel__title">Счёт корпорации</h3>
       <span class="panel__hint">реальное состояние</span>
     </div>
-    <p class="widget__value mono">${player.credits.toLocaleString()} <small>¢</small></p>
+    <p class="widget__value mono">${player.credits.toLocaleString()} <small>$</small></p>
     ${fillBar({ value: solvedCount(), max: totalCount(), label: 'Заданий решено', unit: 'шт', tone: 'progress' })}
     ${fillBar({ value: stockUsedSpace(), max: warehouseCapacity(), label: 'Склад', unit: 'т' })}
     ${crew.length ? barChart({ items: Object.entries(byRole), unit: 'чел' }) : ''}
@@ -130,7 +130,7 @@ export async function renderShipyard() {
               <h3 class="widget__title">${escapeHtml(showValue(module.name))}</h3>
               <p class="widget__unit">${escapeHtml(showValue(module.type))}</p>
             </div>
-            <span class="badge badge--info">${escapeHtml(showValue(module.price))} ¢</span>
+            <span class="badge badge--info">${escapeHtml(showValue(module.price))} $</span>
           </header>
           <div class="widget__body">
             <div class="widget__row"><span>Масса</span><b class="mono">${escapeHtml(showValue(module.weight))} т</b></div>
@@ -181,7 +181,7 @@ async function buyModule(moduleId, button) {
 
   if (!spendCredits(found.price)) {
     button.disabled = false;
-    toast('Недостаточно кредитов — решайте задания');
+    toast('Недостаточно долларов — решайте задания');
     return;
   }
 
@@ -189,11 +189,11 @@ async function buyModule(moduleId, button) {
   if (!warehouse().addItem(item)) {
     refundCredits(found.price);
     button.disabled = false;
-    toast('Склад отказал, кредиты возвращены');
+    toast('Склад отказал, доллары возвращены');
     return;
   }
 
-  addLog(`Куплен модуль «${found.name}» за ${found.price} ¢`, 'info');
+  addLog(`Куплен модуль «${found.name}» за ${found.price} $`, 'info');
   toast(`«${found.name}» на складе — установите его на корабль`);
 }
 
@@ -294,7 +294,7 @@ export async function renderWarehouse() {
                      </button>
                      <button class="btn btn--danger btn--sm" type="button"
                              data-sell="${escapeHtml(showValue(item.uniqueId))}" title="Сдать модуль верфи за полцены">
-                       Сдать · +${salvagePrice(item).toLocaleString()} ¢
+                       Сдать · +${salvagePrice(item).toLocaleString()} $
                      </button>`))
                    .join('')}
                </tbody>
@@ -356,7 +356,7 @@ function sellFromStock(uniqueId, button) {
     return;
   }
 
-  toast(`Модуль сдан, получено ${refund.toLocaleString()} ¢`);
+  toast(`Модуль сдан, получено ${refund.toLocaleString()} $`);
 }
 
 /* --- Экипаж -------------------------------------------------------------- */
@@ -379,7 +379,7 @@ export async function renderCrew() {
                   <p class="crew-card__role">${escapeHtml(showValue(member.role))}</p>
                 </div>
               </div>
-              <p class="crew-card__stats mono" style="margin-top: 8px">Зарплата ${escapeHtml(showValue(member.salary))} ¢</p>
+              <p class="crew-card__stats mono" style="margin-top: 8px">Зарплата ${escapeHtml(showValue(member.salary))} $</p>
             </article>`,
         )
         .join('')
@@ -402,7 +402,7 @@ export async function renderCrew() {
               </div>
               <p class="crew-card__stats mono" style="margin-top: 8px">Рейсов ${candidate.stats.flights} · рейтинг ${candidate.stats.rating}</p>
               <button class="btn btn--ghost btn--sm" style="margin-top: 12px; width: 100%" type="button" data-candidate="${candidate.id}">
-                Нанять за ${candidate.hireCost.toLocaleString()} ¢
+                Нанять за ${candidate.hireCost.toLocaleString()} $
               </button>
             </article>`,
         )
@@ -435,7 +435,7 @@ async function hireCandidate(candidateId, button) {
   const hiredNow = (value?.crew?.length ?? 0) > commander.crew.length;
   if (!hiredNow) {
     button.disabled = false;
-    toast('Ваша функция отказала: не хватает кредитов');
+    toast('Ваша функция отказала: не хватает долларов');
     return;
   }
 
@@ -448,7 +448,7 @@ async function hireCandidate(candidateId, button) {
   }
 
   addCrewMember(laborExchange.hire(candidateId) ?? candidate);
-  addLog(`Нанят ${candidate.name} за ${spent} ¢`, 'info');
+  addLog(`Нанят ${candidate.name} за ${spent} $`, 'info');
   toast(`Нанят: ${candidate.name}`);
 }
 

@@ -13,21 +13,21 @@ export const LESSONS = [
   },
   {
     id: 'supply', stage: 'Первые шаги', title: '2. Найдите поставщика',
-    objective: 'Прочитайте список поставщиков и купите 10 лома. scrap — программный ID лома; цена — 4 ₽ за единицу.',
+    objective: 'Прочитайте список поставщиков и купите 10 лома. scrap — программный ID лома; цена — 4 $ за единицу.',
     concepts: 'Массив, первый элемент, аргументы функции, расходы.',
     api: ['cq.market.getSuppliers', 'cq.market.buy', 'cq.warehouse.getStock'],
     scaffold: scaffold('const supplier = cq.market.getSuppliers()[0];\ncq.print("Поставщик:", supplier);\n// Если лома меньше 10, купите недостающее количество.'),
-    hints: ['supplier.product содержит "scrap", supplier.price — 4. За 10 единиц нужно 40 ₽.', 'const missing = 10 - cq.warehouse.getStock("scrap");\nif (missing > 0) cq.market.buy("scrap", missing);'],
+    hints: ['supplier.product содержит "scrap", supplier.price — 4. За 10 единиц нужно 40 $.', 'const missing = 10 - cq.warehouse.getStock("scrap");\nif (missing > 0) cq.market.buy("scrap", missing);'],
     expectation: 'Прочитан getSuppliers(); статистика купленного лома — не менее 10. Повторная закупка при уже имеющемся сырье не нужна.',
     check: ctx => ctx.reads.includes('market.getSuppliers') && ctx.after.metrics.bought >= 10
   },
   {
     id: 'batch', stage: 'Первые шаги', title: '3. Запустите первую партию',
-    objective: 'Изучите рецепт metal. Запустите 5 металла на line-1: понадобится 10 лома и 10 ₽ энергии.',
+    objective: 'Изучите рецепт metal. Запустите 5 металла на line-1: понадобится 10 лома и 10 $ энергии.',
     concepts: 'Поиск в массиве, условия, состояние оборудования.',
     api: ['cq.factory.getRecipes', 'cq.factory.getLines', 'cq.factory.start'],
     scaffold: scaffold('const recipes = cq.factory.getRecipes();\ncq.print(recipes);\nconst line = cq.factory.getLines()[0];\n// Если line.job === null, запустите 5 metal.'),
-    hints: ['metal = 2 scrap + 2 ₽, время — 2 шага. Сырьё уйдёт сразу, товар появится позже.', 'if (line.job === null && cq.warehouse.getStock("scrap") >= 10) {\n  cq.factory.start("metal", 5, line.id);\n}'],
+    hints: ['metal = 2 scrap + 2 $, время — 2 шага. Сырьё уйдёт сразу, товар появится позже.', 'if (line.job === null && cq.warehouse.getStock("scrap") >= 10) {\n  cq.factory.start("metal", 5, line.id);\n}'],
     expectation: 'Прочитан getRecipes(); успешно вызвана команда start("metal", 5) или партия большего размера.',
     check: ctx => ctx.reads.includes('factory.getRecipes') && ctx.operations.some(op => op.method === 'produce' && op.args[0] === 'metal' && op.args[1] >= 5)
   },
@@ -64,7 +64,7 @@ export const LESSONS = [
   },
   {
     id: 'contract', stage: 'Развитие мастерской', title: '7. Выполните городской заказ',
-    objective: 'Примите metal-order, произведите и сдайте 5 metal до срока. Награда — 140 ₽, рынок её не меняет.',
+    objective: 'Примите metal-order, произведите и сдайте 5 metal до срока. Награда — 140 $, рынок её не меняет.',
     concepts: 'Конечный автомат: доступен → принят → выполнен; сроки.',
     api: ['cq.contracts.list', 'cq.contracts.accept', 'cq.contracts.deliver'],
     scaffold: scaffold('const order = cq.contracts.list().find(c => c.id === "metal-order");\ncq.print(order);\n// available: принять; active: произвести товар и сдать до deadline.\n// Проверяйте сырьё и занятость линии, чтобы не запускать лишнюю партию.'),
@@ -74,11 +74,11 @@ export const LESSONS = [
   },
   {
     id: 'research', stage: 'Развитие мастерской', title: '8. Откройте новый рецепт',
-    objective: 'Изучите технологии и откройте wire за 400 ₽. Провод: 1 metal + 3 ₽, 1 шаг.',
+    objective: 'Изучите технологии и откройте wire за 400 $. Провод: 1 metal + 3 $, 1 шаг.',
     concepts: 'Каталог возможностей, проверка бюджета, развитие.',
     api: ['cq.research.list', 'cq.research.unlock', 'cq.factory.getRecipes'],
     scaffold: scaffold('const technologies = cq.research.list();\ncq.print(technologies);\n// Найдите wire и откройте, если хватает денег и !unlocked.'),
-    hints: ['Исследования доступны сразу; wire стоит 400 ₽, efficiency — 600 ₽.', 'if (!cq.research.list().find(t => t.id === "wire").unlocked && cq.world.getState().balance >= 400) {\n  cq.research.unlock("wire");\n}'],
+    hints: ['Исследования доступны сразу; wire стоит 400 $, efficiency — 600 $.', 'if (!cq.research.list().find(t => t.id === "wire").unlocked && cq.world.getState().balance >= 400) {\n  cq.research.unlock("wire");\n}'],
     expectation: 'В мире открыта технология wire.',
     check: ctx => ctx.after.research.includes('wire')
   },
@@ -88,13 +88,13 @@ export const LESSONS = [
     concepts: 'Расчёт сделки, очередь событий, товар и деньги в пути.',
     api: ['cq.market.quote', 'cq.logistics.getRoutes', 'cq.logistics.dispatch', 'cq.logistics.getShipments'],
     scaffold: scaffold('const routes = cq.logistics.getRoutes();\ncq.print(routes);\n// Произведите wire, затем рассчитайте quote для electronics.\n// Если canTrade, отправьте груз и дождитесь оплаты.'),
-    hints: ['Прямая sell в electronics не работает: buyer.remote=true. Фургон courier стоит 5 ₽ и едет 1 шаг.', 'const q = cq.market.quote("wire", 1, "electronics", "courier");\nif (q.canTrade) cq.logistics.dispatch("wire", 1, "electronics", "courier");'],
+    hints: ['Прямая sell в electronics не работает: buyer.remote=true. Фургон courier стоит 5 $ и едет 1 шаг.', 'const q = cq.market.quote("wire", 1, "electronics", "courier");\nif (q.canTrade) cq.logistics.dispatch("wire", 1, "electronics", "courier");'],
     expectation: 'Мир завершил доставку хотя бы одной единицы товара.',
     check: ctx => ctx.after.metrics.delivered >= 1
   },
   {
     id: 'parallel', stage: 'Свободная стратегия', title: '10. Разверните две линии',
-    objective: 'Заработайте на вторую линию (1200 ₽) и запускайте партии независимо: металл на одной, детали или провод на другой.',
+    objective: 'Заработайте на вторую линию (1200 $) и запускайте партии независимо: металл на одной, детали или провод на другой.',
     concepts: 'Планирование ресурсов, цикл по оборудованию, параллельность.',
     api: ['cq.factory.purchaseLine', 'cq.factory.getLines', 'cq.factory.start'],
     scaffold: scaffold('const lines = cq.factory.getLines();\ncq.print(lines);\n// Заработайте на purchaseLine().\n// При запуске передавайте line.id третьим аргументом start().'),
@@ -137,7 +137,7 @@ export const LESSONS = [
     objective:'Сравните площадки и накопите бюджет на регион, цех и оборотный резерв. Откройте port и постройте портовой цех.',
     concepts:'Каталог данных, выбор инвестиции, разделение общего и местного состояния.',
     api:['cq.network.getCatalog','cq.network.getSites','cq.world.explore','cq.network.open'],
-    scaffold:scaffold('const catalog = cq.network.getCatalog();\nconsole.log(catalog);\n// Регион port: 600 ₽, цех: 1800 ₽.\n// Не открывайте повторно уже открытый регион или площадку.\n// Оставьте деньги на сырьё и энергию.\nconsole.log(cq.network.getSites());'),
+    scaffold:scaffold('const catalog = cq.network.getCatalog();\nconsole.log(catalog);\n// Регион port: 600 $, цех: 1800 $.\n// Не открывайте повторно уже открытый регион или площадку.\n// Оставьте деньги на сырьё и энергию.\nconsole.log(cq.network.getSites());'),
     hints:['canOpen учитывает регион, существование площадки и баланс. Строительство даёт отдельный склад на 100 мест и одну линию.','const port = cq.network.getCatalog().find(s => s.id === "port");\nif (port.canOpen) cq.network.open(port.id);'],
     expectation:'Построен хотя бы один филиал, текущий успешный код прочитал getCatalog и getSites.',
     check:ctx=>ctx.after.network.sites.length>=1&&ctx.reads.includes('network.getCatalog')&&ctx.reads.includes('network.getSites')

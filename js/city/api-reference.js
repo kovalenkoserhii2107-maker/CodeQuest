@@ -24,7 +24,7 @@ export const API_METHODS = [
   method('analytics','getAlerts','Подсказки: оборотные деньги, свободное место, близкие сроки заказов и простаивающие линии.',[],'CityAlert[]','cq.analytics.getAlerts().forEach(a=>cq.print(a.level,a.text));'),
   method('warehouse','discard','Безвозвратно списывает товар со склада, освобождая место. Денег не приносит. Используйте для излишков.',[p('product','string','ID товара.'),quantity()],'number','// Только если этот запас больше не нужен:\ncq.warehouse.discard("scrap", 5);',['Не хватает товара.']),
 
-  method('world','getRegions','Регионы: id, name, cost, description, unlocked. Порт стоит 600 ₽, Северные высоты — 1000 ₽.',[],'CityRegion[]','cq.print(cq.world.getRegions());'),
+  method('world','getRegions','Регионы: id, name, cost, description, unlocked. Порт стоит 600 $, Северные высоты — 1000 $.',[],'CityRegion[]','cq.print(cq.world.getRegions());'),
   method('world','getEvents','Периодические события регионов: active, priceBonus и changesIn. Цена отправленного груза не меняется.',[],'CityEvent[]','cq.print(cq.world.getEvents());'),
   method('world','explore','Оплачивает доступ к поставщикам, покупателям и маршрутам региона.',[p('id','"port" | "highlands"','ID региона.')],'string','if (!cq.world.getRegions().find(r=>r.id==="port").unlocked && cq.world.getState().balance>=600) cq.world.explore("port");',['Регион открыт или не хватает денег.']),
   method('analytics','getHistory','До 120 снимков: tick, balance, revenue, spent, inventory, prices. Проба историю не меняет.',[p('limit','number','От 1 до 120, по умолчанию 120.',true)],'CityHistoryPoint[]','cq.print(cq.analytics.getHistory(30).map(p=>p.balance));'),
@@ -39,9 +39,9 @@ export const API_METHODS = [
     'const scrap = cq.warehouse.getStock("scrap");\nif (scrap < 10) cq.market.buy("scrap", 10 - scrap);', ['Неизвестный товар.']),
   method('warehouse', 'getFreeSpace', 'Свободное место центрального склада с учётом резерва под партии и входящие внутренние перевозки.', [], 'number',
     'cq.print("Свободно:", cq.warehouse.getFreeSpace());'),
-  method('warehouse', 'upgrade', 'Добавляет 100 мест. Стоимость: 500 ₽ × текущий уровень склада, максимум 6.', [], 'number',
+  method('warehouse', 'upgrade', 'Добавляет 100 мест. Стоимость: 500 $ × текущий уровень склада, максимум 6.', [], 'number',
     'const s = cq.world.getState();\nif (s.warehouseLevel < 6 && s.balance >= 500 * s.warehouseLevel) cq.warehouse.upgrade();', ['Недостаточно денег.', 'Максимальный уровень.']),
-  method('market', 'getSuppliers', 'Поставщики: id, product, price, stock, region, locked. yard продаёт лом за 4 ₽, port-yard — за 3 ₽, northern-metal — металл за 12 ₽. Закрытый регион сначала откройте.', [], 'CitySupplier[]',
+  method('market', 'getSuppliers', 'Поставщики: id, product, price, stock, region, locked. yard продаёт лом за 4 $, port-yard — за 3 $, northern-metal — металл за 12 $. Закрытый регион сначала откройте.', [], 'CitySupplier[]',
     'const supplier = cq.market.getSuppliers()[0];\ncq.print(supplier.id, supplier.price, supplier.stock);'),
   method('market', 'getBuyers', 'Покупатели, цены, спрос, region, locked и remote. locked=true означает закрытый регион; remote=true требует доставки.',
     [p('product', 'string', 'Необязательный фильтр по товару.', true)], 'CityBuyer[]',
@@ -51,7 +51,7 @@ export const API_METHODS = [
     'const q = cq.market.quote("metal", 5, "foundry");\nif (q.canTrade) cq.market.sell("metal", 5, "foundry");', ['Неизвестный покупатель или маршрут.']),
   method('market', 'buy', 'Мгновенная покупка: баланс и запас поставщика уменьшаются, склад пополняется.',
     [p('product','"scrap" | "metal"','Товар выбранного поставщика.'),quantity(),p('supplierId','string','ID поставщика; по умолчанию yard.',true)], 'number',
-    'cq.market.buy("scrap", 10);\n// +10 лома, -40 ₽.', ['Неверное количество.', 'Не хватает денег, места или сырья у поставщика.']),
+    'cq.market.buy("scrap", 10);\n// +10 лома, -40 $.', ['Неверное количество.', 'Не хватает денег, места или сырья у поставщика.']),
   method('market', 'sell', 'Мгновенная продажа местному покупателю по текущей цене. Возвращает выручку.',
     [production(), quantity(), buyer()], 'number',
     'const b = cq.market.getBuyers("metal").find(b => b.id === "foundry");\nconst amount = Math.min(cq.warehouse.getStock("metal"), b.demand);\nif (amount > 0) cq.print(cq.market.sell("metal", amount, b.id));', ['Не хватает товара или спроса.', 'Для remote нужна доставка.']),
@@ -62,9 +62,9 @@ export const API_METHODS = [
   method('factory', 'start', 'Запускает партию. Сырьё и энергия списываются сразу; товар появляется после duration шагов. На каждой линии своя партия.',
     [production(), quantity(), line()], 'CityJob',
     'if (!cq.factory.getLines()[0].job && cq.warehouse.getStock("scrap") >= 10) {\n  cq.factory.start("metal", 5, "line-1");\n}', ['Линия занята или не найдена.', 'Не хватает сырья, денег или мощности.', 'Рецепт не исследован.']),
-  method('factory', 'upgrade', 'Мощность выбранной линии: +8 единиц. Цена 750 ₽ × текущий уровень, максимум 6.',
+  method('factory', 'upgrade', 'Мощность выбранной линии: +8 единиц. Цена 750 $ × текущий уровень, максимум 6.',
     [line()], 'number', 'cq.factory.upgrade("line-1");', ['Недостаточно денег.', 'Максимальный уровень.']),
-  method('factory', 'purchaseLine', 'Независимая линия уровня 1. Цена 1200 ₽ × число имеющихся линий, максимум 4.', [], 'string',
+  method('factory', 'purchaseLine', 'Независимая линия уровня 1. Цена 1200 $ × число имеющихся линий, максимум 4.', [], 'string',
     'cq.print("Новая линия:", cq.factory.purchaseLine());', ['Недостаточно денег.', 'Уже четыре линии.']),
   method('contracts', 'list', 'Заказы: товар, количество, награда, срок duration, status, deadline, locked. Весь заказ сдаётся одной командой.', [], 'CityContract[]',
     'cq.contracts.list().forEach(c => cq.print(c.id, c.quantity, c.reward, c.status));'),
@@ -74,14 +74,14 @@ export const API_METHODS = [
   method('contracts', 'deliver', 'Забирает требуемый товар и начисляет фиксированную награду. Через 5 шагов заказ доступен снова.',
     [p('id', 'string', 'ID активного заказа.')], 'number',
     'const c = cq.contracts.list().find(c => c.id === "metal-order");\nif (c.status === "active" && cq.warehouse.getStock(c.product) >= c.quantity) {\n  cq.print("Награда:", cq.contracts.deliver(c.id));\n}', ['Заказ не принят, просрочен или не хватает товара.']),
-  method('logistics', 'getRoutes', 'Маршруты: id, duration, fee, capacity, busy, regions, locked. Фургон: 1 шаг / 5 ₽ / 12 ед.; трамвай: 3 шага / 8 ₽ / 40 ед. Один груз на маршрут.', [], 'CityRoute[]',
+  method('logistics', 'getRoutes', 'Маршруты: id, duration, fee, capacity, busy, regions, locked. Фургон: 1 шаг / 5 $ / 12 ед.; трамвай: 3 шага / 8 $ / 40 ед. Один груз на маршрут.', [], 'CityRoute[]',
     'cq.print(cq.logistics.getRoutes());'),
   method('logistics', 'getShipments', 'Грузы в пути. unitPrice закреплена при отправке, remaining — шаги до оплаты.', [], 'CityShipment[]',
     'cq.logistics.getShipments().forEach(s => cq.print(s.id, s.product, s.remaining));'),
   method('logistics', 'dispatch', 'Товар, спрос и плата за маршрут списываются сейчас; выручка придёт при доставке по закреплённой цене.',
     [production(), quantity(), buyer(), p('routeId', 'string', 'courier, rail или barge. Проверяйте regions маршрута и регион покупателя. По умолчанию courier.', true)], 'CityShipment',
     'const q = cq.market.quote("parts", 4, "district", "rail");\nif (q.canTrade) cq.logistics.dispatch("parts", 4, "district", "rail");', ['Маршрут занят или груз слишком велик.', 'Не хватает товара, спроса или денег.']),
-  method('research', 'list', 'Технологии: id, cost, description, unlocked. throughput ускоряет партии, logistics — доставки на 1 шаг (минимум 1). wire открывает провод; circuits — схемы из 3 wire за 4 шага; efficiency уменьшает энергию на 1 ₽ за единицу.', [], 'CityResearch[]',
+  method('research', 'list', 'Технологии: id, cost, description, unlocked. throughput ускоряет партии, logistics — доставки на 1 шаг (минимум 1). wire открывает провод; circuits — схемы из 3 wire за 4 шага; efficiency уменьшает энергию на 1 $ за единицу.', [], 'CityResearch[]',
     'cq.print(cq.research.list());'),
   method('research', 'unlock', 'Покупает технологию. Эффект действует для новых партий; запущенные партии не пересчитываются.',
     [p('id', '"wire" | "efficiency" | "circuits" | "throughput" | "logistics"', 'ID технологии.')], 'string',
@@ -142,67 +142,67 @@ export const apiEffect = item => COMMAND_PATHS.has(item.path) ? 'command' : item
 
 export function mountReference(root) {
   root.innerHTML = '<h2>Справочник API мира</h2>' +
-    '<div class="city-api-guide"><strong>Чтение → проверка → команда → один шаг</strong><p>В main(cq) чтение видит результат предыдущих команд этого запуска. Время идёт только после успешного main. Ошибка отменяет все команды и изменения памяти.</p><p><b>Дашборд render(cq, view)</b> получает снимок мира: чтение разрешено, команды запрещены. Пробный запуск показывает прогноз без сохранения. Примеры методов ниже предназначены для main(cq); в render используйте только чтение.</p></div>' +
-    '<label class="city-api-search">Найти метод <input type="search" data-api-search placeholder="Например: свободное место, доставка, start" aria-label="Поиск API мира"></label>' +
-    '<label class="city-api-kind">Тип метода <select data-api-kind aria-label="Тип метода API"><option value="all">Все методы</option><option value="read">Чтение · доступно в дашборде</option><option value="command">Команды · меняют мир</option><option value="code">Вывод и память</option></select></label>' +
+    '<div class="city-api-guide"><strong>Чтение → проверка → команда → один шаг</strong><p>В main(cq) чтение видит результат предыдущих команд этого запуска. Время идёт только после успешного main. Ошибка отменяет все команды и изменения памяти.</p><p><b>Дашборд render(cq, view)</b> получает снимок мира: чтение разрешено, команды запрещены. Пробный запуск показывает прогноз без сохранения.</p></div>' +
+    '<div class="city-api-filters"><label class="city-api-search">Найти метод <input type="search" data-api-search placeholder="Название, задача или JavaScript" aria-label="Поиск API мира"></label>' +
+    '<label class="city-api-kind">Тип метода <select data-api-kind aria-label="Тип метода API"><option value="all">Все методы</option><option value="read">Чтение · доступно в дашборде</option><option value="command">Команды · меняют мир</option><option value="code">Вывод и память</option></select></label></div>' +
     '<div class="city-api-groups" role="group" aria-label="Разделы API"><button type="button" data-group="all" aria-pressed="true">Все</button>' +
-    API_GROUPS.map(([id, name]) => '<button type="button" data-group="' + id + '" aria-pressed="false">' + name + '</button>').join('') +
+    API_GROUPS.map(([id,name]) => '<button type="button" data-group="'+id+'" aria-pressed="false">'+name+'</button>').join('') +
     '</div><p data-api-count role="status" class="city-muted"></p><div data-api-list></div>' +
     '<button type="button" data-api-back>Вернуться к коду</button><details><summary>Код из первой версии</summary><p>cq.getState, cq.buy, cq.produce, cq.sell и cq.upgrade работают как раньше. В новых примерах используйте cq.world, cq.market, cq.factory и cq.warehouse.</p></details>';
-  const guide=document.createElement('section');guide.className='city-api-walkthrough';root.prepend(guide);
-  mountGuide(guide,path=>openMethod(path));
-  let group = 'all', query = '', kind = 'all';
-  const expanded = new Set(), search = root.querySelector('[data-api-search]');
-  const effects = {read:'Чтение · дашборд ✓',command:'Команда · меняет мир',code:'Вывод / память'};
+  const guide = document.createElement('section'); guide.className='city-api-walkthrough'; root.prepend(guide);
+  const dialog = document.createElement('dialog'); dialog.className='city-api-dialog'; dialog.dataset.apiDialog='';
+  dialog.setAttribute('aria-labelledby','city-api-dialog-title');
+  dialog.innerHTML='<header class="city-api-dialog-heading"><div><p class="campaign-eyebrow">API мира</p><h3 id="city-api-dialog-title"></h3></div><button type="button" data-api-close aria-label="Закрыть описание метода">×</button></header><div class="city-api-dialog-body" data-api-detail></div><footer class="city-api-dialog-footer"><button type="button" data-api-dialog-back>Вернуться к коду</button><button type="button" data-api-close-bottom>Закрыть</button></footer>';
+  root.append(dialog);
+  let group='all', query='', kind='all', opener;
+  const search=root.querySelector('[data-api-search]');
+  const effects={read:'Чтение · дашборд ✓',command:'Команда · меняет мир',code:'Вывод / память'};
+  const signature = item => item.path + (item.property ? '' : '(' + item.params.map(p => p.name + (p.optional ? '?' : '')).join(', ') + ')');
   function render() {
-    const methods = API_METHODS.filter(item => (group === 'all' || group === item.group) &&
-      (kind === 'all' || kind === apiEffect(item)) &&
-      (item.path + ' ' + item.description + ' ' + item.example).toLowerCase().includes(query));
-    root.querySelector('[data-api-count]').textContent = 'Найдено методов: ' + methods.length + ' из ' + API_METHODS.length;
-    root.querySelectorAll('[data-group]').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.group === group)));
-    root.querySelector('[data-api-list]').innerHTML = methods.map(item => {
-      const signature = item.path + (item.property ? '' : '(' + item.params.map(p => p.name + (p.optional ? '?' : '')).join(', ') + ')');
-      const effect = apiEffect(item);
-      return '<details class="city-api-method" data-api-path="' + item.path + '"' + (expanded.has(item.path)?' open':'') + '><summary><code>' + escapeHtml(signature) + '</code><span class="city-api-effect" data-effect="' + effect + '">' + effects[effect] + '</span></summary><p>' + escapeHtml(item.description) + '</p>' +
-        (item.params.length ? '<div class="city-table-scroll"><table><caption>Аргументы</caption><thead><tr><th>Имя / тип</th><th>Что передавать</th></tr></thead><tbody>' +
-          item.params.map(p => '<tr><td><code>' + escapeHtml(p.name) + '</code><br><code>' + escapeHtml(p.type) + '</code></td><td>' + escapeHtml(p.description) +
-            (p.optional ? ' Необязательный аргумент.' : '') + '</td></tr>').join('') + '</tbody></table></div>' : '<p>Аргументы не требуются.</p>') +
-        '<p>Возвращает: <code>' + escapeHtml(item.returns) + '</code>.</p><pre data-api-example>' + escapeHtml(item.example) + '</pre>' +
-        '<div class="city-api-example-actions"><button type="button" data-api-copy>Копировать пример</button><button type="button" data-api-main>Копировать main(cq)</button></div><p data-api-copy-status class="city-muted" role="status">Пример не запускается автоматически. Команды выполняйте в index.js.</p>' +
-        (item.errors.length ? '<p class="city-muted">Возможные ошибки: ' + item.errors.map(escapeHtml).join(' ') + '</p>' : '') + '</details>';
-    }).join('') || '<div class="city-empty">Ничего не найдено. Попробуйте другое название или раздел. <button type="button" data-api-clear>Сбросить фильтры</button></div>';
-    root.querySelectorAll('[data-api-path]').forEach(detail => {
-      const item = API_METHODS.find(m => m.path === detail.dataset.apiPath);
-      detail.addEventListener('toggle', () => { if(!detail.isConnected)return; if(detail.open)expanded.add(item.path);else expanded.delete(item.path); });
-      for (const button of detail.querySelectorAll('[data-api-copy], [data-api-main]')) button.onclick = async () => {
-        const code = button.hasAttribute('data-api-main') ? 'export function main(cq) {\n' + item.example.split('\n').map(line=>'  '+line).join('\n') + '\n}' : item.example;
-        const status = detail.querySelector('[data-api-copy-status]');
-        try { await navigator.clipboard.writeText(code); status.textContent = 'Скопировано. Вставьте в нужное место редактора.'; }
-        catch {
-          const pre = detail.querySelector('[data-api-example]'); pre.textContent = code;
-          const range=document.createRange();range.selectNodeContents(pre);
-          const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
-          status.textContent = 'Буфер обмена недоступен. Код выделен — скопируйте вручную.';
-        }
-      };
-    });
+    const methods=API_METHODS.filter(item=>(group==='all'||group===item.group)&&(kind==='all'||kind===apiEffect(item))&&(item.path+' '+item.description+' '+item.example).toLowerCase().includes(query));
+    root.querySelector('[data-api-count]').textContent='Найдено методов: '+methods.length+' из '+API_METHODS.length;
+    root.querySelectorAll('[data-group]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.group===group)));
+    root.querySelector('[data-api-list]').innerHTML=methods.map(item=>'<button type="button" class="city-api-method" data-api-path="'+item.path+'" aria-haspopup="dialog"><code>'+escapeHtml(signature(item))+'</code><span class="city-api-effect" data-effect="'+apiEffect(item)+'">'+effects[apiEffect(item)]+'</span><span class="city-api-card-description">'+escapeHtml(item.description)+'</span><span class="city-api-card-open">Описание и пример ↗</span></button>').join('')||'<div class="city-empty">Ничего не найдено. Попробуйте другое название или раздел. <button type="button" data-api-clear>Сбросить фильтры</button></div>';
+    root.querySelectorAll('[data-api-path]').forEach(button=>button.onclick=()=>showMethod(button.dataset.apiPath,button));
     root.querySelector('[data-api-clear]')?.addEventListener('click',reset);
   }
+  function showMethod(path, button) {
+    const item=API_METHODS.find(item=>item.path===path); if(!item)return;
+    opener=button||document.activeElement; dialog.dataset.apiMethod=path;
+    dialog.querySelector('h3').textContent=signature(item);
+    const detail=dialog.querySelector('[data-api-detail]');
+    detail.innerHTML='<span class="city-api-effect" data-effect="'+apiEffect(item)+'">'+effects[apiEffect(item)]+'</span><p>'+escapeHtml(item.description)+'</p>' +
+      (item.params.length?'<div class="city-table-scroll"><table><caption>Аргументы</caption><thead><tr><th>Имя / тип</th><th>Что передавать</th></tr></thead><tbody>'+item.params.map(p=>'<tr><td><code>'+escapeHtml(p.name)+'</code><br><code>'+escapeHtml(p.type)+'</code></td><td>'+escapeHtml(p.description)+(p.optional?' Необязательный аргумент.':'')+'</td></tr>').join('')+'</tbody></table></div>':'<p>Аргументы не требуются.</p>')+
+      '<p>Возвращает: <code>'+escapeHtml(item.returns)+'</code>.</p><h4>Пример JavaScript</h4><pre data-api-example>'+escapeHtml(item.example)+'</pre><div class="city-api-example-actions"><button type="button" data-api-copy>Копировать пример</button><button type="button" data-api-main>Копировать main(cq)</button></div><p data-api-copy-status class="city-muted" role="status">Пример не запускается автоматически. Команды выполняйте в index.js.</p>'+
+      (item.errors.length?'<p class="city-muted">Возможные ошибки: '+item.errors.map(escapeHtml).join(' ')+'</p>':'');
+    for(const copy of detail.querySelectorAll('[data-api-copy], [data-api-main]'))copy.onclick=async()=>{
+      const code=copy.hasAttribute('data-api-main')?'export function main(cq) {\n'+item.example.split('\n').map(line=>'  '+line).join('\n')+'\n}':item.example;
+      const status=detail.querySelector('[data-api-copy-status]');
+      try{await navigator.clipboard.writeText(code);status.textContent='Скопировано. Вставьте в нужное место редактора.';}
+      catch{const pre=detail.querySelector('[data-api-example]');pre.textContent=code;const range=document.createRange();range.selectNodeContents(pre);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);status.textContent='Буфер обмена недоступен. Код выделен — скопируйте вручную.';}
+    };
+    if(!dialog.open)dialog.showModal(); detail.scrollTop=0;dialog.querySelector('[data-api-close]').focus({preventScroll:true});
+  }
   function reset(){group='all';kind='all';query='';search.value='';root.querySelector('[data-api-kind]').value='all';render();}
+  function close(){dialog.close();}
+  dialog.querySelector('[data-api-close]').onclick=close;dialog.querySelector('[data-api-close-bottom]').onclick=close;
+  dialog.addEventListener('click',event=>{if(event.target===dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)close();}});
+  dialog.addEventListener('close',()=>{if(opener?.isConnected)opener.focus({preventScroll:true});});
+  const back=()=>{close();root.dispatchEvent(new CustomEvent('city-api-back',{bubbles:true}));};
+  dialog.querySelector('[data-api-dialog-back]').onclick=back;
+  root.querySelector('[data-api-back]').onclick=back;
   search.addEventListener('input',event=>{query=event.target.value.toLowerCase().trim();render();});
   search.addEventListener('keydown',event=>{if(event.key==='Escape'){reset();search.focus();}});
   root.querySelector('[data-api-kind]').onchange=event=>{kind=event.target.value;render();};
   root.querySelectorAll('[data-group]').forEach(button=>button.onclick=()=>{group=button.dataset.group;render();});
-  root.querySelector('[data-api-back]').onclick=()=>root.dispatchEvent(new CustomEvent('city-api-back',{bubbles:true}));
+  mountGuide(guide,path=>openMethod(path));
   render();
-  const help=document.createElement('details');help.innerHTML='<summary>Как написать собственный дашборд</summary><p>Создайте dashboards/my-dashboard.js и экспортируйте render(cq, view). Возвращайте widgets или html и css. Дашборд только читает мир, без перевода времени; изменяйте экономику в index.js.</p><pre>'+escapeHtml('export function render(cq, view) {\n const s=cq.world.getState();\n return {title:"Моя аналитика",columns:2,widgets:[\n {id:"cash",type:"stat",title:"Баланс",value:s.balance,unit:"₽"},\n {id:"trend",type:"chart",title:"Баланс",points:cq.analytics.getHistory().map(p=>p.balance)}]};\n}')+'</pre><p>Виджеты: stat (value/unit/tone), text (text), table (columns/rows), chart (points/labels/style/unit), progress (value/max/unit). style: line, area или bar. value индикатора — от 0 до max; max больше 0. У каждого уникальный id и width (1–4). Порядок, ширина и видимость настраиваются на экране. Для свободного дизайна верните html, css и height (200–1200).</p><p>controls: массив {id,type,label,value,options}, type — select/text/number; варианты select — {value,label}. Значения доступны как view.inputs[id]. Скрипты внутри HTML не исполняются; логику пишите в render и импортируемых модулях.</p>';root.append(help);
+  const help=document.createElement('details');
+  help.innerHTML='<summary>Как написать собственный дашборд</summary><p>Создайте dashboards/my-dashboard.js и экспортируйте render(cq, view). Возвращайте widgets или html и css. Дашборд только читает мир; изменяйте экономику в index.js.</p><pre>'+escapeHtml('export function render(cq, view) {\n const s=cq.world.getState();\n return {title:"Моя аналитика",columns:2,widgets:[\n {id:"cash",type:"stat",title:"Баланс",value:s.balance,unit:"$"},\n {id:"trend",type:"chart",title:"Баланс",points:cq.analytics.getHistory().map(p=>p.balance),unit:"$"}]};\n}')+'</pre><p>Виджеты: stat (value/unit/tone), text (text), table (columns/rows), chart (points/labels/style/unit), progress (value/max/unit). style: line, area или bar. У каждого уникальный id и width (1–4). Для свободного дизайна верните html, css и height (200–1200).</p><p>controls: массив {id,type,label,value,options}; type — select/text/number. Значения доступны как view.inputs[id]. Скрипты внутри HTML не исполняются; логику пишите в render и импортируемых модулях.</p>';root.append(help);
   function openMethod(path) {
     if(!API_METHODS.some(item=>item.path===path))return;
-    expanded.add(path); reset(); search.value=path;query=path.toLowerCase();render();
-    const detail=root.querySelector('[data-api-path="'+path+'"]');
-    detail.open=true;detail.querySelector('summary').focus({preventScroll:true});
-    detail.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+    reset();search.value=path;query=path.toLowerCase();render();
+    showMethod(path,root.querySelector('[data-api-path="'+path+'"]'));
   }
-  return { open:openMethod };
-
+  return {open:openMethod,dispose(){if(dialog.open)dialog.close();dialog.remove();}};
 }

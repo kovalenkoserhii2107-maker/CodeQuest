@@ -5,7 +5,7 @@ import { REGIONS, SUPPLIERS, regionEvents } from './regions.js';
 import { validateFiles, normalizeWorkspace } from './project.js';
 export { validateFiles } from './project.js';
 import { normalizeDashboardPrefs } from './dashboard-model.js';
-import { DASHBOARD_EXAMPLES } from './dashboard-examples.js';
+import { DASHBOARD_EXAMPLES, LEGACY_DASHBOARD_EXAMPLES } from './dashboard-examples.js';
 import { RECIPES, PRODUCTS, BUYERS, RESEARCH, ROUTES, CONTRACTS, COMMANDS } from './catalog.js';
 export { RECIPES } from './catalog.js';
 const copy = value => JSON.parse(JSON.stringify(value));
@@ -173,7 +173,7 @@ export class CityEngine {
     if (route) {
       if (quantity > route.capacity) reasons.push('Вместимость маршрута: ' + route.capacity + ' ед.');
       if (this.#world.shipments.some(item => item.routeId === route.id)) reasons.push('Маршрут занят.');
-      if (this.#world.balance < fee) reasons.push('На доставку нужно ' + fee + ' ₽.');
+      if (this.#world.balance < fee) reasons.push('На доставку нужно ' + fee + ' $.');
     } else if (buyer.remote) reasons.push('Покупателю нужна доставка.');
     const estimatedUnitCost = unitCosts(this.#world)[product];
     return { product, quantity, buyerId, unitPrice: buyer.price, gross, fee, net: gross - fee,
@@ -182,7 +182,7 @@ export class CityEngine {
       estimatedMargin: estimatedUnitCost === null ? null : gross - fee - estimatedUnitCost * quantity };
   }
   #pay(amount) {
-    if (this.#world.balance < amount) throw new Error('Недостаточно денег: нужно ' + amount + ' ₽.');
+    if (this.#world.balance < amount) throw new Error('Недостаточно денег: нужно ' + amount + ' $.');
     this.#world.balance -= amount;
     this.#world.metrics.spent += amount;
   }
@@ -377,7 +377,9 @@ export function readCitySave(storage) {
   try {
     const data = JSON.parse(text);
     if (data.version !== 1) throw new Error('Версия сохранения не поддерживается.');
-    return { save: { version: 1, world: copy(validateWorld(migrateWorld(data.world))), files: validateFiles(data.files), memory: validateMemory(data.memory), tutorial: validateTutorial(data.tutorial), workspace: normalizeWorkspace(data.workspace,data.files), dashboards: normalizeDashboardPrefs(data.dashboards) }, warning: '' };
+    const files = validateFiles(data.files);
+    for (const [path,code] of Object.entries(LEGACY_DASHBOARD_EXAMPLES)) if (files[path] === code) files[path] = DASHBOARD_EXAMPLES[path];
+    return { save: { version: 1, world: copy(validateWorld(migrateWorld(data.world))), files, memory: validateMemory(data.memory), tutorial: validateTutorial(data.tutorial), workspace: normalizeWorkspace(data.workspace,data.files), dashboards: normalizeDashboardPrefs(data.dashboards) }, warning: '' };
   } catch {
     return { save: initialSave(), warning: 'Сохранение комбината повреждено. Оно сохранено в браузере; новая игра заменит его после первого действия.' };
   }

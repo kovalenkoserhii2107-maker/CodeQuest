@@ -2,7 +2,7 @@ import { PRODUCTS, RECIPES } from './catalog.js';
 const copy = value => JSON.parse(JSON.stringify(value));
 export const SITE_CATALOG = Object.freeze([
   Object.freeze({ id:'city', name:'Центральная мастерская', region:'city', cost:0, specialty:'Базовое производство и городские контракты', discountProduct:null, energyDiscount:0, timeDiscount:0 }),
-  Object.freeze({ id:'port', name:'Портовой сборочный цех', region:'port', cost:1800, specialty:'Детали: энергия на 2 ₽ дешевле за единицу', discountProduct:'parts', energyDiscount:2, timeDiscount:0 }),
+  Object.freeze({ id:'port', name:'Портовой сборочный цех', region:'port', cost:1800, specialty:'Детали: энергия на 2 $ дешевле за единицу', discountProduct:'parts', energyDiscount:2, timeDiscount:0 }),
   Object.freeze({ id:'highlands', name:'Северная электроника', region:'highlands', cost:2600, specialty:'Схемы: производство на 1 шаг быстрее', discountProduct:'circuit', energyDiscount:0, timeDiscount:1 })
 ]);
 const distances = { 'city:port':3, 'city:highlands':4, 'highlands:port':5 };
@@ -26,7 +26,7 @@ export class ProductionNetwork {
     return site;
   }
   #pay(amount) {
-    if(this.#world.balance<amount)fail('Недостаточно денег: нужно '+amount+' ₽.');
+    if(this.#world.balance<amount)fail('Недостаточно денег: нужно '+amount+' $.');
     this.#world.balance-=amount;this.#world.metrics.spent+=amount;
   }
   freeSpace(id) {
@@ -87,7 +87,7 @@ export class ProductionNetwork {
     if(line.job)reasons.push('Линия занята ещё '+line.job.remaining+' шаг.');
     if(amount>8*line.level)reasons.push('Мощность линии: до '+8*line.level+' ед.');
     if(site.inventory[recipe.input]<inputQuantity)reasons.push('На площадке нужно '+inputQuantity+' '+recipe.input+'.');
-    if(this.#world.balance<energyCost)reasons.push('На энергию нужно '+energyCost+' ₽.');
+    if(this.#world.balance<energyCost)reasons.push('На энергию нужно '+energyCost+' $.');
     if(amount>this.freeSpace(id)+inputQuantity)reasons.push('Не хватает места под готовую партию.');
     return {siteId:id,product:item,quantity:amount,lineId,input:recipe.input,inputQuantity,energyCost,duration,canStart:!reasons.length,reasons};
   }
@@ -123,7 +123,7 @@ export class ProductionNetwork {
     if(amount>this.freeSpace(to))reasons.push('На складе назначения недостаточно свободного места.');
     if(amount>fleet.capacity)reasons.push('Вместимость транспорта: '+fleet.capacity+' ед.');
     if(!fleet.freeSlots)reasons.push('Все машины в пути.');
-    if(this.#world.balance<fee)reasons.push('На перевозку нужно '+fee+' ₽.');
+    if(this.#world.balance<fee)reasons.push('На перевозку нужно '+fee+' $.');
     return {product:item,quantity:amount,from,to,fee,duration,capacity:fleet.capacity,canDispatch:!reasons.length,reasons};
   }
   transfer(item,amount,from,to) {

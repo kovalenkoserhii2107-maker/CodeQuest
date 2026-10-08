@@ -48,7 +48,8 @@ try {
  assert.equal(await page.locator('[data-network-site="port"]').getAttribute('data-built'),'true');
  assert.equal(await page.locator('[data-network-site="highlands"]').getAttribute('data-built'),'false');
  await page.locator('[data-network-site="port"] [data-network-api]').click();
- assert.equal(await page.locator('[data-api-path="cq.network.quoteProduction"]').getAttribute('open'),'');
+ assert.equal(await page.locator('[data-api-dialog]').getAttribute('data-api-method'),'cq.network.quoteProduction');
+ await page.locator('[data-api-close]').click();
  await page.locator('[data-guide-tab="network"]').click();assert.equal(await page.locator('[data-guide-page="network"] .city-guide-recipe').count(),5);
  await page.locator('[data-guide-page="network"] details').first().locator('summary').click();await page.locator('[data-network-guide-copy="open"]').click();
  assert.ok((await page.evaluate(()=>navigator.clipboard.readText())).includes('cq.network.open'));

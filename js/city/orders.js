@@ -48,7 +48,7 @@ export class SaleOrders {
       if (order.status !== 'pending') return order;
       const quote = this.quote(order.product, order.quantity, order.buyerId, order.routeId);
       return { ...order, currentPrice: quote.unitPrice,
-        reasons: [...(quote.unitPrice < order.minPrice ? ['Цена ниже порога: ' + order.minPrice + ' ₽.'] : []), ...quote.reasons] };
+        reasons: [...(quote.unitPrice < order.minPrice ? ['Цена ниже порога: ' + order.minPrice + ' $.'] : []), ...quote.reasons] };
     });
   }
   place(options) {
