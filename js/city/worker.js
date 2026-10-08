@@ -1,3 +1,4 @@
+import { formatConsoleValues } from './console-format.js';
 import { validateDashboard } from './dashboard-model.js';
 import { createCityAPI } from './api.js';
 import { CityEngine, validateFiles, validateMemory } from './engine.js';
@@ -16,13 +17,13 @@ self.addEventListener('message', async event => {
         if (resolveSpecifier(name, item.specifier) === null) throw new Error('Импортируйте файлы проекта: например "./strategy.js".');
       }
     }
-    const print = (...values) => {
+    const emit = (level, values) => {
       if (logs.length >= 100) return;
-      logs.push(values.map(value => {
-        try { return typeof value === 'string' ? value : JSON.stringify(value); }
-        catch { return String(value); }
-      }).join(' ').slice(0, 2000));
+      const text = formatConsoleValues(values);
+      logs.push(text);
+      self.postMessage({ type: 'log', entry: { level, text } });
     };
+    const print = (...values) => emit('log', values);
     const cq = createCityAPI(engine, memory, {
       onPrint: print,readOnly:mode==='dashboard',files:safeFiles,
       onRead: name => { if (reads.length < 1000) reads.push(name); },
@@ -31,7 +32,7 @@ self.addEventListener('message', async event => {
         operations.push(operation);
       }
     });
-    console.log = print; console.info = print; console.warn = print; console.error = print;
+    for (const level of ['log', 'info', 'warn', 'error']) console[level] = (...values) => emit(level, values);
     const project = buildProject(new Map(Object.entries(safeFiles)), mode==='dashboard'?entryPath:'index.js', (source, path) => {
       const url = URL.createObjectURL(new Blob([source + '\n//# sourceURL=city/' + path], { type: 'text/javascript' }));
       urls.push(url); return url;
@@ -42,7 +43,7 @@ self.addEventListener('message', async event => {
     await entry.main(cq);
     self.postMessage({ ok: true, operations, memory: validateMemory(cq.memory), logs, reads, modules: project.order });
   } catch (error) {
-    self.postMessage({ ok: false, error: error?.message || String(error) });
+    self.postMessage({ ok: false, error: error?.message || String(error), stack: String(error?.stack || '').slice(0, 6000) });
   } finally {
     urls.forEach(url => URL.revokeObjectURL(url));
   }

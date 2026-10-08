@@ -39,9 +39,10 @@ export class DashboardBuilder{
  async #preview(){
   clearTimeout(this.#timer);if(this.#disposed||!this.#dialog.open)return;const generation=++this.#generation;this.#runtime.cancel();
   this.#status('Обновляем предпросмотр…');
+  const snapshot=this.#options.getWorld();
   try{const code=generateDashboard(this.#board);this.#dialog.querySelector('[data-builder-code]').textContent=code;
-   const result=await this.#runtime.run({'index.js':'export function main() {}','dashboards/preview.js':code},this.#options.getWorld(),this.#options.getMemory(),{mode:'dashboard',entry:'dashboards/preview.js',inputs:this.#prefs.inputs('dashboards/preview.js')});
-   if(this.#disposed||generation!==this.#generation)return;this.#view.render('dashboards/preview.js',result.dashboard);this.#status('Снимок мира · '+this.#board.widgets.length+' виджетов · экономика не изменена');
+   const result=await this.#runtime.run({'index.js':'export function main() {}','dashboards/preview.js':code},snapshot,this.#options.getMemory(),{mode:'dashboard',entry:'dashboards/preview.js',inputs:this.#prefs.inputs('dashboards/preview.js'),onLog:entry=>{if(!this.#disposed&&generation===this.#generation)this.#options.onLog?.(entry,{source:'Конструктор',tick:snapshot.tick});}});
+   if(this.#disposed||generation!==this.#generation)return;this.#view.render('dashboards/preview.js',result.dashboard);this.#status('Снимок шага '+snapshot.tick+' · '+this.#board.widgets.length+' виджетов · экономика не изменена');
   }catch(error){if(!this.#disposed&&generation===this.#generation)this.#status(error.message);}
  }
  #export(){
