@@ -28,7 +28,7 @@ assert.throws(()=>api.network.start('port','metal',1),/занята/);
 e.advance();assert.equal(api.network.getSite('port').inventory.metal,0);e.advance();
 assert.equal(api.network.getSite('port').inventory.metal,5);assert.equal(e.snapshot().inventory.metal,30);
 const parts=api.network.quoteProduction('port','parts',2);
-assert.equal(parts.energyCost,8);assert.equal(parts.duration,3);assert.equal(e.getProductionQuote('parts',2).energyCost,12);
+assert.equal(parts.energyCost,8);assert.equal(api.analytics.getUnitCosts().parts,22);assert.equal(parts.duration,3);assert.equal(e.getProductionQuote('parts',2).energyCost,12);
 api.network.start('port','parts',2);for(let i=0;i<3;i++)e.advance();
 assert.equal(api.network.getSite('port').inventory.parts,2);
 assert.equal(e.snapshot().metrics.produced,7);
