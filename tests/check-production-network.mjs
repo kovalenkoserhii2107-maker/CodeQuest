@@ -1,8 +1,13 @@
+import { NETWORK_STRATEGY } from './fixtures/network-strategy.mjs';
+import { NETWORK_RECIPES } from '../js/city/network-guide.js';
+import { CityLessons,LESSONS } from '../js/city/lessons.js';
+import { buildProject } from '../js/act2/loader.js';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { CityEngine,initialWorld,initialSave,readCitySave,validateWorld } from '../js/city/engine.js';
 import { createCityAPI } from '../js/city/api.js';
 for(const name of ['network','network-reference','network-guide','network-view','engine','api','catalog','ui','dashboard-builder-model','lessons']){const p=spawnSync(process.execPath,['--check','js/city/'+name+'.js'],{encoding:'utf8'});assert.equal(p.status,0,p.stderr);}
+const syntax=spawnSync(process.execPath,['--check','tests/production-network-browser.mjs'],{encoding:'utf8'});assert.equal(syntax.status,0,syntax.stderr);
 const rich=()=>new CityEngine({...initialWorld(),balance:500000,inventory:{scrap:40,metal:30,parts:0,wire:0,circuit:0}});
 const e=rich(),api=createCityAPI(e,{});
 const unchanged=e.snapshot();
@@ -110,3 +115,53 @@ assert.equal(loop.getTransfers().length,48);assert.equal(loop.snapshot().network
 assert.equal(loop.getSite('port').inventory.scrap+loop.getSite('city').inventory.scrap,42);
 assert.equal(loop.snapshot().history.length,120);validateWorld(loop.snapshot());
 console.log('✓ schema-4 saves keep files/memory/money; corrupt network state fails; bounded histories preserve goods');
+
+const build=files=>buildProject(new Map(Object.entries(files)),'index.js',code=>'data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+for(const recipe of NETWORK_RECIPES){
+ const host=rich();
+ if(recipe.id!=='open'){host.openRegion('port');host.networkOpen('port');}
+ if(recipe.id==='transfer'){host.networkBuy('port','scrap',10,'port-yard');host.networkStart('port','metal',5);host.advance();host.advance();}
+ const local=new CityEngine(host.snapshot()),ops=[],entry=await import(build({'index.js':recipe.code}).url);
+ entry.main(createCityAPI(local,{}, {onCommand:op=>ops.push(op)}));host.apply(ops);
+ if(recipe.id==='open')assert.equal(host.getSites().length,2);
+ if(recipe.id==='produce')assert.equal(host.getSite('port').lines[0].job.product,'metal');
+ if(recipe.id==='transfer')assert.equal(host.getTransfers()[0].quantity,5);
+}
+console.log('✓ guide recipes execute construction, regional production, transfers and specialization comparison');
+
+const learning=rich(),lessons=new CityLessons({completed:LESSONS.slice(0,13).map(l=>l.id)});
+const run=async files=>{
+ const before=learning.snapshot(),local=new CityEngine(before),operations=[],reads=[],logs=[],built=build(files),entry=await import(built.url);
+ await entry.main(createCityAPI(local,{}, {onCommand:op=>operations.push(op),onRead:path=>reads.push(path),onPrint:line=>logs.push(line)}));
+ learning.apply(operations);
+ return lessons.evaluate({before,after:learning.snapshot(),operations,reads,logs,modules:built.order,memory:{},preview:false});
+};
+assert.equal((await run({'index.js':'export function main(cq){cq.network.getCatalog();cq.world.explore("port");cq.network.open("port");cq.network.getSites();}'})).id,'site');
+assert.equal((await run({'index.js':'export function main(cq){cq.network.buy("port","scrap",10,"port-yard");const q=cq.network.quoteProduction("port","metal",5);cq.print(q);if(q.canStart)cq.network.start("port","metal",5);}'})).id,'site-production');
+learning.advance();
+assert.equal(await run({'index.js':'export function main(cq){cq.network.transfer("metal",5,"port","city");cq.network.getTransfers();}'}),null);
+learning.advance();learning.advance();
+assert.equal((await run({'index.js':'export function main(cq){cq.network.getTransfers();}'})).id,'internal-transfer');
+assert.equal((await run({
+ 'index.js':'import { plan } from "./strategy.js";export function main(cq){cq.world.explore("highlands");cq.network.open("highlands");cq.network.buy("port","scrap",10,"port-yard");cq.network.buy("highlands","metal",5,"northern-metal");cq.network.getFleet();for(const s of cq.network.getSites().filter(s=>s.id!=="city")){const p=plan(s);const q=cq.network.quoteProduction(s.id,p.product,p.quantity);if(q.canStart)cq.network.start(s.id,p.product,p.quantity);}}',
+ 'strategy.js':'export function plan(site){return {product:site.id==="port"?"metal":"parts",quantity:1};}'
+})).id,'network-dispatcher');
+assert.equal(lessons.current(),null);assert.equal(lessons.snapshot().completed.length,17);
+console.log('✓ lessons 14–17 require real sites, a produced batch, completed transfer and a two-module dispatcher');
+
+const economy=new CityEngine({...initialWorld(),balance:30000});
+economy.openRegion('port');economy.openRegion('highlands');economy.networkOpen('port');economy.networkOpen('highlands');
+economy.networkUpgradeFleet();economy.unlock('wire');economy.unlock('circuits');
+const baseline=economy.snapshot(),strategy=await import(build({'index.js':NETWORK_STRATEGY}).url);
+for(let tick=0;tick<40;tick++){
+ const local=new CityEngine(economy.snapshot()),ops=[];
+ strategy.main(createCityAPI(local,{}, {onCommand:op=>ops.push(op)}));
+ economy.apply(ops);validateWorld(economy.snapshot());
+ assert.ok(economy.snapshot().balance>=100);
+}
+const result=economy.snapshot();
+assert.ok(result.balance>baseline.balance);
+assert.ok(result.network.moved>=20);
+assert.ok(result.metrics.produced>=60);assert.ok(result.metrics.sold>=20);
+assert.ok(economy.getSites().every(site=>site.freeSpace>=0));
+console.log('✓ 40-step three-site strategy buys, produces, transfers and sells with a reserve and positive operating cash flow');

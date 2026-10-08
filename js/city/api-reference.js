@@ -37,7 +37,7 @@ export const API_METHODS = [
   method('warehouse', 'getStock', 'Количество одного товара на складе. Товары в пути и незавершённая партия сюда не входят.',
     [p('product', '"scrap" | "metal" | "parts" | "wire" | "circuit"', 'ID товара, а не русское название.')], 'number',
     'const scrap = cq.warehouse.getStock("scrap");\nif (scrap < 10) cq.market.buy("scrap", 10 - scrap);', ['Неизвестный товар.']),
-  method('warehouse', 'getFreeSpace', 'Свободное место центрального склада с учётом партий и входящих внутренних перевозок.', [], 'number',
+  method('warehouse', 'getFreeSpace', 'Свободное место центрального склада с учётом резерва под партии и входящие внутренние перевозки.', [], 'number',
     'cq.print("Свободно:", cq.warehouse.getFreeSpace());'),
   method('warehouse', 'upgrade', 'Добавляет 100 мест. Стоимость: 500 ₽ × текущий уровень склада, максимум 6.', [], 'number',
     'const s = cq.world.getState();\nif (s.warehouseLevel < 6 && s.balance >= 500 * s.warehouseLevel) cq.warehouse.upgrade();', ['Недостаточно денег.', 'Максимальный уровень.']),

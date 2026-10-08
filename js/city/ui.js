@@ -224,7 +224,7 @@ export function mountCity(root) {
   const goToPractice=()=>{navigation.open('task');el('[data-practice-area]').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});};
   root.addEventListener('city-api-practice',goToPractice);
   root.addEventListener('city-api-back',backToCode); renderEditor(); renderFiles();mountProjectTools();mountPractice();update();
-  log('Мастерская открыта. Начните с задания «1. Познакомьтесь с мастерской».');
+  log('Мастерская открыта. Текущее задание: '+(lessons.current()?.title||'Свободная стратегия')+'.');
   return () => {
     root.removeEventListener('city-api-back',backToCode);
     root.removeEventListener('city-api-practice',goToPractice);
